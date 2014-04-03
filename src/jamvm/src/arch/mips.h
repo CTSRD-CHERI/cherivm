@@ -35,18 +35,15 @@
 
 #define FPU_HACK 
 
-#define COMPARE_AND_SWAP_32(addr, old_val, new_val) \
+#define COMPARE_AND_SWAP_64(addr, old_val, new_val) \
 ({                                                  \
     int result, read_val;                           \
     __asm__ __volatile__ ("                         \
-              .set      push\n                      \
-              .set      mips2\n                     \
       1:      ll        %1,%2\n                     \
               move      %0,$0\n                     \
               bne       %1,%3,2f\n                  \
               move      %0,%4\n                     \
               sc        %0,%2\n                     \
-              .set      pop\n                       \
               beqz      %0,1b\n                     \
       2:"                                           \
     : "=&r" (result), "=&r" (read_val)              \
@@ -56,7 +53,7 @@
 })
 
 #define COMPARE_AND_SWAP(addr, old_val, new_val)    \
-        COMPARE_AND_SWAP_32(addr, old_val, new_val)
+        COMPARE_AND_SWAP_64(addr, old_val, new_val)
 
 #define LOCKWORD_READ(addr) *addr
 #define LOCKWORD_WRITE(addr, value) *addr = value
@@ -69,12 +66,7 @@
 #endif
 
 #define MBARRIER()              \
-    __asm__ __volatile__ ("     \
-        .set push\n             \
-        .set mips2\n            \
-        sync\n                  \
-        .set  pop\n"            \
-    ::: "memory")
+    __asm__ __volatile__ ("sync 0\n" ::: "memory")
 
 #define JMM_LOCK_MBARRIER()   MBARRIER()
 #define JMM_UNLOCK_MBARRIER() MBARRIER()
