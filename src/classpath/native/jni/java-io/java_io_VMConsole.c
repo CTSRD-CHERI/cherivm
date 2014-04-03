@@ -47,7 +47,12 @@ exception statement from your version. */
 
 /*************************************************************************/
 
-#define TERMIOS_ECHO_IFLAGS (IUCLC|IXON|IXOFF|IXANY)
+#ifdef __FreeBSD__
+  #define TERMIOS_ECHO_IFLAGS (IXON|IXOFF|IXANY)
+#else
+  #define TERMIOS_ECHO_IFLAGS (IUCLC|IXON|IXOFF|IXANY)
+#endif // __FreeBSD
+
 #define TERMIOS_ECHO_LFLAGS (ECHO|ECHOE|ECHOK|ECHONL|TOSTOP)
 
 /*
