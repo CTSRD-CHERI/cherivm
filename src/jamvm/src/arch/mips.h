@@ -39,12 +39,13 @@
 ({                                                  \
     int result, read_val;                           \
     __asm__ __volatile__ ("                         \
-      1:      ll        %1,%2\n                     \
-              move      %0,$0\n                     \
-              bne       %1,%3,2f\n                  \
-              move      %0,%4\n                     \
-              sc        %0,%2\n                     \
-              beqz      %0,1b\n                     \
+      1:      lld       %1, %2\n                    \
+              move      %0, $0\n                    \
+              bne       %1, %3,2f\n                 \
+              move      %0, %4\n                    \
+              scd       %0, %2\n                    \
+              beqz      %0, 1b\n                    \
+              nop       \n                          \
       2:"                                           \
     : "=&r" (result), "=&r" (read_val)              \
     : "m" (*addr), "r" (old_val), "r" (new_val)     \
