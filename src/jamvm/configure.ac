@@ -49,6 +49,7 @@ powerpc*-*-openbsd*) host_cpu=powerpc host_os=bsd libdl_needed=no ;;
 powerpc*-*-freebsd*) host_cpu=powerpc host_os=bsd libdl_needed=no ;;
 powerpc-*-darwin*) host_os=darwin ;;
 sparc*-*-freebsd*) host_cpu=sparc host_os=bsd libdl_needed=no ;;
+mips*-*-freebsd*) host_cpu=mips host_os=bsd libdl_needed=no ;;
 *) AC_MSG_ERROR($host not supported) ;;
 esac
 
@@ -338,6 +339,7 @@ AC_CONFIG_FILES(
     src/os/bsd/i386/Makefile \
     src/os/bsd/x86_64/Makefile \
     src/os/bsd/sparc/Makefile \
+    src/os/bsd/mips/Makefile \
     lib/Makefile \
     lib/java/Makefile \
     lib/java/lang/Makefile \

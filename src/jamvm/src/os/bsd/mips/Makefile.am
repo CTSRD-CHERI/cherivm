@@ -1,5 +1,5 @@
 ##
-## Copyright (C) 2003, 2004, 2005, 2006, 2007, 2009
+## Copyright (C) 2003, 2004, 2005, 2006, 2007
 ## Robert Lougher <rob@jamvm.org.uk>.
 ##
 ## This file is part of JamVM.
@@ -19,10 +19,8 @@
 ## Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 ##
 
-SUBDIRS = @arch@
-DIST_SUBDIRS = powerpc arm i386 x86_64 sparc mips
-
-noinst_LTLIBRARIES = libos.la
-libos_la_SOURCES = os.c
+noinst_LTLIBRARIES = libnative.la
+libnative_la_SOURCES = init.c dll_md.c callNative.S
 
 AM_CPPFLAGS = -I$(top_builddir)/src
+AM_CCASFLAGS = -I$(top_builddir)/src
