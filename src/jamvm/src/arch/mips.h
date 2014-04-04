@@ -35,6 +35,24 @@
 
 #define FPU_HACK 
 
+#define COMPARE_AND_SWAP_32(addr, old_val, new_val) \
+({                                                  \
+    int result, read_val;                           \
+    __asm__ __volatile__ ("                         \
+      1:      ll        %1, %2\n                    \
+              move      %0, $0\n                    \
+              bne       %1, %3,2f\n                 \
+              move      %0, %4\n                    \
+              sc        %0, %2\n                    \
+              beqz      %0, 1b\n                    \
+              nop       \n                          \
+      2:"                                           \
+    : "=&r" (result), "=&r" (read_val)              \
+    : "m" (*addr), "r" (old_val), "r" (new_val)     \
+    : "memory");                                    \
+    result;                                         \
+})
+
 #define COMPARE_AND_SWAP_64(addr, old_val, new_val) \
 ({                                                  \
     int result, read_val;                           \
@@ -53,8 +71,13 @@
     result;                                         \
 })
 
+#ifdef __mips64__
 #define COMPARE_AND_SWAP(addr, old_val, new_val)    \
         COMPARE_AND_SWAP_64(addr, old_val, new_val)
+#else // __mips64__
+#define COMPARE_AND_SWAP(addr, old_val, new_val)    \
+        COMPARE_AND_SWAP_32(addr, old_val, new_val)
+#endif // __mips64
 
 #define LOCKWORD_READ(addr) *addr
 #define LOCKWORD_WRITE(addr, value) *addr = value
