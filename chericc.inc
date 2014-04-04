@@ -7,5 +7,6 @@ DIR_CHERISDK_BIN="$DIR_CHERISDK/bin"
 export CC="$DIR_CHERISDK_BIN/mips4-unknown-freebsd-clang"
 export CXX="$DIR_CHERISDK_BIN/mips4-unknown-freebsd-clang++"
 export CFLAGS="-g -integrated-as"
+export CCASFLAGS="-g" # don't use -integrated-as with .S files
 export LDFLAGS="-Wl,-melf64btsmip_fbsd -Wl,-g"
 

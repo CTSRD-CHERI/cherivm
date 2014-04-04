@@ -23,26 +23,6 @@
 
 #ifndef USE_FFI
 int nativeExtraArg(MethodBlock *mb) {
-    char *sig = mb->type;
-    int args = 8;
-
-    while(*++sig != ')')
-        switch(*sig) {
-            case 'J':
-            case 'D':
-                args = (args + 15) & ~7;
-                break;
-
-            default:
-                args += 4;
-
-                if(*sig == '[')
-                    while(*++sig == '[');
-                if(*sig == 'L')
-                    while(*++sig != ';');
-                break;
-        }
-
-    return (args + 7) & ~7;
+    return mb->args_count * 8;
 }
 #endif

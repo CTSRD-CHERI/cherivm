@@ -22,165 +22,184 @@
 #include  "config.h"
 
 #ifndef USE_FFI
-        .text
-        .align 2
-        .globl callJNIMethod
-	.ent callJNIMethod
-	.type callJNIMethod, @function
+.text
+.align 8
+.set reorder
+.globl callJNIMethod
+    .ent callJNIMethod
+    .type callJNIMethod, @function
 
-/* On function entry parameters:
-$4 = JNIEnv
-$5 = Class if static or NULL
-$6 = sig
-$7 = extra args
-16(sp) = operand stack
-20(sp) = func pntr
+/* 
+    On function entry parameters:
+        $a0 = JNIEnv
+        $a1 = Class if static or NULL
+        $a2 = sig     
+        $a3 = extra args
+        $a4 = operand stack, pointing to first argument
+        $a5 = func pntr
+        $a6 = args count
+
+    Stack:
+         0 = $fp
+         8 = $ra
+        16 = ???
+        24 = ???
 */
 
 callJNIMethod:
-	.frame $fp,8,$0
-	.mask 0x00000000,0
-	.fmask 0x00000000,0
+    .frame $fp,16,$0
+    .mask 0x00000000,0
+    .fmask 0x00000000,0
 
-	/* Fixed part of frame */
-	subu $sp,8
+    // push frame
+    daddiu $sp, $sp, -32
 
-	/* save registers */
-	sw $31,4($sp)
-	sw $fp,0($sp)
+    // save registers
+    sd $fp, 0($sp)
+    sd $ra, 8($sp)
+    move $fp, $sp
 
-	/* set frame pointer to bottom of fixed frame */
-	move $fp,$sp
+    // don't change the original opstack pointer, work on $t8
+    move $t8, $a4
+    
+/* INSTANCE POINTER */
 
-	/* create variable frame area */
-	subu $sp,$7
+    // if class is NULL, get the first argument from opstack
+    // and store it to $a1
+    bne $a1, 0, prepare_args
+    ld $a1, 0($t8)
+    daddiu $t8, $t8, 8
 
-	/* setup operand and args stack pntrs */
-	lw $8,24($fp)
-	addu $9,$sp,8
+/* ARGUMENT PREPARATION */
 
-        /* if instance method set second argument
-           to object pntr  */
+prepare_args:
 
-	bne $5,0,scan_sig
-	lw $5,0($8)
-	addu $8,4
+    // pop args off the op stack and push on the native stack
 
-scan_sig:
-	lbu $7,1($6)
-	addu $6,1
+    // create space on the native stack 
+    dsubu $sp, $sp, $a3
+    move $t3, $sp           // store the top of the stack
 
-	beq $7,41,done    /* ')' */
+    // later advance $sp how many times? (max 6x 64b)
+    daddu $t2, $zero, $zero
 
-	lw $10,0($8)
-	addu $8,4
+scan_signature:
+    lbu $t0, 1($a2)
+    daddiu $a2, $a2, 1
 
-	beq $7,68,double  /* 'D' */
-	beq $7,74,double  /* 'J' */
+    // are we done?
+    beq $t0, 41, ready    /* ')' */
 
+    // load value from top of opstack
+    ld $t1, 0($t8)
+    daddiu $t8, $t8, 8
+
+    // later advance increment (if reached max, skip)
+    beq $t2, 48, later_adv_skip
+    daddiu $t2, $t2, 8
+later_adv_skip:
+
+    // wide primitives => advance opstack once more
+    beq $t0, 68, arg_double  /* 'D' */
+    beq $t0, 74, arg_double  /* 'J' */
+
+    // arrays => need to skip the brackets
 skip_brackets:
-	bne $7,91,check_ref /* '[' */
-	lbu $7,1($6)
-	addu $6,1
-	j skip_brackets
+    bne $t0, 91, check_ref  /* '[' */
+    lbu $t0, 1($a2)
+    daddiu $a2, $a2, 1
+    b skip_brackets
 
+    // objects => need to skip until semicolon
 check_ref:
-	bne $7,76,single /* 'L' */
+    bne $t0, 76, arg_single  /* 'L' */
 
 skip_ref:
-	lbu $7,1($6)
-	addu $6,1
-	bne $7,59,skip_ref /* ';' */
-	
-single:
-	sw $10,0($9)
-	addu $9,4
-	j scan_sig
+    lbu $t0, 1($a2)
+    daddiu $a2, $a2, 1
+    bne $t0, 59, skip_ref  /* ';' */
+    b arg_single
 
-double:
-	/* Ensure address is 8-byte aligned */
-	addu $9,7
-	and $9,~7
+arg_double:
+    // just advance opstack once more
+    daddiu $t8, $t8, 8
+    
+arg_single:
+    // store value on the native stack
+    sd $t1, 0($sp)
+    daddiu $sp, $sp, 8
+    b scan_signature
 
-	sw $10,0($9)
-	lw $7,0($8)
-	addu $8,4
-	sw $7,4($9)
-	addu $9,8
-	j scan_sig
+/* JUMP TO NATIVE FUNCTION
+     - preserves: $a4 (op stack), $a2 (signature)
+     - must jump with the address in $a5 (used in the function)
+ */
+ready:
 
-done:
-	/* store pntr to sig return value */
-	sw $6,16($fp)
+    // store arguments which will be needed later
+    sd $a4, 16($fp)
+    sd $a2, 24($fp)
 
-	/* arguments setup, load the argument
-	   registers and call the function */
+    // prepare jump address
+    move $t9, $a5
 
-	lw $6, 8($sp)
-	lw $7,12($sp)
-	
-	/* load function pntr */
-	lw $25,28($fp)
+    // load first six arguments to registers $a2-$a7
+    // (doesn't matter if it's crap)
+    move $sp, $t3
+    ld $a2,  0($sp)
+    ld $a3,  8($sp)
+    ld $a4, 16($sp)
+    ld $a5, 24($sp)
+    ld $a6, 32($sp)
+    ld $a7, 40($sp)
 
-	/* call the function */
-	jalr $25
+    // advance stack (num of args, max 6)
+    daddu $sp, $sp, $t2
 
-	/* restore return sig pntr */
-	lw $6,16($fp)
+    // run the native method
+    jalr $t9
 
-	/* Reload operand stack pntr to store
-	   return value */
-	lw $8,24($fp)
+    // restore preserved values
+    ld $a4, 16($fp)
+    ld $a2, 24($fp)
 
-	/* Get return type */
-	lbu $9,1($6)
+/* RETURN VALUE RETRIEVAL */
 
-	beq $9,86,return     /* 'V' */
-	beq $9,74,ret_long   /* 'J' */
-	beq $9,68,ret_double /* 'D' */
+    // get first character of return type
+    lbu $t0, 1($a2)
 
-#ifdef __mips_hard_float
-	beq $9,70,ret_float  /* 'F' */
-#endif
+    // skip if no return value
+    beq $t0, 86, return    // V
 
-	/* int */
-	sw $2,0($8)
-	addu $8,4
-	j return
+    // push return value on the stack
+    sd $v0, 0($a4)
 
-#ifdef __mips_hard_float
-ret_float:
-	swc1 $f0,0($8)
-	addu $8,4
-	j return
-#endif
+    // advance opstack pointer
+    // if a wide primitive, need to advance two steps
+    beq $t0, 74, ret_wide   /* 'J' */
+    beq $t0, 68, ret_wide   /* 'D' */
 
-ret_double:
-#ifdef __mips_hard_float
-	swc1 $f0,0($8)
-	swc1 $f1,4($8)
-	addu $8,8
-	j return
-#endif
+    daddiu $a4, $a4, 8
+    b return
 
-ret_long:
-	sw $2,0($8)
-	sw $3,4($8)
-	addu $8,8
+ret_wide:
+    daddiu $a4, $a4, 16
 
+/* RETURN */
 return:
-	/* restore saved registers */
+    // restore saved registers
+    move $sp, $fp
+    ld $fp, 0($sp)
+    ld $ra, 8($sp)
 
-	move $sp,$fp
-	lw $31,4($sp)
-	lw $fp,0($sp)
+    // pop frame
+    daddiu $sp, 32
 
-	/* pop frame */
-	addu $sp,$sp,8
+    // return value is operand stack pointer
+    move $v0, $a4
 
-	/* return value is operand stack pntr */
-	move $2,$8
+    // return
+    jr $ra
 
-	j $31
-	.end callJNIMethod
+.end callJNIMethod
 #endif
