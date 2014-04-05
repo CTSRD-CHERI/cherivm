@@ -53,6 +53,7 @@
     result;                                         \
 })
 
+#ifdef __mips64__
 #define COMPARE_AND_SWAP_64(addr, old_val, new_val) \
 ({                                                  \
     int result, read_val;                           \
@@ -70,6 +71,7 @@
     : "memory");                                    \
     result;                                         \
 })
+#endif // __mips64__
 
 #ifdef __mips64__
 #define COMPARE_AND_SWAP(addr, old_val, new_val)    \
