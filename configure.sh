@@ -2,6 +2,11 @@
 
 source chericc.inc
 
+if [ "$1" == "-d" ]; then
+    echo "Enabling debug..."
+    JAMVM_DEBUG="--enable-trace"
+fi
+
 echo "Configuring GNU Classpath..."
 pushd "$DIR_CLASSPATH" > /dev/null
     try_to_run ./configure \
@@ -25,6 +30,6 @@ pushd "$DIR_JAMVM" > /dev/null
       --prefix="$DIR_TARGET" \
       --host=mips4-unknown-freebsd \
       --with-sysroot="$DIR_CHERISDK" \
-      --with-classpath-install-dir="$DIR_TARGET" \
-      --enable-trace
+      $JAMVM_DEBUG \
+      --with-classpath-install-dir="$DIR_TARGET"
 popd > /dev/null
