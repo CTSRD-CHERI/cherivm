@@ -1523,7 +1523,7 @@ void expandHeap(int min) {
            free chunk and add the new area to the end.  */
 
         for(chunk = freelist; chunk->next != NULL; chunk = chunk->next);
-            chunk->next = new;
+        chunk->next = new;
     } else
         freelist = new;
 
