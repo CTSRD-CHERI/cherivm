@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 DIR_ROOT=`pwd`
+DIR_REALROOT=`realpath .`
 DIR_SRC="$DIR_ROOT/src"
 DIR_CLASSPATH="$DIR_SRC/classpath"
 DIR_JAMVM="$DIR_SRC/jamvm"
@@ -10,6 +11,8 @@ DIR_CHERISDK_BIN="$DIR_CHERISDK/bin"
 
 export MAKEOBJDIRPREFIX="$DIR_ROOT/sdk-tmp"
 export JFLAG=-j4
+
+DIR_CHERISYS="$MAKEOBJDIRPREFIX/mips.mips64$DIR_REALROOT/cheribsd/tmp" # taken from build_sdk.sh
 
 mkdir -p "$DIR_TARGET"
 
