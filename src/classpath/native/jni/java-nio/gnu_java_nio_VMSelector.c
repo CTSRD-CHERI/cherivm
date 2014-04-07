@@ -60,9 +60,9 @@ exception statement from your version. */
 
 void helper_put_filedescriptors (JNIEnv *, jintArray, fd_set *, int *);
 
-void helper_get_filedescriptors (JNIEnv *, jintArray *, fd_set *);
+void helper_get_filedescriptors (JNIEnv *, jintArray, fd_set *);
 
-void helper_reset (JNIEnv *, jintArray *);
+void helper_reset (JNIEnv *, jintArray);
 
 int
 helper_select (JNIEnv *, jclass, jmethodID,
@@ -91,7 +91,7 @@ helper_put_filedescriptors (JNIEnv * env, jintArray fdArray, fd_set * fds,
 }
 
 void
-helper_get_filedescriptors (JNIEnv * env, jintArray * fdArray, fd_set * fds)
+helper_get_filedescriptors (JNIEnv * env, jintArray fdArray, fd_set * fds)
 {
   jint *tmpFDArray = (*env)->GetIntArrayElements (env, fdArray, 0);
   int size = (*env)->GetArrayLength (env, fdArray);
@@ -106,7 +106,7 @@ helper_get_filedescriptors (JNIEnv * env, jintArray * fdArray, fd_set * fds)
 }
 
 void
-helper_reset (JNIEnv * env, jintArray * fdArray)
+helper_reset (JNIEnv * env, jintArray fdArray)
 {
   jint *tmpFDArray = (*env)->GetIntArrayElements (env, fdArray, 0);
   int size = (*env)->GetArrayLength (env, fdArray);

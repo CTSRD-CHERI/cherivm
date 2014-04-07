@@ -56,6 +56,8 @@ exception statement from your version. */
 
 # ifdef __cplusplus
 
+#error "No C++ capability support at the moment"
+
 /* Define dummy classes and then define the JNI types as pointers.  */
 struct __jobject {};
 struct __jclass : __jobject {};
@@ -98,7 +100,7 @@ typedef struct _Jv_JavaVM JavaVM;
 # else /* __cplusplus */
 
 /* For C, simply define the class types as generic pointers.  */
-typedef void *jobject;
+typedef __capability void *jobject;
 typedef jobject jclass;
 typedef jobject jstring;
 typedef jobject jthrowable;
