@@ -83,11 +83,11 @@ int main() {
 
 /* Stubs for functions called from executeJava */
 
-Object *allocObject(Class *class) {
+Object *allocObject(pClass class) {
     return NULL;
 }
 
-Object *allocArray(Class *class, int size, int el_size) {
+Object *allocArray(pClass class, int size, int el_size) {
     return NULL;
 }
 
@@ -95,7 +95,7 @@ Object *allocTypeArray(int type, int size) {
     return NULL;
 }
 
-Object *allocMultiArray(Class *array_class, int dim, intptr_t *count) {
+Object *allocMultiArray(pClass array_class, int dim, intptr_t *count) {
     return NULL;
 }
 
@@ -103,45 +103,45 @@ void *sysMalloc(int n) {
     return NULL;
 }
 
-Class *findArrayClassFromClassLoader(char *name, Object *loader) {
+pClass findArrayClassFromClassLoader(char *name, pObject loader) {
     return NULL;
 }
 
-Class *resolveClass(Class *class, int index, int init) {
+pClass resolveClass(pClass class, int index, int init) {
     return NULL;
 }
 
-MethodBlock *resolveMethod(Class *class, int index) {
+MethodBlock *resolveMethod(pClass class, int index) {
     return NULL;
 }
 
-MethodBlock *resolveInterfaceMethod(Class *class, int index) {
+MethodBlock *resolveInterfaceMethod(pClass class, int index) {
     return NULL;
 }
 
-FieldBlock *resolveField(Class *class, int index) {
+FieldBlock *resolveField(pClass class, int index) {
     return NULL;
 }
 
-uintptr_t resolveSingleConstant(Class *class, int index) {
+uintptr_t resolveSingleConstant(pClass class, int index) {
     return 0;
 }
 
-char isInstanceOf(Class *class, Class *test) {
+char isInstanceOf(pClass class, pClass test) {
     return 0;
 }
 
-char arrayStoreCheck(Class *class, Class *test) {
+char arrayStoreCheck(pClass class, pClass test) {
     return 0;
 }
 
-void signalChainedExceptionName(char *excep_name, char *excep_mess, Object *cause) {
+void signalChainedExceptionName(char *excep_name, char *excep_mess, pObject cause) {
 }
 
-void signalChainedExceptionEnum(int excep_enum, char *excep_mess, Object *cause) {
+void signalChainedExceptionEnum(int excep_enum, char *excep_mess, pObject cause) {
 }
 
-CodePntr findCatchBlock(Class *exception) {
+CodePntr findCatchBlock(pClass exception) {
     return NULL;
 }
 
@@ -161,10 +161,10 @@ void initialiseDirect(InitArgs *args) {
 void prepare(MethodBlock *mb, const void ***handlers) {
 }
 
-void objectLock(Object *ob) {
+void objectLock(pObject ob) {
 }
 
-void objectUnlock(Object *ob) {
+void objectUnlock(pObject ob) {
 }
 
 void inlineBlockWrappedOpcode(Instruction *pc) {

@@ -300,7 +300,7 @@ int monitorNotifyAll(Monitor *mon, Thread *self) {
     return TRUE;
 }
 
-Monitor *allocMonitor(Object *obj) {
+Monitor *allocMonitor(pObject obj) {
     Monitor *mon;
 
     if(mon_free_list != NULL) {
@@ -317,7 +317,7 @@ Monitor *allocMonitor(Object *obj) {
     return mon;
 }
 
-Monitor *findMonitor(Object *obj) {
+Monitor *findMonitor(pObject obj) {
     uintptr_t lockword = LOCKWORD_READ(&obj->lock);
 
     if(lockword & SHAPE_BIT)
@@ -330,14 +330,14 @@ Monitor *findMonitor(Object *obj) {
     }
 }
 
-static void inflate(Object *obj, Monitor *mon, Thread *self) {
+static void inflate(pObject obj, Monitor *mon, Thread *self) {
     TRACE("Thread %p is inflating obj %p...\n", self, obj);
     clearFlcBit(obj);
     monitorNotifyAll(mon, self);
     LOCKWORD_WRITE(&obj->lock, (uintptr_t) mon | SHAPE_BIT);
 }
 
-void objectLock(Object *obj) {
+void objectLock(pObject obj) {
     Thread *self = threadSelf();
     uintptr_t thin_locked = self->id<<TID_SHIFT;
     uintptr_t entering, lockword;
@@ -400,7 +400,7 @@ try_again2:
     }
 }
 
-void objectUnlock(Object *obj) {
+void objectUnlock(pObject obj) {
     Thread *self = threadSelf();
     uintptr_t lockword = LOCKWORD_READ(&obj->lock);
     uintptr_t thin_locked = self->id<<TID_SHIFT;
@@ -455,7 +455,7 @@ retry:
     }
 }
 
-void objectWait0(Object *obj, long long ms, int ns, int interruptible) {
+void objectWait0(pObject obj, long long ms, int ns, int interruptible) {
     uintptr_t lockword = LOCKWORD_READ(&obj->lock);
     Thread *self = threadSelf();
     Monitor *mon;
@@ -482,7 +482,7 @@ not_owner:
                     "thread not owner");
 }
 
-void objectNotify(Object *obj) {
+void objectNotify(pObject obj) {
     uintptr_t lockword = LOCKWORD_READ(&obj->lock);
     Thread *self = threadSelf();
 
@@ -502,7 +502,7 @@ void objectNotify(Object *obj) {
                     "thread not owner");
 }
 
-void objectNotifyAll(Object *obj) {
+void objectNotifyAll(pObject obj) {
     uintptr_t lockword = LOCKWORD_READ(&obj->lock);
     Thread *self = threadSelf();
 
@@ -522,7 +522,7 @@ void objectNotifyAll(Object *obj) {
                     "thread not owner");
 }
 
-int objectLockedByCurrent(Object *obj) {
+int objectLockedByCurrent(pObject obj) {
     uintptr_t lockword = LOCKWORD_READ(&obj->lock);
     Thread *self = threadSelf();
 
@@ -538,7 +538,7 @@ int objectLockedByCurrent(Object *obj) {
     return FALSE;
 }
 
-Thread *objectLockedBy(Object *obj) {
+Thread *objectLockedBy(pObject obj) {
     uintptr_t lockword = LOCKWORD_READ(&obj->lock);
     Thread *owner;
 

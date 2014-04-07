@@ -66,7 +66,7 @@ int nativeExtraArg(MethodBlock *mb) {
         *values_pntr++ = opntr;            \
     opntr += 1
 
-uintptr_t *callJNIMethod(void *env, Class *class, char *sig, int num_args,
+uintptr_t *callJNIMethod(void *env, pClass class, char *sig, int num_args,
                          uintptr_t *ostack, unsigned char *func) {
     ffi_cif cif;
     ffi_status err;

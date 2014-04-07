@@ -63,7 +63,7 @@ uintptr_t *executeJava() {
     register uintptr_t *lvars = frame->lvars;
     register uintptr_t *ostack = frame->ostack;
 
-    Object *this = (Object*)lvars[0];
+    pObject this = (pObject)lvars[0];
     MethodBlock *new_mb, *mb = frame->mb;
     ConstantPool *cp = &(CLASS_CB(mb->class)->constant_pool);
 
@@ -429,21 +429,21 @@ uintptr_t *executeJava() {
 
 #define GETFIELD_QUICK_0(offset, type)                     \
 {                                                          \
-    Object *obj = (Object *)*--ostack;                     \
+    pObject obj = (pObject )*--ostack;                     \
     NULL_POINTER_CHECK(obj);                               \
     PUSH_0(INST_DATA(obj, type, offset), 3);               \
 }
 
 #define GETFIELD_QUICK_1(offset, type)                     \
 {                                                          \
-    Object *obj = (Object *)cache.i.v1;                    \
+    pObject obj = (pObject )cache.i.v1;                    \
     NULL_POINTER_CHECK(obj);                               \
     PUSH_0(INST_DATA(obj, type, offset), 3);               \
 }
 
 #define GETFIELD_QUICK_2(offset, type)                     \
 {                                                          \
-    Object *obj = (Object *)cache.i.v2;                    \
+    pObject obj = (pObject )cache.i.v2;                    \
     NULL_POINTER_CHECK(obj);                               \
     PUSH_1(INST_DATA(obj, type, offset), 3);               \
 }
@@ -639,7 +639,7 @@ uintptr_t *executeJava() {
 #define ARRAY_LOAD(TYPE)                       \
 {                                              \
     int idx = ARRAY_LOAD_IDX;                  \
-    Object *array = (Object *)ARRAY_LOAD_ARY;  \
+    pObject array = (pObject )ARRAY_LOAD_ARY;  \
                                                \
     NULL_POINTER_CHECK(array);                 \
     ARRAY_BOUNDS_CHECK(array, idx);            \
@@ -672,7 +672,7 @@ uintptr_t *executeJava() {
             OPC_LALOAD,
             OPC_DALOAD, {
         int idx = ARRAY_LOAD_IDX;
-        Object *array = (Object *)ARRAY_LOAD_ARY;
+        pObject array = (pObject )ARRAY_LOAD_ARY;
 
         NULL_POINTER_CHECK(array);
         ARRAY_BOUNDS_CHECK(array, idx);
@@ -691,7 +691,7 @@ uintptr_t *executeJava() {
 {                                             \
     int val = ARRAY_STORE_VAL;                \
     int idx = ARRAY_STORE_IDX;                \
-    Object *array = (Object *)*--ostack;      \
+    pObject array = (pObject )*--ostack;      \
                                               \
     NULL_POINTER_CHECK(array);                \
     ARRAY_BOUNDS_CHECK(array, idx);           \
@@ -716,9 +716,9 @@ uintptr_t *executeJava() {
     )
 
     DEF_OPC_012(OPC_AASTORE, { 
-        Object *obj = (Object*)ARRAY_STORE_VAL;
+        pObject obj = (pObject)ARRAY_STORE_VAL;
         int idx = ARRAY_STORE_IDX;
-        Object *array = (Object *)*--ostack;
+        pObject array = (pObject )*--ostack;
 
         NULL_POINTER_CHECK(array);
         ARRAY_BOUNDS_CHECK(array, idx);
@@ -726,7 +726,7 @@ uintptr_t *executeJava() {
         if((obj != NULL) && !arrayStoreCheck(array->class, obj->class))
             THROW_EXCEPTION(java_lang_ArrayStoreException, NULL);
 
-        ARRAY_DATA(array, Object*)[idx] = obj;
+        ARRAY_DATA(array, pObject)[idx] = obj;
         DISPATCH(0, 1);
     })
 
@@ -735,7 +735,7 @@ uintptr_t *executeJava() {
             OPC_LASTORE,
             OPC_DASTORE, {
         int idx = ostack[-1];
-        Object *array = (Object *)ostack[-2];
+        pObject array = (pObject )ostack[-2];
 
         ostack -= 2;
         NULL_POINTER_CHECK(array);
@@ -749,7 +749,7 @@ uintptr_t *executeJava() {
             OPC_LASTORE,
             OPC_DASTORE, {
         int idx = ostack[-3];
-        Object *array = (Object *)ostack[-4];
+        pObject array = (pObject )ostack[-4];
 
         ostack -= 4;
         NULL_POINTER_CHECK(array);
@@ -1184,14 +1184,14 @@ uintptr_t *executeJava() {
     )
 
     DEF_OPC_210(OPC_ARRAYLENGTH, {
-        Object *array = (Object *)*--ostack;
+        pObject array = (pObject )*--ostack;
 
         NULL_POINTER_CHECK(array);
         PUSH_0(ARRAY_LEN(array), 1);
     })
 
     DEF_OPC_210(OPC_ATHROW, {
-        Object *obj = (Object *)ostack[-1];
+        pObject obj = (pObject )ostack[-1];
         frame->last_pc = pc;
         NULL_POINTER_CHECK(obj);
                 
@@ -1202,7 +1202,7 @@ uintptr_t *executeJava() {
     DEF_OPC_210(OPC_NEWARRAY, {
         int type = ARRAY_TYPE(pc);
         int count = *--ostack;
-        Object *obj;
+        pObject obj;
 
         frame->last_pc = pc;
         if((obj = allocTypeArray(type, count)) == NULL)
@@ -1212,14 +1212,14 @@ uintptr_t *executeJava() {
     })
 
     DEF_OPC_210(OPC_MONITORENTER, {
-        Object *obj = (Object *)*--ostack;
+        pObject obj = (pObject )*--ostack;
         NULL_POINTER_CHECK(obj);
         objectLock(obj);
         DISPATCH(0, 1);
     })
 
     DEF_OPC_210(OPC_MONITOREXIT, {
-        Object *obj = (Object *)*--ostack;
+        pObject obj = (pObject )*--ostack;
         NULL_POINTER_CHECK(obj);
         objectUnlock(obj);
         DISPATCH(0, 1);
@@ -1493,7 +1493,7 @@ uintptr_t *executeJava() {
         int idx = pc->operand.uui.u1;
         int opcode = pc->operand.uui.u2;
         int cache = pc->operand.uui.i;
-        Class *class;
+        pClass class;
 
         frame->last_pc = pc;
         class = resolveClass(mb->class, idx, opcode == OPC_NEW);
@@ -1678,7 +1678,7 @@ uintptr_t *executeJava() {
 
     DEF_OPC_210(OPC_GETFIELD_QUICK_W, {
         FieldBlock *fb = RESOLVED_FIELD(pc);
-        Object *obj = (Object *)*--ostack;
+        pObject obj = (pObject )*--ostack;
 
         NULL_POINTER_CHECK(obj);
 
@@ -1698,12 +1698,12 @@ uintptr_t *executeJava() {
         FieldBlock *fb = RESOLVED_FIELD(pc);
  
         if((*fb->type == 'J') || (*fb->type == 'D')) {
-            Object *obj = (Object *)*--ostack;
+            pObject obj = (pObject )*--ostack;
 
             NULL_POINTER_CHECK(obj);
             INST_DATA(obj, u8, fb->u.offset) = cache.l;
         } else {
-            Object *obj = (Object *)cache.i.v1;
+            pObject obj = (pObject )cache.i.v1;
 
             NULL_POINTER_CHECK(obj);
 
@@ -1719,13 +1719,13 @@ uintptr_t *executeJava() {
         FieldBlock *fb = RESOLVED_FIELD(pc);
  
         if((*fb->type == 'J') || (*fb->type == 'D')) {
-            Object *obj = (Object *)ostack[-3];
+            pObject obj = (pObject )ostack[-3];
 
             ostack -= 3;
             NULL_POINTER_CHECK(obj);
             INST_DATA(obj, u8, fb->u.offset) = *(u8*)&ostack[1];
         } else {
-            Object *obj = (Object *)ostack[-2];
+            pObject obj = (pObject )ostack[-2];
 
             ostack -= 2;
             NULL_POINTER_CHECK(obj);
@@ -1759,13 +1759,13 @@ uintptr_t *executeJava() {
     })
 
     DEF_OPC_210(OPC_INVOKEVIRTUAL_QUICK_W, {
-        Class *new_class;
+        pClass new_class;
 
         new_mb = RESOLVED_METHOD(pc);
         arg1 = ostack - new_mb->args_count;
         NULL_POINTER_CHECK(*arg1);
 
-        new_class = (*(Object **)arg1)->class;
+        new_class = (*(pObject *)arg1)->class;
         new_mb = CLASS_CB(new_class)->method_table[new_mb->method_table_index];
 
         goto invokeMethod;
@@ -1840,7 +1840,7 @@ uintptr_t *executeJava() {
    REWRITE_RESOLVE_CLASS(OPC_MULTIANEWARRAY)
 
     DEF_OPC_210(OPC_NEW, {
-        Class *class;
+        pClass class;
         ClassBlock *cb;
 
         frame->last_pc = pc;
@@ -1926,7 +1926,7 @@ uintptr_t *executeJava() {
     })
 
     DEF_OPC_210(OPC_GETFIELD2_QUICK, {
-        Object *obj = (Object *)*--ostack;
+        pObject obj = (pObject )*--ostack;
         NULL_POINTER_CHECK(obj);
                 
         PUSH_LONG(INST_DATA(obj, u8, SINGLE_INDEX(pc)), 3);
@@ -1934,7 +1934,7 @@ uintptr_t *executeJava() {
 
 #ifdef USE_CACHE
     DEF_OPC_012(OPC_PUTFIELD2_QUICK, {
-        Object *obj = (Object *)*--ostack;
+        pObject obj = (pObject )*--ostack;
         NULL_POINTER_CHECK(obj);
 
         INST_DATA(obj, u8, SINGLE_INDEX(pc)) = cache.l;
@@ -1943,7 +1943,7 @@ uintptr_t *executeJava() {
 
 #define PUTFIELD_QUICK(type, suffix)                         \
     DEF_OPC_012(OPC_PUTFIELD_QUICK##suffix, {                \
-        Object *obj = (Object *)cache.i.v1;                  \
+        pObject obj = (pObject )cache.i.v1;                  \
         NULL_POINTER_CHECK(obj);                             \
                                                              \
         INST_DATA(obj, type, SINGLE_INDEX(pc)) = cache.i.v2; \
@@ -1951,7 +1951,7 @@ uintptr_t *executeJava() {
     })
 #else
     DEF_OPC_012(OPC_PUTFIELD2_QUICK, {
-        Object *obj = (Object *)ostack[-3];
+        pObject obj = (pObject )ostack[-3];
 
         ostack -= 3;
         NULL_POINTER_CHECK(obj);
@@ -1961,7 +1961,7 @@ uintptr_t *executeJava() {
 
 #define PUTFIELD_QUICK(type, suffix)                        \
     DEF_OPC_012(OPC_PUTFIELD_QUICK##suffix, {               \
-        Object *obj = (Object *)ostack[-2];                 \
+        pObject obj = (pObject )ostack[-2];                 \
                                                             \
         ostack -= 2;                                        \
         NULL_POINTER_CHECK(obj);                            \
@@ -2004,7 +2004,7 @@ uintptr_t *executeJava() {
 
         NULL_POINTER_CHECK(*arg1);
 
-        cb = CLASS_CB((*(Object **)arg1)->class);
+        cb = CLASS_CB((*(pObject *)arg1)->class);
 
         if(cache >= cb->imethod_table_size ||
                   new_mb->class != cb->imethod_table[cache].interface) {
@@ -2026,8 +2026,8 @@ uintptr_t *executeJava() {
     })
 
     DEF_OPC_210(OPC_NEW_QUICK, {
-        Class *class = RESOLVED_CLASS(pc);
-        Object *obj;
+        pClass class = RESOLVED_CLASS(pc);
+        pObject obj;
 
         frame->last_pc = pc;
         if((obj = allocObject(class)) == NULL)
@@ -2037,12 +2037,12 @@ uintptr_t *executeJava() {
     })
  
     DEF_OPC_210(OPC_ANEWARRAY_QUICK, {
-        Class *class = RESOLVED_CLASS(pc);
+        pClass class = RESOLVED_CLASS(pc);
         char *name = CLASS_CB(class)->name;
         int count = *--ostack;
-        Class *array_class;
+        pClass array_class;
         char *ac_name;
-        Object *obj;
+        pObject obj;
 
         frame->last_pc = pc;
 
@@ -2064,15 +2064,15 @@ uintptr_t *executeJava() {
         if(exceptionOccurred0(ee))
             goto throwException;
 
-        if((obj = allocArray(array_class, count, sizeof(Object*))) == NULL)
+        if((obj = allocArray(array_class, count, sizeof(pObject))) == NULL)
             goto throwException;
 
         PUSH_0((uintptr_t)obj, 3);
     })
 
     DEF_OPC_210(OPC_CHECKCAST_QUICK, {
-        Class *class = RESOLVED_CLASS(pc);
-        Object *obj = (Object*)ostack[-1]; 
+        pClass class = RESOLVED_CLASS(pc);
+        pObject obj = (pObject)ostack[-1];
                
         if((obj != NULL) && !isInstanceOf(class, obj->class))
             THROW_EXCEPTION(java_lang_ClassCastException,
@@ -2082,8 +2082,8 @@ uintptr_t *executeJava() {
     })
 
     DEF_OPC_210(OPC_INSTANCEOF_QUICK, {
-        Class *class = RESOLVED_CLASS(pc);
-        Object *obj = (Object*)ostack[-1]; 
+        pClass class = RESOLVED_CLASS(pc);
+        pObject obj = (pObject)ostack[-1];
                
         if(obj != NULL)
             ostack[-1] = isInstanceOf(class, obj->class); 
@@ -2092,9 +2092,9 @@ uintptr_t *executeJava() {
     })
 
     DEF_OPC_210(OPC_MULTIANEWARRAY_QUICK, ({
-        Class *class = RESOLVED_CLASS(pc);
+        pClass class = RESOLVED_CLASS(pc);
         int i, dim = MULTI_ARRAY_DIM(pc);
-        Object *obj;
+        pObject obj;
 
         ostack -= dim;
         frame->last_pc = pc;
@@ -2139,12 +2139,12 @@ uintptr_t *executeJava() {
 #endif
 
     DEF_OPC_210(OPC_INVOKEVIRTUAL_QUICK, {
-        Class *new_class;
+        pClass new_class;
 
         arg1 = ostack - INV_QUICK_ARGS(pc);
         NULL_POINTER_CHECK(*arg1);
 
-        new_class = (*(Object **)arg1)->class;
+        new_class = (*(pObject *)arg1)->class;
         new_mb = CLASS_CB(new_class)->method_table[INV_QUICK_IDX(pc)];
 
         goto invokeMethod;
@@ -2156,7 +2156,7 @@ invokeMethod:
        so that they appear correctly in the stack trace */
 
     Frame *new_frame = (Frame *)(arg1 + new_mb->max_locals);
-    Object *sync_ob = NULL;
+    pObject sync_ob = NULL;
 
     frame->last_pc = pc;
     ostack = ALIGN_OSTACK(new_frame + 1);
@@ -2181,8 +2181,8 @@ invokeMethod:
     ee->last_frame = new_frame;
 
     if(new_mb->access_flags & ACC_SYNCHRONIZED) {
-        sync_ob = new_mb->access_flags & ACC_STATIC ? (Object*)new_mb->class
-                                                    : (Object*)*arg1;
+        sync_ob = new_mb->access_flags & ACC_STATIC ? (pObject)new_mb->class
+                                                    : (pObject)*arg1;
         objectLock(sync_ob);
     }
 
@@ -2203,7 +2203,7 @@ invokeMethod:
         frame = new_frame;
         mb = new_mb;
         lvars = new_frame->lvars;
-        this = (Object*)lvars[0];
+        this = (pObject)lvars[0];
         pc = (CodePntr)mb->code;
         cp = &(CLASS_CB(mb->class)->constant_pool);
     }
@@ -2222,7 +2222,7 @@ methodReturn:
     }
 
     if(mb->access_flags & ACC_SYNCHRONIZED) {
-        Object *sync_ob = mb->access_flags & ACC_STATIC ? (Object*)mb->class
+        pObject sync_ob = mb->access_flags & ACC_STATIC ? (pObject)mb->class
                                                         : this;
         objectUnlock(sync_ob);
     }
@@ -2230,7 +2230,7 @@ methodReturn:
     mb = frame->mb;
     ostack = lvars;
     lvars = frame->lvars;
-    this = (Object*)lvars[0];
+    this = (pObject)lvars[0];
     pc = frame->last_pc;
     cp = &(CLASS_CB(mb->class)->constant_pool);
 
@@ -2258,7 +2258,7 @@ throwOOB:
 
 throwException:
     {
-        Object *excep = ee->exception;
+        pObject excep = ee->exception;
         ee->exception = NULL;
 
         pc = findCatchBlock(excep->class);
@@ -2286,7 +2286,7 @@ throwException:
         mb = frame->mb;
         ostack = frame->ostack;
         lvars = frame->lvars;
-        this = (Object*)lvars[0];
+        this = (pObject)lvars[0];
         cp = &(CLASS_CB(mb->class)->constant_pool);
 
         *ostack++ = (uintptr_t)excep;

@@ -34,17 +34,17 @@
 #define SCAVENGE(ptr) FALSE
 #define FOUND(ptr1, ptr2) ptr2
 
-static Class *string_class;
+static pClass string_class;
 static int count_offset; 
 static int value_offset;
 static int offset_offset;
 
 static HashTable hash_table;
 
-int stringHash(Object *ptr) {
+int stringHash(pObject ptr) {
     int len = INST_DATA(ptr, int, count_offset);
     int offset = INST_DATA(ptr, int, offset_offset);
-    Object *array = INST_DATA(ptr, Object*, value_offset); 
+    pObject array = INST_DATA(ptr, pObject, value_offset);
     unsigned short *dpntr = ARRAY_DATA(array, unsigned short) + offset;
     int hash = 0;
 
@@ -54,13 +54,13 @@ int stringHash(Object *ptr) {
     return hash;
 }
 
-int stringComp(Object *ptr, Object *ptr2) {
+int stringComp(pObject ptr, pObject ptr2) {
     int len = INST_DATA(ptr, int, count_offset);
     int len2 = INST_DATA(ptr2, int, count_offset);
 
     if(len == len2) {
-        Object *array = INST_DATA(ptr, Object*, value_offset);
-        Object *array2 = INST_DATA(ptr2, Object*, value_offset);
+        pObject array = INST_DATA(ptr, pObject, value_offset);
+        pObject array2 = INST_DATA(ptr2, pObject, value_offset);
         int offset = INST_DATA(ptr, int, offset_offset);
         int offset2 = INST_DATA(ptr2, int, offset_offset);
         unsigned short *src = ARRAY_DATA(array, unsigned short) + offset;
@@ -75,11 +75,11 @@ int stringComp(Object *ptr, Object *ptr2) {
     return FALSE;
 }
 
-Object *createString(char *utf8) {
+pObject createString(char *utf8) {
     int len = utf8Len(utf8);
     unsigned short *data;
-    Object *array;
-    Object *ob;
+    pObject array;
+    pObject ob;
 
     if((array = allocTypeArray(T_CHAR, len)) == NULL ||
        (ob = allocObject(string_class)) == NULL)
@@ -89,13 +89,13 @@ Object *createString(char *utf8) {
     convertUtf8(utf8, data);
 
     INST_DATA(ob, int, count_offset) = len; 
-    INST_DATA(ob, Object*, value_offset) = array; 
+    INST_DATA(ob, pObject, value_offset) = array;
 
     return ob;
 }
 
-Object *findInternedString(Object *string) {
-    Object *interned;
+pObject findInternedString(pObject string) {
+    pObject interned;
 
     /* Add if absent, no scavenge, locked */
     findHashEntry(hash_table, string, interned, TRUE, FALSE, TRUE);
@@ -131,15 +131,15 @@ void freeInternedStrings() {
 }
 
 #undef ITERATE
-#define ITERATE(ptr) threadReference((Object**)ptr);
+#define ITERATE(ptr) threadReference((pObject*)ptr);
 
 void threadInternedStrings() {
     hashIterateP(hash_table);
 }
 
-char *String2Buff0(Object *string, char *buff, int len) {
+char *String2Buff0(pObject string, char *buff, int len) {
     int offset = INST_DATA(string, int, offset_offset);
-    Object *array = INST_DATA(string, Object*, value_offset);
+    pObject array = INST_DATA(string, pObject, value_offset);
     unsigned short *str = ARRAY_DATA(array, unsigned short) + offset;
     char *pntr;
 
@@ -150,14 +150,14 @@ char *String2Buff0(Object *string, char *buff, int len) {
     return buff;
 }
 
-char *String2Buff(Object *string, char *buff, int buff_len) {
+char *String2Buff(pObject string, char *buff, int buff_len) {
     int str_len = INST_DATA(string, int, count_offset);
     int len = buff_len-1 < str_len ? buff_len-1 : str_len;
 
     return String2Buff0(string, buff, len);
 }
 
-char *String2Cstr(Object *string) {
+char *String2Cstr(pObject string) {
     int len = INST_DATA(string, int, count_offset);
     char *buff = sysMalloc(len + 1);
 
@@ -193,44 +193,44 @@ void initialiseString() {
 #ifndef NO_JNI
 /* Functions used by JNI */
 
-Object *createStringFromUnicode(unsigned short *unicode, int len) {
-    Object *array = allocTypeArray(T_CHAR, len);
-    Object *ob = allocObject(string_class);
+pObject createStringFromUnicode(unsigned short *unicode, int len) {
+    pObject array = allocTypeArray(T_CHAR, len);
+    pObject ob = allocObject(string_class);
 
     if(array != NULL && ob != NULL) {
         unsigned short *data = ARRAY_DATA(array, unsigned short);
         memcpy(data, unicode, len * sizeof(unsigned short));
 
         INST_DATA(ob, int, count_offset) = len; 
-        INST_DATA(ob, Object*, value_offset) = array; 
+        INST_DATA(ob, pObject, value_offset) = array;
         return ob;
     }
     return NULL;
 }
 
-Object *getStringCharsArray(Object *string) {
-    return INST_DATA(string, Object*, value_offset);
+pObject getStringCharsArray(pObject string) {
+    return INST_DATA(string, pObject, value_offset);
 }
 
-unsigned short *getStringChars(Object *string) {
-    Object *array = INST_DATA(string, Object*, value_offset);
+unsigned short *getStringChars(pObject string) {
+    pObject array = INST_DATA(string, pObject, value_offset);
     int offset = INST_DATA(string, int, offset_offset);
     return ARRAY_DATA(array, unsigned short) + offset;
 }
 
-int getStringLen(Object *string) {
+int getStringLen(pObject string) {
     return INST_DATA(string, int, count_offset);
 }
 
-int getStringUtf8Len(Object *string) {
+int getStringUtf8Len(pObject string) {
     return utf8CharLen(getStringChars(string), getStringLen(string));
 }
 
-char *StringRegion2Utf8(Object *string, int start, int len, char *utf8) {
+char *StringRegion2Utf8(pObject string, int start, int len, char *utf8) {
     return unicode2Utf8(getStringChars(string) + start, len, utf8);
 }
 
-char *String2Utf8(Object *string) {
+char *String2Utf8(pObject string) {
     int len = getStringLen(string);
     unsigned short *unicode = getStringChars(string);
     char *utf8 = sysMalloc(utf8CharLen(unicode, len) + 1);

@@ -26,12 +26,12 @@
 #include "symbol.h"
 #include "excep.h"
 
-static Class *ste_class, *ste_array_class, *throw_class, *vmthrow_class;
+static pClass ste_class, ste_array_class, throw_class, vmthrow_class;
 static MethodBlock *ste_init_mb;
 static int backtrace_offset;
 static int inited = FALSE;
 
-static Class *exceptions[MAX_EXCEPTION_ENUM];
+static pClass exceptions[MAX_EXCEPTION_ENUM];
 
 static int exception_symbols[] = {
     EXCEPTIONS_DO(SYMBOL_NAME_ENUM)
@@ -75,11 +75,11 @@ void initialiseException() {
     inited = TRUE;
 }
 
-Object *exceptionOccurred() {
+pObject exceptionOccurred() {
    return getExecEnv()->exception; 
 }
 
-void setException(Object *exp) {
+void setException(pObject exp) {
     getExecEnv()->exception = exp;
 }
 
@@ -93,11 +93,11 @@ void clearException() {
     ee->exception = NULL;
 }
 
-void signalChainedExceptionClass(Class *exception, char *message,
-                                 Object *cause) {
+void signalChainedExceptionClass(pClass exception, char *message,
+                                 pObject cause) {
 
-    Object *exp = allocObject(exception);
-    Object *str = message == NULL ? NULL : Cstr2String(message);
+    pObject exp = allocObject(exception);
+    pObject str = message == NULL ? NULL : Cstr2String(message);
     MethodBlock *init = lookupMethod(exception, SYMBOL(object_init),
                                                 SYMBOL(_java_lang_String__V));
     if(exp && init) {
@@ -113,7 +113,7 @@ void signalChainedExceptionClass(Class *exception, char *message,
     }
 }
 
-void signalChainedExceptionName(char *excep_name, char *message, Object *cause) {
+void signalChainedExceptionName(char *excep_name, char *message, pObject cause) {
     if(!inited) {
         jam_fprintf(stderr, "Exception occurred while VM initialising.\n");
         if(message)
@@ -122,14 +122,14 @@ void signalChainedExceptionName(char *excep_name, char *message, Object *cause) 
             jam_fprintf(stderr, "%s\n", excep_name);
         exit(1);
     } else {
-        Class *exception = findSystemClass(excep_name);
+        pClass exception = findSystemClass(excep_name);
 
         if(!exceptionOccurred())
             signalChainedExceptionClass(exception, message, cause);
     }
 }
 
-void signalChainedExceptionEnum(int excep_enum, char *message, Object *cause) {
+void signalChainedExceptionEnum(int excep_enum, char *message, pObject cause) {
     if(!inited) {
         char *excep_name = symbol_values[exception_symbols[excep_enum]];
 
@@ -146,7 +146,7 @@ void signalChainedExceptionEnum(int excep_enum, char *message, Object *cause) {
 
 void printException() {
     ExecEnv *ee = getExecEnv();
-    Object *excep = ee->exception;
+    pObject excep = ee->exception;
 
     if(excep != NULL) {
         MethodBlock *mb = lookupMethod(excep->class, SYMBOL(printStackTrace),
@@ -166,7 +166,7 @@ void printException() {
     }
 }
 
-CodePntr findCatchBlockInMethod(MethodBlock *mb, Class *exception,
+CodePntr findCatchBlockInMethod(MethodBlock *mb, pClass exception,
                                 CodePntr pc_pntr) {
 
     ExceptionTableEntry *table = mb->exception_table;
@@ -182,7 +182,7 @@ CodePntr findCatchBlockInMethod(MethodBlock *mb, Class *exception,
                be an instance of the caught exception class to catch it */
 
             if(table[i].catch_type != 0) {
-                Class *caught_class = resolveClass(mb->class,
+                pClass caught_class = resolveClass(mb->class,
                                                    table[i].catch_type, FALSE);
                 if(caught_class == NULL) {
                     clearException();
@@ -197,7 +197,7 @@ CodePntr findCatchBlockInMethod(MethodBlock *mb, Class *exception,
     return NULL;
 }
     
-CodePntr findCatchBlock(Class *exception) {
+CodePntr findCatchBlock(pClass exception) {
     Frame *frame = getExecEnv()->last_frame;
     CodePntr handler_pc = NULL;
 
@@ -206,8 +206,8 @@ CodePntr findCatchBlock(Class *exception) {
                     && (frame->prev->mb != NULL)) {
 
         if(frame->mb->access_flags & ACC_SYNCHRONIZED) {
-            Object *sync_ob = frame->mb->access_flags & ACC_STATIC ?
-                    (Object*)frame->mb->class : (Object*)frame->lvars[0];
+            pObject sync_ob = frame->mb->access_flags & ACC_STATIC ?
+                    (pObject)frame->mb->class : (pObject)frame->lvars[0];
             objectUnlock(sync_ob);
         }
         frame = frame->prev;
@@ -232,9 +232,9 @@ int mapPC2LineNo(MethodBlock *mb, CodePntr pc_pntr) {
     return -1;
 }
 
-Object *setStackTrace0(ExecEnv *ee, int max_depth) {
+pObject setStackTrace0(ExecEnv *ee, int max_depth) {
     Frame *bottom, *last = ee->last_frame;
-    Object *array, *vmthrwble;
+    pObject array, vmthrwble;
     uintptr_t *data;
     int depth = 0;
 
@@ -278,28 +278,28 @@ out:
 
 out2:
     if((vmthrwble = allocObject(vmthrow_class)))
-        INST_DATA(vmthrwble, Object*, backtrace_offset) = array;
+        INST_DATA(vmthrwble, pObject, backtrace_offset) = array;
 
     return vmthrwble;
 }
 
-Object *convertStackTrace(Object *vmthrwble) {
-    Object *array, *ste_array;
+pObject convertStackTrace(pObject vmthrwble) {
+    pObject array, ste_array;
     int depth, i, j;
     uintptr_t *src;
-    Object **dest;
+    pObject *dest;
 
-    if((array = INST_DATA(vmthrwble, Object*, backtrace_offset)) == NULL)
+    if((array = INST_DATA(vmthrwble, pObject, backtrace_offset)) == NULL)
         return NULL;
 
     src = ARRAY_DATA(array, uintptr_t);
     depth = ARRAY_LEN(array);
 
-    ste_array = allocArray(ste_array_class, depth/2, sizeof(Object*));
+    ste_array = allocArray(ste_array_class, depth/2, sizeof(pObject));
     if(ste_array == NULL)
         return NULL;
 
-    dest = ARRAY_DATA(ste_array, Object*);
+    dest = ARRAY_DATA(ste_array, pObject);
 
     for(i = 0, j = 0; i < depth; j++) {
         MethodBlock *mb = (MethodBlock*)src[i++];
@@ -308,11 +308,11 @@ Object *convertStackTrace(Object *vmthrwble) {
         char *dot_name = slash2dots(cb->name);
 
         int isNative = mb->access_flags & ACC_NATIVE ? TRUE : FALSE;
-        Object *filename = isNative ? NULL : (cb->source_file_name == NULL ?
+        pObject filename = isNative ? NULL : (cb->source_file_name == NULL ?
                        NULL : createString(cb->source_file_name));
-        Object *methodname = createString(mb->name);
-        Object *classname = createString(dot_name);
-        Object *ste = allocObject(ste_class);
+        pObject methodname = createString(mb->name);
+        pObject classname = createString(dot_name);
+        pObject ste = allocObject(ste_class);
         sysFree(dot_name);
 
         if(exceptionOccurred())
@@ -335,10 +335,10 @@ Object *convertStackTrace(Object *vmthrwble) {
    In rare circumstances a stack backtrace may hold the only
    reference to a class */
 
-void markVMThrowable(Object *vmthrwble, int mark) {
-    Object *array;
+void markVMThrowable(pObject vmthrwble, int mark) {
+    pObject array;
 
-    if((array = INST_DATA(vmthrwble, Object*, backtrace_offset)) != NULL) {
+    if((array = INST_DATA(vmthrwble, pObject, backtrace_offset)) != NULL) {
         uintptr_t *src = ARRAY_DATA(array, uintptr_t);
         int i, depth = ARRAY_LEN(array);
 

@@ -60,7 +60,7 @@ typedef struct thread Thread;
 typedef struct monitor {
     pthread_mutex_t lock;
     Thread *owner;
-    Object *obj;
+    pObject obj;
     int count;
     int in_wait;
     uintptr_t entering;
@@ -96,8 +96,8 @@ struct thread {
 };
 
 extern Thread *threadSelf();
-extern Thread *jThread2Thread(Object *jThread);
-extern Thread *vmThread2Thread(Object *vmThread);
+extern Thread *jThread2Thread(pObject jThread);
+extern Thread *vmThread2Thread(pObject vmThread);
 extern long long javaThreadId(Thread *thread);
 
 extern void *getStackTop(Thread *thread);
@@ -129,7 +129,7 @@ extern void disableSuspend0(Thread *thread, void *stack_top);
 extern void enableSuspend(Thread *thread);
 extern void fastEnableSuspend(Thread *thread);
 
-extern Thread *attachJNIThread(char *name, char is_daemon, Object *group);
+extern Thread *attachJNIThread(char *name, char is_daemon, pObject group);
 extern void detachJNIThread(Thread *thread);
 
 extern char *getThreadStateString(Thread *thread);

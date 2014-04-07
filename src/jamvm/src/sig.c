@@ -36,7 +36,7 @@ int sigElement2Size(char element) {
 
         case 'L':
         case '[':
-            return sizeof(Object*);
+            return sizeof(pObject);
 
         default:
             return 8;

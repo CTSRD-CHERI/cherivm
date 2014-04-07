@@ -51,16 +51,16 @@ char *getCommandLineProperty(char *key) {
     return NULL;
 }
 
-void setProperty(Object *properties, char *key, char *value) {
-    Object *k = Cstr2String(key);
-    Object *v = Cstr2String(value ? value : "?");
+void setProperty(pObject properties, char *key, char *value) {
+    pObject k = Cstr2String(key);
+    pObject v = Cstr2String(value ? value : "?");
 
     MethodBlock *mb = lookupMethod(properties->class, SYMBOL(put),
                   SYMBOL(_java_lang_Object_java_lang_Object__java_lang_Object));
     executeMethod(properties, mb, k, v);
 }
 
-void addCommandLineProperties(Object *properties) {
+void addCommandLineProperties(pObject properties) {
     if(commandline_props_count) {
         int i;
 
@@ -75,7 +75,7 @@ void addCommandLineProperties(Object *properties) {
     }
 }
 
-void setLocaleProperties(Object *properties) {
+void setLocaleProperties(pObject properties) {
 #if defined(HAVE_SETLOCALE) && defined(HAVE_LC_MESSAGES)
     char *locale;
 
@@ -123,14 +123,14 @@ char *getCwd() {
     }
 }
     
-void setUserDirProperty(Object *properties) {
+void setUserDirProperty(pObject properties) {
     char *cwd = getCwd();
 
     setProperty(properties, "user.dir", cwd);
     sysFree(cwd);
 }
 
-void setOSProperties(Object *properties) {
+void setOSProperties(pObject properties) {
     struct utsname info;
 
     uname(&info);
@@ -144,7 +144,7 @@ char *getJavaHome() {
     return env ? env : INSTALL_DIR;
 }
 
-void addDefaultProperties(Object *properties) {
+void addDefaultProperties(pObject properties) {
     setProperty(properties, "java.vm.name", "JamVM");
     setProperty(properties, "java.vm.version", VERSION);
     setProperty(properties, "java.vm.vendor", "Robert Lougher");

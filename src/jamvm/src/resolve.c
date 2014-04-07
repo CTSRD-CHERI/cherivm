@@ -25,7 +25,7 @@
 #include "symbol.h"
 #include "excep.h"
 
-MethodBlock *findMethod(Class *class, char *methodname, char *type) {
+MethodBlock *findMethod(pClass class, char *methodname, char *type) {
    ClassBlock *cb = CLASS_CB(class);
    MethodBlock *mb = cb->methods;
    int i;
@@ -41,7 +41,7 @@ MethodBlock *findMethod(Class *class, char *methodname, char *type) {
    types, we used to give up if we found a field with the right name but wrong
    type.  However, obfuscators rename fields, breaking this optimisation.
 */
-FieldBlock *findField(Class *class, char *fieldname, char *type) {
+FieldBlock *findField(pClass class, char *fieldname, char *type) {
     ClassBlock *cb = CLASS_CB(class);
     FieldBlock *fb = cb->fields;
     int i;
@@ -53,7 +53,7 @@ FieldBlock *findField(Class *class, char *fieldname, char *type) {
     return NULL;
 }
 
-MethodBlock *lookupMethod(Class *class, char *methodname, char *type) {
+MethodBlock *lookupMethod(pClass class, char *methodname, char *type) {
     MethodBlock *mb;
 
     if((mb = findMethod(class, methodname, type)))
@@ -65,7 +65,7 @@ MethodBlock *lookupMethod(Class *class, char *methodname, char *type) {
     return NULL;
 }
 
-FieldBlock *lookupField(Class *class, char *fieldname, char *fieldtype) {
+FieldBlock *lookupField(pClass class, char *fieldname, char *fieldtype) {
     ClassBlock *cb;
     FieldBlock *fb;
     int i;
@@ -77,7 +77,7 @@ FieldBlock *lookupField(Class *class, char *fieldname, char *fieldtype) {
     i = cb->super ? CLASS_CB(cb->super)->imethod_table_size : 0;
 
     for(; i < cb->imethod_table_size; i++) {
-        Class *intf = cb->imethod_table[i].interface;
+        pClass intf = cb->imethod_table[i].interface;
         if((fb = findField(intf, fieldname, fieldtype)) != NULL)
             return fb;
     }
@@ -88,9 +88,9 @@ FieldBlock *lookupField(Class *class, char *fieldname, char *fieldtype) {
     return NULL;
 }
 
-Class *resolveClass(Class *class, int cp_index, int init) {
+pClass resolveClass(pClass class, int cp_index, int init) {
     ConstantPool *cp = &(CLASS_CB(class)->constant_pool);
-    Class *resolved_class = NULL;
+    pClass resolved_class = NULL;
 
 retry:
     switch(CP_TYPE(cp, cp_index)) {
@@ -98,7 +98,7 @@ retry:
             goto retry;
 
         case CONSTANT_ResolvedClass:
-            resolved_class = (Class *)CP_INFO(cp, cp_index);
+            resolved_class = (pClass )CP_INFO(cp, cp_index);
             break;
 
         case CONSTANT_Class: {
@@ -147,7 +147,7 @@ retry:
     return resolved_class;
 }
 
-MethodBlock *resolveMethod(Class *class, int cp_index) {
+MethodBlock *resolveMethod(pClass class, int cp_index) {
     ConstantPool *cp = &(CLASS_CB(class)->constant_pool);
     MethodBlock *mb = NULL;
 
@@ -161,7 +161,7 @@ retry:
             break;
 
         case CONSTANT_Methodref: {
-            Class *resolved_class;
+            pClass resolved_class;
             ClassBlock *resolved_cb;
             char *methodname, *methodtype;
             int cl_idx = CP_METHOD_CLASS(cp, cp_index);
@@ -217,7 +217,7 @@ retry:
     return mb;
 }
 
-MethodBlock *resolveInterfaceMethod(Class *class, int cp_index) {
+MethodBlock *resolveInterfaceMethod(pClass class, int cp_index) {
     ConstantPool *cp = &(CLASS_CB(class)->constant_pool);
     MethodBlock *mb = NULL;
 
@@ -231,7 +231,7 @@ retry:
             break;
 
         case CONSTANT_InterfaceMethodref: {
-            Class *resolved_class;
+            pClass resolved_class;
             char *methodname, *methodtype;
             int cl_idx = CP_METHOD_CLASS(cp, cp_index);
             int name_type_idx = CP_METHOD_NAME_TYPE(cp, cp_index);
@@ -257,7 +257,7 @@ retry:
                 int i;
 
                 for(i = 0; mb == NULL && (i < cb->imethod_table_size); i++) {
-                    Class *intf = cb->imethod_table[i].interface;
+                    pClass intf = cb->imethod_table[i].interface;
                     mb = findMethod(intf, methodname, methodtype);
                 }
             }
@@ -278,7 +278,7 @@ retry:
     return mb;
 }
 
-FieldBlock *resolveField(Class *class, int cp_index) {
+FieldBlock *resolveField(pClass class, int cp_index) {
     ConstantPool *cp = &(CLASS_CB(class)->constant_pool);
     FieldBlock *fb = NULL;
 
@@ -292,7 +292,7 @@ retry:
             break;
 
         case CONSTANT_Fieldref: {
-            Class *resolved_class;
+            pClass resolved_class;
             char *fieldname, *fieldtype;
             int cl_idx = CP_FIELD_CLASS(cp, cp_index);
             int name_type_idx = CP_FIELD_NAME_TYPE(cp, cp_index);
@@ -334,7 +334,7 @@ retry:
     return fb;
 }
 
-uintptr_t resolveSingleConstant(Class *class, int cp_index) {
+uintptr_t resolveSingleConstant(pClass class, int cp_index) {
     ConstantPool *cp = &(CLASS_CB(class)->constant_pool);
 
 retry:
@@ -347,7 +347,7 @@ retry:
             break;
 
         case CONSTANT_String: {
-            Object *string;
+            pObject string;
             int idx = CP_STRING(cp, cp_index);
 
             if(CP_TYPE(cp, cp_index) != CONSTANT_String)
@@ -373,7 +373,7 @@ retry:
     return CP_INFO(cp, cp_index);
 }
 
-MethodBlock *lookupVirtualMethod(Object *ob, MethodBlock *mb) {
+MethodBlock *lookupVirtualMethod(pObject ob, MethodBlock *mb) {
     ClassBlock *cb = CLASS_CB(ob->class);
     int mtbl_idx = mb->method_table_index;
 
@@ -411,7 +411,7 @@ MethodBlock *lookupVirtualMethod(Object *ob, MethodBlock *mb) {
    lazy resolution semantics. */
 
 #ifdef DIRECT
-int peekIsFieldLong(Class *class, int cp_index) {
+int peekIsFieldLong(pClass class, int cp_index) {
     ConstantPool *cp = &(CLASS_CB(class)->constant_pool);
     char *type = NULL;
 

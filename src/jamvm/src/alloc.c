@@ -133,21 +133,21 @@ static int markbit_size;
 #define MARK_STACK_SIZE 16384
 static int mark_stack_overflow;
 static int mark_stack_count = 0;
-static Object *mark_stack[MARK_STACK_SIZE];
+static pObject mark_stack[MARK_STACK_SIZE];
 
 /* The mark heap scan pointer.  Reduces mark stack usage
    by limiting marking to a region of the heap */
 static char *mark_scan_ptr;
 
 /* List holding objects which need to be finalized */
-static Object **has_finaliser_list = NULL;
+static pObject *has_finaliser_list = NULL;
 static int has_finaliser_count     = 0;
 static int has_finaliser_size      = 0;
 
 /* Compaction needs to know which object references are
    conservative (i.e. looks like a reference).  The objects
    can't be moved in case they aren't really references. */
-static Object **conservative_roots = NULL;
+static pObject *conservative_roots = NULL;
 static int conservative_root_count = 0;
 
 /* Above list is transformed into a hashtable before compaction */
@@ -158,19 +158,19 @@ static int con_roots_hashtable_size;
    which have been registered with the GC.  Unregistered
    references (outside of known structures) will not be
    scanned or threaded during GC/Compaction */
-static Object ***registered_refs = NULL;
+static pObject **registered_refs = NULL;
 static int registered_refs_count = 0;
 
 /* The circular list holding finalized objects waiting for
    their finalizer to be ran by the finalizer thread */
-static Object **run_finaliser_list = NULL;
+static pObject *run_finaliser_list = NULL;
 static int run_finaliser_start     = 0;
 static int run_finaliser_end       = 0;
 static int run_finaliser_size      = 0;
 
 /* The circular list holding references to be enqueued
    by the reference handler thread */
-static Object **reference_list = NULL;
+static pObject *reference_list = NULL;
 static int reference_start     = 0;
 static int reference_end       = 0;
 static int reference_size      = 0;
@@ -192,7 +192,7 @@ static VMWaitLock reference_lock;
 static Thread *finalizer_thread;
 
 /* Pre-allocated OutOfMemoryError */
-static Object *oom;
+static pObject oom;
 
 /* Field offsets and method table indexes used for finalization and
    reference handling. Cached in class.c */
@@ -203,7 +203,7 @@ extern int enqueue_mtbl_idx;
 extern int ldr_vmdata_offset;
 
 /* Forward declarations */
-void handleUnmarkedSpecial(Object *ob);
+void handleUnmarkedSpecial(pObject ob);
 
 /* During GC all threads are suspended.  To safeguard against a
    suspended thread holding the malloc-lock, free cannot be called
@@ -267,6 +267,7 @@ static int sys_page_size;
 #define IS_OBJECT(ptr)  (((char*)ptr) > heapbase) && \
                         (((char*)ptr) < heaplimit) && \
                         !(((uintptr_t)ptr)&(OBJECT_GRAIN-1))
+
 
 #define MIN_OBJECT_SIZE ((sizeof(Object)+HEADER_SIZE+OBJECT_GRAIN-1)& \
                         ~(OBJECT_GRAIN-1))
@@ -335,30 +336,30 @@ void initialiseAlloc(InitArgs *args) {
     }                                                \
 }
 
-int isMarked(Object *object) {
+int isMarked(pObject object) {
     return object != NULL && IS_MARKED(object);
 }
 
-void markObject(Object *object, int mark) {
+void markObject(pObject object, int mark) {
     if(object != NULL && mark > IS_MARKED(object))
         MARK_AND_PUSH(object, mark);
 }
 
-void markRoot(Object *object) {
+void markRoot(pObject object) {
     if(object != NULL)
         MARK(object, HARD_MARK);
 }
 
-void addConservativeRoot(Object *object) {
+void addConservativeRoot(pObject object) {
     if((conservative_root_count % LIST_INCREMENT) == 0) {
         int new_size = conservative_root_count + LIST_INCREMENT;
         conservative_roots = gcMemRealloc(conservative_roots,
-                                          new_size * sizeof(Object *));
+                                          new_size * sizeof(pObject ));
     }
     conservative_roots[conservative_root_count++] = object;
 }
 
-void markConservativeRoot(Object *object) {
+void markConservativeRoot(pObject object) {
     if(object == NULL)
         return;
 
@@ -366,7 +367,7 @@ void markConservativeRoot(Object *object) {
     addConservativeRoot(object);
 }
 
-void convertToPlaceholder(Object *object) {
+void convertToPlaceholder(pObject object) {
     uintptr_t *hdr_address = HDR_ADDRESS(object);
     int size = HDR_SIZE(*hdr_address);
 
@@ -384,7 +385,7 @@ void convertToPlaceholder(Object *object) {
     object->lock = 0;
 }
 
-int isMarkedJNIWeakGlobalRef(Object *object) {
+int isMarkedJNIWeakGlobalRef(pObject object) {
     int marked = IS_MARKED(object);
 
     if(marked)
@@ -398,7 +399,7 @@ int isMarkedJNIWeakGlobalRef(Object *object) {
     return marked;
 }
 
-void markJNIGlobalRef(Object *object) {
+void markJNIGlobalRef(pObject object) {
     markConservativeRoot(object);
 }
 
@@ -407,7 +408,7 @@ void markJNIGlobalRef(Object *object) {
    would prevent soft references being cleared in the case where
    the original object has just become garbage, and is both a soft
    reference referent and a JNI weak global ref */
-void markJNIClearedWeakRef(Object *object) {
+void markJNIClearedWeakRef(pObject object) {
     MARK(object, FINALIZER_MARK);
     addConservativeRoot(object);
 }
@@ -437,7 +438,7 @@ void scanThread(Thread *thread) {
 
     for(; slot < end; slot++)
         if(IS_OBJECT(*slot)) {
-            Object *ob = (Object*)*slot;
+            pObject ob = (pObject)*slot;
             TRACE_GC("Found C stack ref @%p object ref is %p\n", slot, ob);
             markConservativeRoot(ob);
         }
@@ -453,14 +454,14 @@ void scanThread(Thread *thread) {
 
             /* Mark the method's defining class.  This should always
                be reachable otherwise, but mark to be safe */
-            markConservativeRoot((Object*)frame->mb->class);
+            markConservativeRoot((pObject)frame->mb->class);
         }
 
         end = frame->ostack;
 
         for(; slot >= end; slot--)
             if(IS_OBJECT(*slot)) {
-                Object *ob = (Object*)*slot;
+                pObject ob = (pObject)*slot;
                 TRACE_GC("Found Java stack ref @%p object ref is %p\n",
                          slot, ob);
                 markConservativeRoot(ob);
@@ -471,7 +472,7 @@ void scanThread(Thread *thread) {
     }
 }
 
-void markClassData(Class *class, int mark) {
+void markClassData(pClass class, int mark) {
     ClassBlock *cb = CLASS_CB(class);
     ConstantPool *cp = &cb->constant_pool;
     FieldBlock *fb = cb->fields;
@@ -492,7 +493,7 @@ void markClassData(Class *class, int mark) {
         for(i = 0; i < cb->fields_count; i++, fb++)
             if((fb->access_flags & ACC_STATIC) &&
                         ((*fb->type == 'L') || (*fb->type == '['))) {
-                Object *ob = fb->u.static_value.p;
+                pObject ob = fb->u.static_value.p;
                 TRACE_GC("Field %s %s object @%p\n", fb->name, fb->type, ob);
                 if(ob != NULL && mark > IS_MARKED(ob))
                     MARK_AND_PUSH(ob, mark);
@@ -503,15 +504,15 @@ void markClassData(Class *class, int mark) {
     /* Scan the constant pool and mark all resolved string references */
     for(i = 1; i < cb->constant_pool_count; i++)
         if(CP_TYPE(cp, i) == CONSTANT_ResolvedString) {
-            Object *string = (Object *)CP_INFO(cp, i);
+            pObject string = (pObject )CP_INFO(cp, i);
             TRACE_GC("Resolved String @ constant pool idx %d @%p\n", i, string);
             if(mark > IS_MARKED(string))
                 MARK_AND_PUSH(string, mark);
         }
 }
 
-void markChildren(Object *ob, int mark, int mark_soft_refs) {
-    Class *class = ob->class;
+void markChildren(pObject ob, int mark, int mark_soft_refs) {
+    pClass class = ob->class;
     ClassBlock *cb = CLASS_CB(class);
 
     if(class == NULL)
@@ -522,14 +523,14 @@ void markChildren(Object *ob, int mark, int mark_soft_refs) {
 
     if(cb->name[0] == '[') {
         if((cb->name[1] == 'L') || (cb->name[1] == '[')) {
-            Object **body = ARRAY_DATA(ob, Object*);
+            pObject *body = ARRAY_DATA(ob, pObject);
             int len = ARRAY_LEN(ob);
             int i;
             TRACE_GC("Scanning Array object @%p class is %s len is %d\n",
                      ob, cb->name, len);
 
             for(i = 0; i < len; i++) {
-                Object *ob = *body++;
+                pObject ob = *body++;
                 TRACE_GC("Object at index %d is @%p\n", i, ob);
 
                 if(ob != NULL && mark > IS_MARKED(ob))
@@ -557,7 +558,7 @@ void markChildren(Object *ob, int mark, int mark_soft_refs) {
                     markVMThrowable(ob, mark);
                 } else
                     if(IS_REFERENCE(cb)) {
-                        Object *referent = INST_DATA(ob, Object*,
+                        pObject referent = INST_DATA(ob, pObject,
                                                      ref_referent_offset);
 
                         TRACE_GC("Mark found Reference object @%p class %s"
@@ -595,8 +596,8 @@ void markChildren(Object *ob, int mark, int mark_soft_refs) {
             int offset = cb->refs_offsets_table[i].start;
             int end = cb->refs_offsets_table[i].end;
 
-            for(; offset < end; offset += sizeof(Object*)) {
-                Object *ref = INST_DATA(ob, Object*, offset);
+            for(; offset < end; offset += sizeof(pObject)) {
+                pObject ref = INST_DATA(ob, pObject, offset);
                 TRACE_GC("Offset %d reference @%p\n", offset, ref);
 
                 if(ref != NULL && mark > IS_MARKED(ref))
@@ -612,7 +613,7 @@ void markChildren(Object *ob, int mark, int mark_soft_refs) {
         list##_end = list##_size;                                        \
         list##_start = list##_size += LIST_INCREMENT;                    \
         list##_list = gcMemRealloc(list##_list, list##_size *            \
-                                                sizeof(Object*));        \
+                                                sizeof(pObject));        \
     }                                                                    \
     list##_end = list##_end%list##_size;                                 \
     list##_list[list##_end++] = ob;                                      \
@@ -637,7 +638,7 @@ void markChildren(Object *ob, int mark, int mark_soft_refs) {
 
 void markStack(int mark_soft_refs) {
     while(mark_stack_count > 0) {
-        Object *object = mark_stack[--mark_stack_count];
+        pObject object = mark_stack[--mark_stack_count];
         int mark = IS_MARKED(object);
 
         markChildren(object, mark, mark_soft_refs);
@@ -650,7 +651,7 @@ void scanHeap(int mark_soft_refs) {
         uintptr_t size;
 
         if(HDR_ALLOCED(hdr)) {
-            Object *ob = (Object*)(mark_scan_ptr + HEADER_SIZE);
+            pObject ob = (pObject)(mark_scan_ptr + HEADER_SIZE);
             int mark = IS_MARKED(ob);
             size = HDR_SIZE(hdr);
 
@@ -703,7 +704,7 @@ static void doMark(Thread *self, int mark_soft_refs) {
        creation */
 
     for(i = 0, j = 0; i < has_finaliser_count; i++) {
-        Object *ob = has_finaliser_list[i];
+        pObject ob = has_finaliser_list[i];
   
         if(!IS_HARD_MARKED(ob)) {
             ADD_TO_OBJECT_LIST(run_finaliser, ob);
@@ -767,12 +768,12 @@ static void doMark(Thread *self, int mark_soft_refs) {
 
 /* ------------------------- SWEEP PHASE ------------------------- */
 
-int handleMarkedSpecial(Object *ob) {
+int handleMarkedSpecial(pObject ob) {
     ClassBlock *cb = CLASS_CB(ob->class);
     int cleared = FALSE;
 
     if(IS_REFERENCE(cb)) {
-        Object *referent = INST_DATA(ob, Object*, ref_referent_offset);
+        pObject referent = INST_DATA(ob, pObject, ref_referent_offset);
 
         if(referent != NULL) {
             int ref_mark = IS_MARKED(referent);
@@ -789,14 +790,14 @@ int handleMarkedSpecial(Object *ob) {
                     goto out;
 
                 TRACE_GC("FREE: Clearing the referent field.\n");
-                INST_DATA(ob, Object*, ref_referent_offset) = NULL;
+                INST_DATA(ob, pObject, ref_referent_offset) = NULL;
                 cleared = TRUE;
             }
 
             /* If the reference has a queue, add it to the list for enqueuing
                by the Reference Handler thread. */
 
-            if(INST_DATA(ob, Object*, ref_queue_offset) != NULL) {
+            if(INST_DATA(ob, pObject, ref_queue_offset) != NULL) {
                 TRACE_GC("FREE: Adding to list for enqueuing.\n");
 
                 ADD_TO_OBJECT_LIST(reference, ob);
@@ -808,7 +809,7 @@ out:
     return cleared;
 }
 
-void handleUnmarkedSpecial(Object *ob) {
+void handleUnmarkedSpecial(pObject ob) {
     if(IS_CLASS(ob)) {
         if(verbosegc) {
             ClassBlock *cb = CLASS_CB(ob);
@@ -852,12 +853,12 @@ static uintptr_t doSweep(Thread *self) {
     for(ptr = heapbase; ptr < heaplimit; ) {
         uintptr_t hdr = HEADER(ptr);
         uintptr_t size;
-        Object *ob;
+        pObject ob;
 
         curr = (Chunk *) ptr;
 
         if(HDR_ALLOCED(hdr)) {
-            ob = (Object*)(ptr+HEADER_SIZE);
+            ob = (pObject)(ptr+HEADER_SIZE);
             size = HDR_SIZE(hdr);
 
             if(IS_MARKED(ob))
@@ -892,7 +893,7 @@ static uintptr_t doSweep(Thread *self) {
 
             hdr = HEADER(ptr);
             if(HDR_ALLOCED(hdr)) {
-                ob = (Object*)(ptr+HEADER_SIZE);
+                ob = (pObject)(ptr+HEADER_SIZE);
                 size = HDR_SIZE(hdr);
 
                 if(IS_MARKED(ob))
@@ -992,18 +993,18 @@ out_last_marked:
 
 /* ------------------------- COMPACT PHASE ------------------------- */
 
-void threadReference(Object **ref) {
-    Object *ob = *ref;
+void threadReference(pObject *ref) {
+    pObject ob = *ref;
     uintptr_t *hdr = HDR_ADDRESS(ob);
 
     TRACE_COMPACT("Threading ref addr %p object ref %p link %p\n",
                   ref, ob, *hdr);
 
-    *ref = (Object*)*hdr;
+    *ref = (pObject)*hdr;
     *hdr = ((uintptr_t)ref | FLC_BIT);
 }
 
-void unthreadHeader(uintptr_t *hdr_addr, Object *new_addr) {
+void unthreadHeader(uintptr_t *hdr_addr, pObject new_addr) {
     uintptr_t hdr = *hdr_addr;
 
     TRACE_COMPACT("Unthreading header address %p new addr %p\n",
@@ -1058,7 +1059,7 @@ void addConservativeRoots2Hash() {
     }
 }
 
-void registerStaticObjectRefLocked(Object **ref, Object *obj) {
+void registerStaticObjectRefLocked(pObject *ref, pObject obj) {
     Thread *self = threadSelf();
 
     disableSuspend(self);
@@ -1073,11 +1074,11 @@ void registerStaticObjectRefLocked(Object **ref, Object *obj) {
     enableSuspend(self);
 }
 
-void registerStaticObjectRef(Object **ref) {
+void registerStaticObjectRef(pObject *ref) {
     if((registered_refs_count % LIST_INCREMENT) == 0) {
         int new_size = registered_refs_count + LIST_INCREMENT;
         registered_refs = sysRealloc(registered_refs,
-                                     new_size * sizeof(Object **));
+                                     new_size * sizeof(pObject *));
     }
     registered_refs[registered_refs_count++] = ref;
 }
@@ -1148,7 +1149,7 @@ int compactSlideBlock(char *block_addr, char *new_addr) {
     return FALSE;
 }
 
-void threadClassData(Class *class, Class *new_addr) {
+void threadClassData(pClass class, pClass new_addr) {
     ClassBlock *cb = CLASS_CB(class);
     ConstantPool *cp = &cb->constant_pool;
     FieldBlock *fb = cb->fields;
@@ -1181,7 +1182,7 @@ void threadClassData(Class *class, Class *new_addr) {
             if((fb->access_flags & ACC_STATIC) &&
                ((*fb->type == 'L') || (*fb->type == '['))) {
 
-                Object **ob = (Object**)fb->u.static_value.data;
+                pObject *ob = (pObject*)fb->u.static_value.data;
                 TRACE_COMPACT("Field %s %s object @%p\n", fb->name,
                               fb->type, *ob);
                 if(*ob != NULL)
@@ -1197,7 +1198,7 @@ void threadClassData(Class *class, Class *new_addr) {
 
             TRACE_COMPACT("Constant pool ref idx %d type %d object @%p\n",
                           i, CP_TYPE(cp, i), CP_INFO(cp, i));
-            threadReference((Object**)&(CP_INFO(cp, i)));
+            threadReference((pObject*)&(CP_INFO(cp, i)));
         }
 
     /* Don't bother threading the references to the class from within the
@@ -1211,8 +1212,8 @@ void threadClassData(Class *class, Class *new_addr) {
         cb->methods[i].class = new_addr;
 }
 
-int threadChildren(Object *ob, Object *new_addr) {
-    Class *class = ob->class;
+int threadChildren(pObject ob, pObject new_addr) {
+    pClass class = ob->class;
     ClassBlock *cb = CLASS_CB(class);
     int cleared = FALSE;
 
@@ -1221,7 +1222,7 @@ int threadChildren(Object *ob, Object *new_addr) {
 
     if(cb->name[0] == '[') {
         if((cb->name[1] == 'L') || (cb->name[1] == '[')) {
-            Object **body = ARRAY_DATA(ob, Object*);
+            pObject *body = ARRAY_DATA(ob, pObject);
             int len = ARRAY_LEN(ob);
             int i;
             TRACE_COMPACT("Scanning Array object @%p class is %s len is %d\n",
@@ -1251,7 +1252,7 @@ int threadChildren(Object *ob, Object *new_addr) {
                 threadLoaderClasses(ob);
             } else
                 if(IS_REFERENCE(cb)) {
-                    Object **referent = &INST_DATA(ob, Object*,
+                    pObject *referent = &INST_DATA(ob, pObject,
                                                    ref_referent_offset);
 
                     if(*referent != NULL) {
@@ -1276,7 +1277,7 @@ int threadChildren(Object *ob, Object *new_addr) {
                         /* If the reference has a queue, add it to the list
                            for enqueuing by the Reference Handler thread. */
 
-                        if(INST_DATA(ob, Object*, ref_queue_offset) != NULL) {
+                        if(INST_DATA(ob, pObject, ref_queue_offset) != NULL) {
                             TRACE_GC("Adding to list for enqueuing.\n");
 
                             ADD_TO_OBJECT_LIST(reference, new_addr);
@@ -1298,8 +1299,8 @@ out:
             int offset = cb->refs_offsets_table[i].start;
             int end = cb->refs_offsets_table[i].end;
 
-            for(; offset < end; offset += sizeof(Object*)) {
-                Object **ref = &INST_DATA(ob, Object*, offset);
+            for(; offset < end; offset += sizeof(pObject)) {
+                pObject *ref = &INST_DATA(ob, pObject, offset);
                 TRACE_COMPACT("Offset %d reference @%p\n", offset, *ref);
 
                 if(*ref != NULL)
@@ -1350,16 +1351,16 @@ uintptr_t doCompact() {
     for(new_addr = ptr = heapbase; ptr < heaplimit;) {
         uintptr_t hdr = HEADER(ptr);
         uintptr_t size;
-        Object *ob;
+        pObject ob;
 
         if(HDR_THREADED(hdr)) {
-            ob = (Object*)(ptr+HEADER_SIZE);
+            ob = (pObject)(ptr+HEADER_SIZE);
 
             if(IS_CONSERVATIVE_ROOT(ob))
                 new_addr = ptr;
 
             /* Unthread forward references to the object */
-            unthreadHeader((uintptr_t*)ptr, (Object*)(new_addr+HEADER_SIZE));
+            unthreadHeader((uintptr_t*)ptr, (pObject)(new_addr+HEADER_SIZE));
 
             /* Header is now unthreaded -- re-read it, and the size */
             hdr = HEADER(ptr);
@@ -1369,7 +1370,7 @@ uintptr_t doCompact() {
         }
 
         if(HDR_ALLOCED(hdr)) {
-            ob = (Object*)(ptr+HEADER_SIZE);
+            ob = (pObject)(ptr+HEADER_SIZE);
             size = HDR_SIZE(hdr);
 
             if(IS_MARKED(ob)) {
@@ -1380,7 +1381,7 @@ marked_phase1:
                 marked++;
 
                 /* Thread references within the object */
-                if(threadChildren(ob, (Object*)(new_addr+HEADER_SIZE)))
+                if(threadChildren(ob, (pObject)(new_addr+HEADER_SIZE)))
                     cleared++;
 
                 if(new_addr != ptr && HDR_HASHCODE_TAKEN(hdr))
@@ -1410,10 +1411,10 @@ next:
     for(new_addr = ptr = heapbase; ptr < heaplimit;) {
         uintptr_t hdr = HEADER(ptr);
         uintptr_t size;
-        Object *ob;
+        pObject ob;
 
         if(HDR_THREADED(hdr)) {
-            ob = (Object*)(ptr+HEADER_SIZE);
+            ob = (pObject)(ptr+HEADER_SIZE);
 
             if(IS_CONSERVATIVE_ROOT(ob) && new_addr != ptr) {
                 ADD_CHUNK_TO_FREELIST(new_addr, ptr);
@@ -1421,7 +1422,7 @@ next:
             }
 
             /* Unthread backward references to the object */
-            unthreadHeader((uintptr_t*)ptr, (Object*)(new_addr+HEADER_SIZE));
+            unthreadHeader((uintptr_t*)ptr, (pObject)(new_addr+HEADER_SIZE));
 
             /* Header is now unthreaded -- re-read */
             hdr = HEADER(ptr);
@@ -1431,7 +1432,7 @@ next:
         }
 
         if(HDR_ALLOCED(hdr)) {
-            ob = (Object*)(ptr+HEADER_SIZE);
+            ob = (pObject)(ptr+HEADER_SIZE);
             size = HDR_SIZE(hdr);
 
             if(IS_MARKED(ob)) {
@@ -1725,7 +1726,7 @@ void asyncGCThreadLoop(Thread *self) {
         }                                                                     \
                                                                               \
         do {                                                                  \
-            Object *ob;                                                       \
+            pObject ob;                                                       \
             list##_start %= list##_size;                                      \
             if((ob = list##_list[list##_start]) == NULL)                      \
                 continue;                                                     \
@@ -1779,7 +1780,7 @@ void initialiseGC(InitArgs *args) {
      * when we're really low on heap space, and can create FA... */
 
     MethodBlock *init;
-    Class *oom_clazz = findSystemClass(SYMBOL(java_lang_OutOfMemoryError));
+    pClass oom_clazz = findSystemClass(SYMBOL(java_lang_OutOfMemoryError));
     if(exceptionOccurred()) {
         printException();
         exitVM(1);
@@ -2006,7 +2007,7 @@ got_it:
     if(has_finaliser_count == has_finaliser_size) {                           \
         has_finaliser_size += LIST_INCREMENT;                                 \
         has_finaliser_list = sysRealloc(has_finaliser_list,                   \
-                                        has_finaliser_size * sizeof(Object*));\
+                                        has_finaliser_size * sizeof(pObject));\
     }                                                                         \
                                                                               \
     has_finaliser_list[has_finaliser_count++] = ob;                           \
@@ -2014,9 +2015,9 @@ got_it:
     enableSuspend(self);                                                      \
 }
 
-Object *allocObject(Class *class) {
+pObject allocObject(pClass class) {
     ClassBlock *cb = CLASS_CB(class);
-    Object *ob = gcMalloc(cb->object_size);
+    pObject ob = gcMalloc(cb->object_size);
 
     if(ob != NULL) {
         ob->class = class;
@@ -2039,8 +2040,8 @@ Object *allocObject(Class *class) {
     return ob;
 }
     
-Object *allocArray(Class *class, int size, int el_size) {
-    Object *ob;
+pObject allocArray(pClass class, int size, int el_size) {
+    pObject ob;
 
     /* Special check to protect against integer overflow */
     if(size > (INT_MAX - sizeof(uintptr_t) - sizeof(Object)) / el_size) {
@@ -2060,11 +2061,11 @@ Object *allocArray(Class *class, int size, int el_size) {
     return ob;
 }
 
-Object *allocTypeArray(int type, int size) {
+pObject allocTypeArray(int type, int size) {
     static char *array_names[] = {"[Z", "[C", "[F", "[D", "[B",
                                   "[S", "[I", "[J"};
     static int element_sizes[] = {1, 2, 4, 8, 1, 2, 4, 8};
-    static Class *array_classes[8];
+    static pClass array_classes[8];
 
     int idx = type - T_BOOLEAN;
      
@@ -2074,7 +2075,7 @@ Object *allocTypeArray(int type, int size) {
     }
 
     if(array_classes[idx] == NULL) {
-        Class *class = findArrayClass(array_names[idx]);
+        pClass class = findArrayClass(array_names[idx]);
 
         if(class == NULL)
             return NULL;
@@ -2085,21 +2086,21 @@ Object *allocTypeArray(int type, int size) {
     return allocArray(array_classes[idx], size, element_sizes[idx]);
 }
 
-Object *allocMultiArray(Class *array_class, int dim, intptr_t *count) {
+pObject allocMultiArray(pClass array_class, int dim, intptr_t *count) {
     int i;
-    Object *array;
+    pObject array;
     char *element_name = CLASS_CB(array_class)->name + 1;
 
     if(dim > 1) {
-        Class *aclass = findArrayClassFromClass(element_name, array_class);
-        Object **body;
+        pClass aclass = findArrayClassFromClass(element_name, array_class);
+        pObject *body;
 
-        array = allocArray(array_class, *count, sizeof(Object*));
+        array = allocArray(array_class, *count, sizeof(pObject));
 
         if(array == NULL)
             return NULL;
 
-        body = ARRAY_DATA(array, Object*);
+        body = ARRAY_DATA(array, pObject);
 
         for(i = 0; i < *count; i++)
             if((*body++ = allocMultiArray(aclass, dim - 1, count + 1)) == NULL)
@@ -2111,8 +2112,8 @@ Object *allocMultiArray(Class *array_class, int dim, intptr_t *count) {
     return array;
 }
 
-Class *allocClass() {
-    Class *class = gcMalloc(sizeof(ClassBlock)+sizeof(Class));
+pClass allocClass() {
+    pClass class = gcMalloc(sizeof(ClassBlock)+sizeof(Class));
 
     if(class != NULL) {
         SET_SPECIAL_OB(class);
@@ -2122,8 +2123,8 @@ Class *allocClass() {
     return class; 
 }
 
-Object *cloneObject(Object *ob) {
-    Object *clone;
+pObject cloneObject(pObject ob) {
+    pObject clone;
     uintptr_t hdr = *HDR_ADDRESS(ob);
     int size = HDR_SIZE(hdr)-HEADER_SIZE;
 
@@ -2149,7 +2150,7 @@ Object *cloneObject(Object *ob) {
             /* Safety.  If it's a classloader, clear native
                pointer to class table */
             if(IS_CLASS_LOADER(CLASS_CB(clone->class)))
-                INST_DATA(clone, Object*, ldr_vmdata_offset) = NULL;
+                INST_DATA(clone, pObject, ldr_vmdata_offset) = NULL;
         }
 
         TRACE_ALLOC("<ALLOC: cloned object @%p clone @%p>\n", ob, clone);
@@ -2158,7 +2159,7 @@ Object *cloneObject(Object *ob) {
     return clone;
 }
 
-uintptr_t getObjectHashcode(Object *ob) {
+uintptr_t getObjectHashcode(pObject ob) {
     uintptr_t *hdr_addr = HDR_ADDRESS(ob);
 
     /* If the object has had its hashCode taken and then

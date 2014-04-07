@@ -21,7 +21,7 @@
 
 #include "jam.h"
 
-char implements(Class *class, Class *test) {
+char implements(pClass class, pClass test) {
     ClassBlock *test_cb = CLASS_CB(test);
     int i;
 
@@ -36,14 +36,14 @@ char implements(Class *class, Class *test) {
     return FALSE;
 }
 
-char isSubClassOf(Class *class, Class *test) {
+char isSubClassOf(pClass class, pClass test) {
     for(; test != NULL && test != class; test = CLASS_CB(test)->super);
     return test != NULL;
 }
 
-char isInstOfArray0(Class *array_class, Class *test_elem, int test_dim) {
+char isInstOfArray0(pClass array_class, pClass test_elem, int test_dim) {
     ClassBlock *array_cb = CLASS_CB(array_class);
-    Class *array_elem = array_cb->element_class;
+    pClass array_elem = array_cb->element_class;
 
     if(test_dim == array_cb->dim)
         return isInstanceOf(array_elem, test_elem);
@@ -56,7 +56,7 @@ char isInstOfArray0(Class *array_class, Class *test_elem, int test_dim) {
     return FALSE;
 }
 
-char isInstOfArray(Class *class, Class *test) {
+char isInstOfArray(pClass class, pClass test) {
     ClassBlock *test_cb = CLASS_CB(test);
 
     if(!IS_ARRAY(CLASS_CB(class)))
@@ -65,7 +65,7 @@ char isInstOfArray(Class *class, Class *test) {
     return isInstOfArray0(class, test_cb->element_class, test_cb->dim);
 }
 
-char isInstanceOf(Class *class, Class *test) {
+char isInstanceOf(pClass class, pClass test) {
     if(class == test)
         return TRUE;
 
@@ -78,7 +78,7 @@ char isInstanceOf(Class *class, Class *test) {
             return isSubClassOf(class, test); 
 }
 
-char arrayStoreCheck(Class *array_class, Class *test) {
+char arrayStoreCheck(pClass array_class, pClass test) {
     ClassBlock *test_cb = CLASS_CB(test);
 
     if(!IS_ARRAY(test_cb))

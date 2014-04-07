@@ -38,7 +38,7 @@
 static int verbose;
 
 extern int nativeExtraArg(MethodBlock *mb);
-extern uintptr_t *callJNIMethod(void *env, Class *class, char *sig, int extra,
+extern uintptr_t *callJNIMethod(void *env, pClass class, char *sig, int extra,
                                 uintptr_t *ostack, unsigned char *native_func,
                                 int args);
 extern struct _JNINativeInterface Jam_JNINativeInterface;
@@ -204,7 +204,7 @@ void *resolveNativeMethod(MethodBlock *mb) {
     return func;
 }
 
-uintptr_t *resolveNativeWrapper(Class *class, MethodBlock *mb,
+uintptr_t *resolveNativeWrapper(pClass class, MethodBlock *mb,
                                 uintptr_t *ostack) {
 
     void *func = resolveNativeMethod(mb);
@@ -214,7 +214,7 @@ uintptr_t *resolveNativeWrapper(Class *class, MethodBlock *mb,
         return ostack;
     }
 
-    return (*(uintptr_t *(*)(Class*, MethodBlock*, uintptr_t*))func)
+    return (*(uintptr_t *(*)(pClass, MethodBlock*, uintptr_t*))func)
            (class, mb, ostack);
 }
 
@@ -230,7 +230,7 @@ void initialiseDll(InitArgs *args) {
 typedef struct {
     char *name;
     void *handle;
-    Object *loader;
+    pObject loader;
 } DllEntry;
 
 int dllNameHash(char *name) {
@@ -242,7 +242,7 @@ int dllNameHash(char *name) {
     return hash;
 }
 
-int resolveDll(char *name, Object *loader) {
+int resolveDll(char *name, pObject loader) {
     DllEntry *dll;
 
     TRACE("<DLL: Attempting to resolve library %s>\n", name);
@@ -337,7 +337,7 @@ char *getDllName(char *name) {
    return nativeLibMapName(name);
 }
 
-void *lookupLoadedDlls0(char *name, Object *loader) {
+void *lookupLoadedDlls0(char *name, pObject loader) {
     TRACE("<DLL: Looking up %s loader %p in loaded DLL's>\n", name, loader);
 
 #define ITERATE(ptr)                                          \
@@ -387,7 +387,7 @@ void threadLiveClassLoaderDlls() {
     hashIterate(hash_table);
 }
 
-void unloadClassLoaderDlls(Object *loader) {
+void unloadClassLoaderDlls(pObject loader) {
     int unloaded = 0;
 
     TRACE("<DLL: Unloading DLLs for loader %p\n", loader);
@@ -423,7 +423,7 @@ void unloadClassLoaderDlls(Object *loader) {
 
 static void *env = &Jam_JNINativeInterface;
 
-uintptr_t *callJNIWrapper(Class *class, MethodBlock *mb, uintptr_t *ostack) {
+uintptr_t *callJNIWrapper(pClass class, MethodBlock *mb, uintptr_t *ostack) {
     TRACE("<DLL: Calling JNI method %s.%s%s>\n", CLASS_CB(class)->name,
           mb->name, mb->type);
 
@@ -436,7 +436,7 @@ uintptr_t *callJNIWrapper(Class *class, MethodBlock *mb, uintptr_t *ostack) {
 }
 
 void *lookupLoadedDlls(MethodBlock *mb) {
-    Object *loader = (CLASS_CB(mb->class))->class_loader;
+    pObject loader = (CLASS_CB(mb->class))->class_loader;
     char *mangled = mangleClassAndMethodName(mb);
     void *func;
 

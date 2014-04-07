@@ -91,7 +91,7 @@ int nativeExtraArg(MethodBlock *mb) {
     return RET_DFLT;
 }
 
-u4 *callJNIMethod(void *env, Class *class, char *sig, int ret_type,
+u4 *callJNIMethod(void *env, pClass class, char *sig, int ret_type,
                   u4 *ostack, unsigned char *f, int args) {
 
     u4 *opntr = ostack + args;

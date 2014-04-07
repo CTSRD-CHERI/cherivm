@@ -379,11 +379,13 @@ typedef struct line_no_table_entry {
 } LineNoTableEntry;
 
 typedef struct object Class;
+typedef Class* pClass;
 
 typedef struct object {
    uintptr_t lock;
-   Class *class;
+   pClass class;
 } Object;
+typedef Object* pObject;
 
 #ifdef DIRECT
 typedef union ins_operand {
@@ -497,10 +499,10 @@ typedef struct method_annotation_data {
 
 typedef struct methodblock MethodBlock;
 
-typedef uintptr_t *(*NativeMethod)(Class*, struct methodblock*, uintptr_t*);
+typedef uintptr_t *(*NativeMethod)(pClass, struct methodblock*, uintptr_t*);
 
 struct methodblock {
-   Class *class;
+   pClass class;
    char *name;
    char *type;
    char *signature;
@@ -527,7 +529,7 @@ struct methodblock {
 };
 
 typedef struct fieldblock {
-   Class *class;
+   pClass class;
    char *name;
    char *type;
    char *signature;
@@ -547,7 +549,7 @@ typedef struct fieldblock {
 } FieldBlock;
 
 typedef struct itable_entry {
-   Class *interface;
+   pClass interface;
    int *offsets;
 } ITableEntry;
 
@@ -564,7 +566,7 @@ typedef struct classblock {
    char *signature;
    char *super_name;
    char *source_file_name;
-   Class *super;
+   pClass super;
    u1 state;
    u2 flags;
    u2 access_flags;
@@ -575,16 +577,16 @@ typedef struct classblock {
    int object_size;
    FieldBlock *fields;
    MethodBlock *methods;
-   Class **interfaces;
+   pClass *interfaces;
    ConstantPool constant_pool;
    int method_table_size;
    MethodBlock **method_table;
    int imethod_table_size;
    ITableEntry *imethod_table;
-   Class *element_class;
+   pClass element_class;
    int initing_tid;
    int dim;
-   Object *class_loader;
+   pObject class_loader;
    u2 declaring_class;
    u2 inner_access_flags;
    u2 inner_class_count;
@@ -605,20 +607,20 @@ typedef struct frame {
 } Frame;
 
 typedef struct jni_frame {
-   Object **next_ref;
-   Object **lrefs;
+   pObject *next_ref;
+   pObject *lrefs;
    uintptr_t *ostack;
    MethodBlock *mb;
    struct frame *prev;
 } JNIFrame;
 
 typedef struct exec_env {
-    Object *exception;
+    pObject exception;
     char *stack;
     char *stack_end;
     int stack_size;
     Frame *last_frame;
-    Object *thread;
+    pObject thread;
     char overflow;
 } ExecEnv;
 
@@ -757,13 +759,13 @@ typedef struct InitArgs {
 
 extern void initialiseAlloc(InitArgs *args);
 extern void initialiseGC(InitArgs *args);
-extern Class *allocClass();
-extern Object *allocObject(Class *class);
-extern Object *allocTypeArray(int type, int size);
-extern Object *allocArray(Class *class, int size, int el_size);
-extern Object *allocMultiArray(Class *array_class, int dim, intptr_t *count);
-extern Object *cloneObject(Object *ob);
-extern uintptr_t getObjectHashcode(Object *ob);
+extern pClass allocClass();
+extern pObject allocObject(pClass class);
+extern pObject allocTypeArray(int type, int size);
+extern pObject allocArray(pClass class, int size, int el_size);
+extern pObject allocMultiArray(pClass array_class, int dim, intptr_t *count);
+extern pObject cloneObject(pObject ob);
+extern uintptr_t getObjectHashcode(pObject ob);
 
 extern void gc1();
 extern void runFinalizers();
@@ -780,8 +782,8 @@ extern void *gcMemMalloc(int n);
 extern void gcMemFree(void *ptr);
 extern void *gcMemRealloc(void *ptr, int n);
 
-extern void registerStaticObjectRef(Object **ref);
-extern void registerStaticObjectRefLocked(Object **ref, Object *obj);
+extern void registerStaticObjectRef(pObject *ref);
+extern void registerStaticObjectRefLocked(pObject *ref, pObject obj);
 
 #define registerStaticClassRef(ref) \
     registerStaticObjectRef(ref);
@@ -792,86 +794,86 @@ extern void registerStaticObjectRefLocked(Object **ref, Object *obj);
 extern void gcPendingFree(void *addr);
 
 /* GC support */
-extern void markRoot(Object *ob);
-extern void markConservativeRoot(Object *ob);
-extern void markObject(Object *ob, int mark);
-extern void markJNIClearedWeakRef(Object *ob);
-extern void markJNIGlobalRef(Object *ob);
-extern int isMarkedJNIWeakGlobalRef(Object *ob);
-extern int isMarked(Object *ob);
-extern void threadReference(Object **ref);
+extern void markRoot(pObject ob);
+extern void markConservativeRoot(pObject ob);
+extern void markObject(pObject ob, int mark);
+extern void markJNIClearedWeakRef(pObject ob);
+extern void markJNIGlobalRef(pObject ob);
+extern int isMarkedJNIWeakGlobalRef(pObject ob);
+extern int isMarked(pObject ob);
+extern void threadReference(pObject *ref);
 
 /* Class */
 
-extern Class *java_lang_Class;
+extern pClass java_lang_Class;
 
-extern Class *defineClass(char *classname, char *data, int offset, int len,
-                          Object *class_loader);
-extern void linkClass(Class *class);
-extern Class *initClass(Class *class);
-extern Class *findSystemClass(char *);
-extern Class *findSystemClass0(char *);
-extern Class *loadSystemClass(char *);
+extern pClass defineClass(char *classname, char *data, int offset, int len,
+                          pObject class_loader);
+extern void linkClass(pClass class);
+extern pClass initClass(pClass class);
+extern pClass findSystemClass(char *);
+extern pClass findSystemClass0(char *);
+extern pClass loadSystemClass(char *);
 
-extern Class *findHashedClass(char *, Object *);
-extern Class *findPrimitiveClass(char);
-extern Class *findArrayClassFromClassLoader(char *, Object *);
+extern pClass findHashedClass(char *, pObject );
+extern pClass findPrimitiveClass(char);
+extern pClass findArrayClassFromClassLoader(char *, pObject );
 
-extern Object *getSystemClassLoader();
+extern pObject getSystemClassLoader();
 
 extern int bootClassPathSize();
-extern Object *bootClassPathResource(char *filename, int index);
+extern pObject bootClassPathResource(char *filename, int index);
 
 #define findArrayClassFromClass(name, class) \
              findArrayClassFromClassLoader(name, CLASS_CB(class)->class_loader)
 #define findArrayClass(name) findArrayClassFromClassLoader(name, NULL)
 
-extern Class *findClassFromClassLoader(char *, Object *);
+extern pClass findClassFromClassLoader(char *, pObject );
 #define findClassFromClass(name, class) \
              findClassFromClassLoader(name, CLASS_CB(class)->class_loader)
 
-extern void freeClassData(Class *class);
-extern void freeClassLoaderData(Object *class_loader);
+extern void freeClassData(pClass class);
+extern void freeClassLoaderData(pObject class_loader);
 
 extern char *getClassPath();
 extern char *getBootClassPath();
 
 extern void markBootClasses();
-extern void markLoaderClasses(Object *loader, int mark);
+extern void markLoaderClasses(pObject loader, int mark);
 extern void threadBootClasses();
-extern void threadLoaderClasses(Object *class_loader);
-extern void newLibraryUnloader(Object *class_loader, void *entry);
+extern void threadLoaderClasses(pObject class_loader);
+extern void newLibraryUnloader(pObject class_loader, void *entry);
 extern void initialiseClass(InitArgs *args);
 
-extern Object *bootPackage(char *package_name);
-extern Object *bootPackages();
+extern pObject bootPackage(char *package_name);
+extern pObject bootPackages();
 
 /* resolve */
 
-extern FieldBlock *findField(Class *, char *, char *);
-extern MethodBlock *findMethod(Class *class, char *methodname, char *type);
-extern FieldBlock *lookupField(Class *, char *, char *);
-extern MethodBlock *lookupMethod(Class *class, char *methodname, char *type);
-extern MethodBlock *lookupVirtualMethod(Object *ob, MethodBlock *mb);
-extern Class *resolveClass(Class *class, int index, int init);
-extern MethodBlock *resolveMethod(Class *class, int index);
-extern MethodBlock *resolveInterfaceMethod(Class *class, int index);
-extern FieldBlock *resolveField(Class *class, int index);
-extern uintptr_t resolveSingleConstant(Class *class, int index);
-extern int peekIsFieldLong(Class *class, int index);
+extern FieldBlock *findField(pClass , char *, char *);
+extern MethodBlock *findMethod(pClass class, char *methodname, char *type);
+extern FieldBlock *lookupField(pClass , char *, char *);
+extern MethodBlock *lookupMethod(pClass class, char *methodname, char *type);
+extern MethodBlock *lookupVirtualMethod(pObject ob, MethodBlock *mb);
+extern pClass resolveClass(pClass class, int index, int init);
+extern MethodBlock *resolveMethod(pClass class, int index);
+extern MethodBlock *resolveInterfaceMethod(pClass class, int index);
+extern FieldBlock *resolveField(pClass class, int index);
+extern uintptr_t resolveSingleConstant(pClass class, int index);
+extern int peekIsFieldLong(pClass class, int index);
 
 /* cast */
 
-extern char isSubClassOf(Class *class, Class *test);
-extern char isInstanceOf(Class *class, Class *test);
-extern char arrayStoreCheck(Class *class, Class *test);
+extern char isSubClassOf(pClass class, pClass test);
+extern char isInstanceOf(pClass class, pClass test);
+extern char arrayStoreCheck(pClass class, pClass test);
 
 /* execute */
 
-extern void *executeMethodArgs(Object *ob, Class *class, MethodBlock *mb, ...);
-extern void *executeMethodVaList(Object *ob, Class *class, MethodBlock *mb,
+extern void *executeMethodArgs(pObject ob, pClass class, MethodBlock *mb, ...);
+extern void *executeMethodVaList(pObject ob, pClass class, MethodBlock *mb,
                                   va_list args);
-extern void *executeMethodList(Object *ob, Class *class, MethodBlock *mb,
+extern void *executeMethodList(pObject ob, pClass class, MethodBlock *mb,
                                u8 *args);
 
 #define executeMethod(ob, mb, args...) \
@@ -882,21 +884,21 @@ extern void *executeMethodList(Object *ob, Class *class, MethodBlock *mb,
 
 /* excep */
 
-extern Object *exceptionOccurred();
+extern pObject exceptionOccurred();
 extern void signalChainedExceptionEnum(int excep_enum, char *excep_mess,
-                                       Object *cause);
+                                       pObject cause);
 extern void signalChainedExceptionName(char *excep_name, char *excep_mess,
-                                       Object *cause);
-extern void signalChainedExceptionClass(Class *excep_class, char *excep_mess,
-                                        Object *cause);
-extern void setException(Object *excep);
+                                       pObject cause);
+extern void signalChainedExceptionClass(pClass excep_class, char *excep_mess,
+                                        pObject cause);
+extern void setException(pObject excep);
 extern void clearException();
 extern void printException();
-extern CodePntr findCatchBlock(Class *exception);
-extern Object *setStackTrace0(ExecEnv *ee, int max_depth);
-extern Object *convertStackTrace(Object *vmthrwble);
+extern CodePntr findCatchBlock(pClass exception);
+extern pObject setStackTrace0(ExecEnv *ee, int max_depth);
+extern pObject convertStackTrace(pObject vmthrwble);
 extern int mapPC2LineNo(MethodBlock *mb, CodePntr pc_pntr);
-extern void markVMThrowable(Object *vmthrwble, int mark);
+extern void markVMThrowable(pObject vmthrwble, int mark);
 extern void initialiseException();
 
 #define exceptionOccurred0(ee) \
@@ -922,17 +924,17 @@ extern void initialiseInterpreter(InitArgs *args);
 
 /* String */
 
-extern Object *findInternedString(Object *string);
-extern Object *createString(char *utf8);
-extern Object *createStringFromUnicode(unsigned short *unicode, int len);
-extern char *String2Cstr(Object *string);
-extern char *String2Buff(Object *string, char *buff, int buff_len);
-extern int getStringLen(Object *string);
-extern unsigned short *getStringChars(Object *string);
-extern Object *getStringCharsArray(Object *string);
-extern int getStringUtf8Len(Object *string);
-extern char *String2Utf8(Object *string);
-extern char *StringRegion2Utf8(Object *string, int start, int len, char *utf8);
+extern pObject findInternedString(pObject string);
+extern pObject createString(char *utf8);
+extern pObject createStringFromUnicode(unsigned short *unicode, int len);
+extern char *String2Cstr(pObject string);
+extern char *String2Buff(pObject string, char *buff, int buff_len);
+extern int getStringLen(pObject string);
+extern unsigned short *getStringChars(pObject string);
+extern pObject getStringCharsArray(pObject string);
+extern int getStringUtf8Len(pObject string);
+extern char *String2Utf8(pObject string);
+extern char *StringRegion2Utf8(pObject string, int start, int len, char *utf8);
 extern void freeInternedStrings();
 extern void threadInternedStrings();
 extern void initialiseString();
@@ -962,15 +964,15 @@ extern void initialiseUtf8();
 /* Dll */
 
 extern void *resolveNativeMethod(MethodBlock *mb);
-extern int resolveDll(char *name, Object *loader);
+extern int resolveDll(char *name, pObject loader);
 extern char *getDllPath();
 extern char *getBootDllPath();
 extern char *getDllName(char *name);
 extern void initialiseDll(InitArgs *args);
-extern uintptr_t *resolveNativeWrapper(Class *class, MethodBlock *mb,
+extern uintptr_t *resolveNativeWrapper(pClass class, MethodBlock *mb,
                                        uintptr_t *ostack);
 extern void unloaderUnloadDll(uintptr_t entry);
-extern void unloadClassLoaderDlls(Object *loader);
+extern void unloadClassLoaderDlls(pObject loader);
 extern void threadLiveClassLoaderDlls();
 
 /* OS */
@@ -990,8 +992,8 @@ extern void initialiseThreadStage1(InitArgs *args);
 extern void initialiseThreadStage2(InitArgs *args);
 extern ExecEnv *getExecEnv();
 
-extern void createJavaThread(Object *jThread, long long stack_size);
-extern void mainThreadSetContextClassLoader(Object *loader);
+extern void createJavaThread(pObject jThread, long long stack_size);
+extern void mainThreadSetContextClassLoader(pObject loader);
 extern void mainThreadWaitToExitVM();
 extern void uncaughtException();
 extern void exitVM(int status);
@@ -1013,21 +1015,21 @@ extern void markJNIClearedWeakRefs();
 /* properties */
 
 extern void initialiseProperties(InitArgs *args);
-extern void addCommandLineProperties(Object *properties);
-extern void addDefaultProperties(Object *properties);
+extern void addCommandLineProperties(pObject properties);
+extern void addDefaultProperties(pObject properties);
 extern char *getCommandLineProperty(char *key);
 extern char *getCwd();
 
 /* access */
 
-extern int checkClassAccess(Class *class1, Class *class2);
-extern int checkMethodAccess(MethodBlock *mb, Class *class);
-extern int checkFieldAccess(FieldBlock *fb, Class *class);
+extern int checkClassAccess(pClass class1, pClass class2);
+extern int checkMethodAccess(MethodBlock *mb, pClass class);
+extern int checkFieldAccess(FieldBlock *fb, pClass class);
 
 /* frame */
 
 extern Frame *getCallerFrame(Frame *last);
-extern Class *getCallerCallerClass();
+extern pClass getCallerCallerClass();
 
 /* native */
 

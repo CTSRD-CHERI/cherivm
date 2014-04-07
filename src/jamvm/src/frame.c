@@ -55,7 +55,7 @@ loop:
     return last;
 }
 
-Class *getCallerCallerClass() {
+pClass getCallerCallerClass() {
     Frame *last = getExecEnv()->last_frame->prev;
 
     if((last->mb == NULL && (last = last->prev)->prev == NULL) ||

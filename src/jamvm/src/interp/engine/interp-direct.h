@@ -319,7 +319,7 @@ opc##x##_##y##_##z:
 #define RESOLVED_CONSTANT(pc)    pc->operand.u
 #define RESOLVED_FIELD(pc)       ((FieldBlock*)pc->operand.pntr)
 #define RESOLVED_METHOD(pc)      ((MethodBlock*)pc->operand.pntr)
-#define RESOLVED_CLASS(pc)       (Class *)CP_INFO(cp, pc->operand.uui.u1)
+#define RESOLVED_CLASS(pc)       (pClass )CP_INFO(cp, pc->operand.uui.u1)
 
 /* Macros for checking for common exceptions */
 

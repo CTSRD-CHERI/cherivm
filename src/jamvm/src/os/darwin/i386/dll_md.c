@@ -58,7 +58,7 @@ int nativeExtraArg(MethodBlock *mb) {
     return RET_DFLT;
 }
 
-u4 *callJNIMethod(void *env, Class *class, char *sig, int ret_type,
+u4 *callJNIMethod(void *env, pClass class, char *sig, int ret_type,
                   u4 *ostack, unsigned char *f, int args) {
     int tot_args = args + 1 + (class ? 1 : 0);
     int aligned = (tot_args + 3) & ~0x3;

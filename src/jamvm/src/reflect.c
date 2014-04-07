@@ -33,10 +33,10 @@
 
 static char inited = FALSE;
 
-static Class *class_array_class, *cons_array_class, *cons_reflect_class;
-static Class *method_array_class, *method_reflect_class, *field_array_class;
-static Class *field_reflect_class, *vmcons_reflect_class;
-static Class *vmmethod_reflect_class, *vmfield_reflect_class;
+static pClass class_array_class, cons_array_class, cons_reflect_class;
+static pClass method_array_class, method_reflect_class, field_array_class;
+static pClass field_reflect_class, vmcons_reflect_class;
+static pClass vmmethod_reflect_class, vmfield_reflect_class;
 
 int vm_cons_slot_offset, vm_cons_class_offset, vm_cons_param_offset;
 int vm_cons_cons_offset, vm_mthd_slot_offset, vm_mthd_class_offset;
@@ -46,9 +46,9 @@ int vm_fld_f_offset, cons_cons_offset, mthd_m_offset;
 int fld_f_offset, acc_flag_offset;
 
 static int initReflection() {
-    Class *cls_ary_cls, *cons_ary_cls, *cons_ref_cls, *mthd_ary_cls;
-    Class *mthd_ref_cls, *fld_ary_cls, *fld_ref_cls, *vm_cons_cls;
-    Class *vm_mthd_cls, *vm_fld_cls;
+    pClass cls_ary_cls, cons_ary_cls, cons_ref_cls, mthd_ary_cls;
+    pClass mthd_ref_cls, fld_ary_cls, fld_ref_cls, vm_cons_cls;
+    pClass vm_mthd_cls, vm_fld_cls;
 
     FieldBlock *vm_cons_slot_fb, *vm_cons_class_fb, *vm_cons_param_fb;
     FieldBlock *vm_cons_cons_fb, *vm_mthd_slot_fb, *vm_mthd_class_fb;
@@ -153,9 +153,9 @@ static int initReflection() {
     return inited = TRUE;
 }
 
-Class *convertSigElement2Class(char **sig_pntr, Class *declaring_class) {
+pClass convertSigElement2Class(char **sig_pntr, pClass declaring_class) {
     char *sig = *sig_pntr;
-    Class *class;
+    pClass class;
 
     switch(*sig) {
         case '[': {
@@ -185,11 +185,11 @@ Class *convertSigElement2Class(char **sig_pntr, Class *declaring_class) {
     return class;
 }
 
-Object *convertSig2ClassArray(char **sig_pntr, Class *declaring_class) {
+pObject convertSig2ClassArray(char **sig_pntr, pClass declaring_class) {
     char *sig = *sig_pntr;
     int no_params, i = 0;
-    Class **params;
-    Object *array;
+    pClass *params;
+    pObject array;
 
     for(no_params = 0; *++sig != ')'; no_params++) {
         if(*sig == '[')
@@ -198,10 +198,10 @@ Object *convertSig2ClassArray(char **sig_pntr, Class *declaring_class) {
             while(*++sig != ';');
     }
 
-    if((array = allocArray(class_array_class, no_params, sizeof(Class*))) == NULL)
+    if((array = allocArray(class_array_class, no_params, sizeof(pClass))) == NULL)
         return NULL;
 
-    params = ARRAY_DATA(array, Class*);
+    params = ARRAY_DATA(array, pClass);
 
     *sig_pntr += 1;
     while(**sig_pntr != ')')
@@ -211,15 +211,15 @@ Object *convertSig2ClassArray(char **sig_pntr, Class *declaring_class) {
     return array;
 }
 
-Object *getExceptionTypes(MethodBlock *mb) {
+pObject getExceptionTypes(MethodBlock *mb) {
     int i;
-    Object *array;
-    Class **excps;
+    pObject array;
+    pClass *excps;
 
-    if((array = allocArray(class_array_class, mb->throw_table_size, sizeof(Class*))) == NULL)
+    if((array = allocArray(class_array_class, mb->throw_table_size, sizeof(pClass))) == NULL)
         return NULL;
 
-    excps = ARRAY_DATA(array, Class*);
+    excps = ARRAY_DATA(array, pClass);
 
     for(i = 0; i < mb->throw_table_size; i++)
         if((excps[i] = resolveClass(mb->class, mb->throw_table[i], FALSE)) == NULL)
@@ -228,8 +228,8 @@ Object *getExceptionTypes(MethodBlock *mb) {
     return array;
 }
 
-Object *createConstructorObject(MethodBlock *mb) {
-    Object *reflect_ob, *vm_reflect_ob, *classes;
+pObject createConstructorObject(MethodBlock *mb) {
+    pObject reflect_ob, vm_reflect_ob, classes;
     char *signature, *sig;
 
     if((reflect_ob = allocObject(cons_reflect_class)) == NULL)
@@ -247,21 +247,21 @@ Object *createConstructorObject(MethodBlock *mb) {
     if(classes == NULL)
         return NULL;
 
-    INST_DATA(vm_reflect_ob, Class*, vm_cons_class_offset) = mb->class;
-    INST_DATA(vm_reflect_ob, Object*, vm_cons_param_offset) = classes;
+    INST_DATA(vm_reflect_ob, pClass, vm_cons_class_offset) = mb->class;
+    INST_DATA(vm_reflect_ob, pObject, vm_cons_param_offset) = classes;
     INST_DATA(vm_reflect_ob, int, vm_cons_slot_offset) =
                                      mb - CLASS_CB(mb->class)->methods;
 
     /* Link the Java-level and VM-level objects together */
-    INST_DATA(vm_reflect_ob, Object*, vm_cons_cons_offset) = reflect_ob;
-    INST_DATA(reflect_ob, Object*, cons_cons_offset) = vm_reflect_ob;
+    INST_DATA(vm_reflect_ob, pObject, vm_cons_cons_offset) = reflect_ob;
+    INST_DATA(reflect_ob, pObject, cons_cons_offset) = vm_reflect_ob;
 
     return reflect_ob;
 }
 
-Object *getClassConstructors(Class *class, int public) {
+pObject getClassConstructors(pClass class, int public) {
     ClassBlock *cb = CLASS_CB(class);
-    Object *array, **cons;
+    pObject array, *cons;
     int count = 0;
     int i, j;
 
@@ -275,10 +275,10 @@ Object *getClassConstructors(Class *class, int public) {
             count++;
     }
 
-    if((array = allocArray(cons_array_class, count, sizeof(Object*))) == NULL)
+    if((array = allocArray(cons_array_class, count, sizeof(pObject))) == NULL)
         return NULL;
 
-    cons = ARRAY_DATA(array, Object*);
+    cons = ARRAY_DATA(array, pObject);
 
     for(i = 0, j = 0; j < count; i++) {
         MethodBlock *mb = &cb->methods[i];
@@ -293,10 +293,10 @@ Object *getClassConstructors(Class *class, int public) {
     return array;
 }
 
-Object *createMethodObject(MethodBlock *mb) {
-    Object *reflect_ob, *vm_reflect_ob, *classes;
+pObject createMethodObject(MethodBlock *mb) {
+    pObject reflect_ob, vm_reflect_ob, classes;
     char *signature, *sig;
-    Class *ret;
+    pClass ret;
 
     if((reflect_ob = allocObject(method_reflect_class)) == NULL)
         return NULL;
@@ -316,22 +316,22 @@ Object *createMethodObject(MethodBlock *mb) {
     if(classes == NULL || ret == NULL)
         return NULL;
 
-    INST_DATA(vm_reflect_ob, Class*, vm_mthd_class_offset) = mb->class;
-    INST_DATA(vm_reflect_ob, Object*, vm_mthd_param_offset) = classes;
-    INST_DATA(vm_reflect_ob, Class*, vm_mthd_ret_offset) = ret;
+    INST_DATA(vm_reflect_ob, pClass, vm_mthd_class_offset) = mb->class;
+    INST_DATA(vm_reflect_ob, pObject, vm_mthd_param_offset) = classes;
+    INST_DATA(vm_reflect_ob, pClass, vm_mthd_ret_offset) = ret;
     INST_DATA(vm_reflect_ob, int, vm_mthd_slot_offset) =
                                      mb - CLASS_CB(mb->class)->methods;
 
     /* Link the Java-level and VM-level objects together */
-    INST_DATA(vm_reflect_ob, Object*, vm_mthd_m_offset) = reflect_ob;
-    INST_DATA(reflect_ob, Object*, mthd_m_offset) = vm_reflect_ob;
+    INST_DATA(vm_reflect_ob, pObject, vm_mthd_m_offset) = reflect_ob;
+    INST_DATA(reflect_ob, pObject, mthd_m_offset) = vm_reflect_ob;
 
     return reflect_ob;
 }
 
-Object *getClassMethods(Class *class, int public) {
+pObject getClassMethods(pClass class, int public) {
     ClassBlock *cb = CLASS_CB(class);
-    Object *array, **methods;
+    pObject array, *methods;
     int count = 0;
     int i, j;
 
@@ -345,10 +345,10 @@ Object *getClassMethods(Class *class, int public) {
             count++;
     }
 
-    if((array = allocArray(method_array_class, count, sizeof(Object*))) == NULL)
+    if((array = allocArray(method_array_class, count, sizeof(pObject))) == NULL)
         return NULL;
 
-    methods = ARRAY_DATA(array, Object*);
+    methods = ARRAY_DATA(array, pObject);
 
     for(i = 0, j = 0; j < count; i++) {
         MethodBlock *mb = &cb->methods[i];
@@ -363,10 +363,10 @@ Object *getClassMethods(Class *class, int public) {
     return array;
 }
 
-Object *createFieldObject(FieldBlock *fb) {
-    Object *reflect_ob, *vm_reflect_ob;
+pObject createFieldObject(FieldBlock *fb) {
+    pObject reflect_ob, vm_reflect_ob;
     char *signature, *sig;
-    Class *type;
+    pClass type;
 
     if((reflect_ob = allocObject(field_reflect_class)) == NULL)
         return NULL;
@@ -383,21 +383,21 @@ Object *createFieldObject(FieldBlock *fb) {
     if(type == NULL)
         return NULL;
 
-    INST_DATA(vm_reflect_ob, Class*, vm_fld_class_offset) = fb->class;
-    INST_DATA(vm_reflect_ob, Class*, vm_fld_type_offset) = type;
+    INST_DATA(vm_reflect_ob, pClass, vm_fld_class_offset) = fb->class;
+    INST_DATA(vm_reflect_ob, pClass, vm_fld_type_offset) = type;
     INST_DATA(vm_reflect_ob, int, vm_fld_slot_offset) =
                                      fb - CLASS_CB(fb->class)->fields;
 
     /* Link the Java-level and VM-level objects together */
-    INST_DATA(vm_reflect_ob, Object*, vm_fld_f_offset) = reflect_ob;
-    INST_DATA(reflect_ob, Object*, fld_f_offset) = vm_reflect_ob;
+    INST_DATA(vm_reflect_ob, pObject, vm_fld_f_offset) = reflect_ob;
+    INST_DATA(reflect_ob, pObject, fld_f_offset) = vm_reflect_ob;
 
     return reflect_ob;
 }
 
-Object *getClassFields(Class *class, int public) {
+pObject getClassFields(pClass class, int public) {
     ClassBlock *cb = CLASS_CB(class);
-    Object *array, **fields;
+    pObject array, *fields;
     int count = 0;
     int i, j;
 
@@ -411,10 +411,10 @@ Object *getClassFields(Class *class, int public) {
             if(cb->fields[i].access_flags & ACC_PUBLIC)
                 count++;
 
-    if((array = allocArray(field_array_class, count, sizeof(Object*))) == NULL)
+    if((array = allocArray(field_array_class, count, sizeof(pObject))) == NULL)
         return NULL;
 
-    fields = ARRAY_DATA(array, Object*);
+    fields = ARRAY_DATA(array, pObject);
 
     for(i = 0, j = 0; j < count; i++) {
         FieldBlock *fb = &cb->fields[i];
@@ -427,34 +427,34 @@ Object *getClassFields(Class *class, int public) {
     return array;
 }
 
-Object *getClassInterfaces(Class *class) {
+pObject getClassInterfaces(pClass class) {
     ClassBlock *cb = CLASS_CB(class);
-    Object *array;
+    pObject array;
 
     if(!inited && !initReflection())
         return NULL;
 
     if((array = allocArray(class_array_class, cb->interfaces_count,
-                           sizeof(Class*))) == NULL)
+                           sizeof(pClass))) == NULL)
         return NULL;
 
-    memcpy(ARRAY_DATA(array, Class*), cb->interfaces,
-           cb->interfaces_count * sizeof(Class*));
+    memcpy(ARRAY_DATA(array, pClass), cb->interfaces,
+           cb->interfaces_count * sizeof(pClass));
 
     return array;
 }
 
-Object *getClassClasses(Class *class, int public) {
+pObject getClassClasses(pClass class, int public) {
     ClassBlock *cb = CLASS_CB(class);
     int i, j, count = 0;
-    Class **classes;
-    Object *array;
+    pClass *classes;
+    pObject array;
 
     if(!inited && !initReflection())
         return NULL;
 
     for(i = 0; i < cb->inner_class_count; i++) {
-        Class *iclass;
+        pClass iclass;
 
         if((iclass = resolveClass(class, cb->inner_classes[i], FALSE)) == NULL)
             return NULL;
@@ -463,13 +463,13 @@ Object *getClassClasses(Class *class, int public) {
             count++;
     }
 
-    if((array = allocArray(class_array_class, count, sizeof(Class*))) == NULL)
+    if((array = allocArray(class_array_class, count, sizeof(pClass))) == NULL)
         return NULL;
 
-    classes = ARRAY_DATA(array, Class*);
+    classes = ARRAY_DATA(array, pClass);
 
     for(i = 0, j = 0; j < count; i++) {
-        Class *iclass = resolveClass(class, cb->inner_classes[i], FALSE);
+        pClass iclass = resolveClass(class, cb->inner_classes[i], FALSE);
 
         if(!public || (CLASS_CB(iclass)->inner_access_flags & ACC_PUBLIC))
             classes[j++] = iclass;
@@ -478,22 +478,22 @@ Object *getClassClasses(Class *class, int public) {
     return array;
 }
 
-Class *getDeclaringClass(Class *class) {
+pClass getDeclaringClass(pClass class) {
     ClassBlock *cb = CLASS_CB(class);
 
     return cb->declaring_class ? resolveClass(class, cb->declaring_class, FALSE)
                                : NULL;
 }
 
-Class *getEnclosingClass(Class *class) {
+pClass getEnclosingClass(pClass class) {
     ClassBlock *cb = CLASS_CB(class);
 
     return cb->enclosing_class ? resolveClass(class, cb->enclosing_class, FALSE)
                                : NULL;
 }
 
-MethodBlock *getEnclosingMethod(Class *class) {
-    Class *enclosing_class = getEnclosingClass(class);
+MethodBlock *getEnclosingMethod(pClass class) {
+    pClass enclosing_class = getEnclosingClass(class);
 
     if(enclosing_class != NULL) {
         ClassBlock *cb = CLASS_CB(class);
@@ -521,7 +521,7 @@ MethodBlock *getEnclosingMethod(Class *class) {
     return NULL;
 }
 
-Object *getEnclosingMethodObject(Class *class) {
+pObject getEnclosingMethodObject(pClass class) {
     MethodBlock *mb = getEnclosingMethod(class);
 
     if(mb != NULL && mb->name == SYMBOL(object_init))
@@ -530,7 +530,7 @@ Object *getEnclosingMethodObject(Class *class) {
     return NULL;
 }
 
-Object *getEnclosingConstructorObject(Class *class) {
+pObject getEnclosingConstructorObject(pClass class) {
     MethodBlock *mb = getEnclosingMethod(class);
 
     if(mb != NULL && mb->name == SYMBOL(object_init))
@@ -541,13 +541,13 @@ Object *getEnclosingConstructorObject(Class *class) {
 
 static char anno_inited = FALSE;
 
-static Class *enum_class, *map_class, *anno_inv_class, *obj_array_class;
-static Class *anno_array_class, *dbl_anno_array_class;
+static pClass enum_class, map_class, anno_inv_class, obj_array_class;
+static pClass anno_array_class, dbl_anno_array_class;
 static MethodBlock *map_init_mb, *map_put_mb, *anno_create_mb, *enum_valueof_mb;
 
 static int initAnnotation() {
-    Class *enum_cls, *map_cls, *anno_inv_cls, *obj_ary_cls;
-    Class *anno_ary_cls, *dbl_anno_ary_cls;
+    pClass enum_cls, map_cls, anno_inv_cls, obj_ary_cls;
+    pClass anno_ary_cls, dbl_anno_ary_cls;
 
     enum_cls = findSystemClass("java/lang/Enum");
     map_cls = findSystemClass("java/util/HashMap");
@@ -593,8 +593,8 @@ static int initAnnotation() {
     return anno_inited = TRUE;
 }
 
-Class *findClassFromSignature(char *type_name, Class *class) {
-    Class *type_class;
+pClass findClassFromSignature(char *type_name, pClass class) {
+    pClass type_class;
     char *name, *pntr;
 
     name = pntr = sysMalloc(strlen(type_name) + 1);
@@ -607,10 +607,10 @@ Class *findClassFromSignature(char *type_name, Class *class) {
 }
 
 /* Forward declarations */
-Object *createWrapperObject(int prim_type_no, void *pntr, int flags);
-Object *parseAnnotation(Class *class, u1 **data_ptr, int *data_len);
+pObject createWrapperObject(int prim_type_no, void *pntr, int flags);
+pObject parseAnnotation(pClass class, u1 **data_ptr, int *data_len);
 
-Object *parseElementValue(Class *class, u1 **data_ptr, int *data_len) {
+pObject parseElementValue(pClass class, u1 **data_ptr, int *data_len) {
     ClassBlock *cb = CLASS_CB(class);
     ConstantPool *cp = &cb->constant_pool;
     char tag;
@@ -670,8 +670,8 @@ Object *parseElementValue(Class *class, u1 **data_ptr, int *data_len) {
 
         case 'e': {
             int type_name_idx, const_name_idx;
-            Object *const_name, *enum_obj;
-            Class *type_class;
+            pObject const_name, enum_obj;
+            pClass type_class;
 
             READ_TYPE_INDEX(type_name_idx, cp, CONSTANT_Utf8, *data_ptr, *data_len);
             READ_TYPE_INDEX(const_name_idx, cp, CONSTANT_Utf8, *data_ptr, *data_len);
@@ -681,7 +681,7 @@ Object *parseElementValue(Class *class, u1 **data_ptr, int *data_len) {
             if(type_class == NULL || const_name == NULL)
                 return NULL;
 
-            enum_obj = *(Object**)executeStaticMethod(enum_class, enum_valueof_mb,
+            enum_obj = *(pObject*)executeStaticMethod(enum_class, enum_valueof_mb,
                                                       type_class, const_name);
             if(exceptionOccurred())
                 return NULL;
@@ -699,15 +699,15 @@ Object *parseElementValue(Class *class, u1 **data_ptr, int *data_len) {
             return parseAnnotation(class, data_ptr, data_len);
 
         case '[': {
-            Object *array;
-            Object **array_data;
+            pObject array;
+            pObject *array_data;
             int i, num_values;
 
             READ_U2(num_values, *data_ptr, *data_len);
-            if((array = allocArray(obj_array_class, num_values, sizeof(Object*))) == NULL)
+            if((array = allocArray(obj_array_class, num_values, sizeof(pObject))) == NULL)
                 return NULL;
 
-            array_data = ARRAY_DATA(array, Object*);
+            array_data = ARRAY_DATA(array, pObject);
 
             for(i = 0; i < num_values; i++)
                 if((array_data[i] = parseElementValue(class, data_ptr, data_len)) == NULL)
@@ -718,12 +718,12 @@ Object *parseElementValue(Class *class, u1 **data_ptr, int *data_len) {
     }
 }
 
-Object *parseAnnotation(Class *class, u1 **data_ptr, int *data_len) {
+pObject parseAnnotation(pClass class, u1 **data_ptr, int *data_len) {
     ClassBlock *cb = CLASS_CB(class);
     ConstantPool *cp = &cb->constant_pool;
-    Object *map, *anno;
+    pObject map, anno;
     int no_value_pairs;
-    Class *type_class;
+    pClass type_class;
     int type_idx;
     int i;
 
@@ -741,7 +741,7 @@ Object *parseAnnotation(Class *class, u1 **data_ptr, int *data_len) {
     READ_U2(no_value_pairs, *data_ptr, *data_len);
 
     for(i = 0; i < no_value_pairs; i++) {
-        Object *element_name, *element_value;
+        pObject element_name, element_value;
         int element_name_idx;
 
         READ_TYPE_INDEX(element_name_idx, cp, CONSTANT_Utf8, *data_ptr, *data_len);
@@ -756,32 +756,32 @@ Object *parseAnnotation(Class *class, u1 **data_ptr, int *data_len) {
             return NULL;
     }
 
-    anno = *(Object**)executeStaticMethod(anno_inv_class, anno_create_mb, type_class, map);
+    anno = *(pObject*)executeStaticMethod(anno_inv_class, anno_create_mb, type_class, map);
     if(exceptionOccurred())
         return NULL;
 
     return anno;
 }
 
-Object *parseAnnotations(Class *class, AnnotationData *annotations) {
+pObject parseAnnotations(pClass class, AnnotationData *annotations) {
     if(!anno_inited && !initAnnotation())
         return NULL;
 
     if(annotations == NULL)
-        return allocArray(anno_array_class, 0, sizeof(Object*));
+        return allocArray(anno_array_class, 0, sizeof(pObject));
     else {
         u1 *data_ptr = annotations->data;
         int data_len = annotations->len;
-        Object **array_data;
-        Object *array;
+        pObject *array_data;
+        pObject array;
         int no_annos;
         int i;
 
         READ_U2(no_annos, data_ptr, data_len);
-        if((array = allocArray(anno_array_class, no_annos, sizeof(Object*))) == NULL)
+        if((array = allocArray(anno_array_class, no_annos, sizeof(pObject))) == NULL)
             return NULL;
 
-        array_data = ARRAY_DATA(array, Object*);
+        array_data = ARRAY_DATA(array, pObject);
 
         for(i = 0; i < no_annos; i++)
             if((array_data[i] = parseAnnotation(class, &data_ptr, &data_len)) == NULL)
@@ -791,48 +791,48 @@ Object *parseAnnotations(Class *class, AnnotationData *annotations) {
     }
 }
 
-Object *getClassAnnotations(Class *class) {
+pObject getClassAnnotations(pClass class) {
     return parseAnnotations(class, CLASS_CB(class)->annotations);
 }
 
-Object *getFieldAnnotations(FieldBlock *fb) {
+pObject getFieldAnnotations(FieldBlock *fb) {
     return parseAnnotations(fb->class, fb->annotations);
 }
 
-Object *getMethodAnnotations(MethodBlock *mb) {
+pObject getMethodAnnotations(MethodBlock *mb) {
     return parseAnnotations(mb->class, mb->annotations == NULL ?
                                 NULL : mb->annotations->annotations);
 }
 
-Object *getMethodParameterAnnotations(MethodBlock *mb) {
+pObject getMethodParameterAnnotations(MethodBlock *mb) {
     if(!anno_inited && !initAnnotation())
         return NULL;
 
     if(mb->annotations == NULL || mb->annotations->parameters == NULL)
-        return allocArray(dbl_anno_array_class, 0, sizeof(Object*));
+        return allocArray(dbl_anno_array_class, 0, sizeof(pObject));
     else {
         u1 *data_ptr = mb->annotations->parameters->data;
         int data_len = mb->annotations->parameters->len;
-        Object **outer_array_data;
-        Object *outer_array;
+        pObject *outer_array_data;
+        pObject outer_array;
         int no_params, i;
 
         READ_U1(no_params, data_ptr, data_len);
-        if((outer_array = allocArray(dbl_anno_array_class, no_params, sizeof(Object*))) == NULL)
+        if((outer_array = allocArray(dbl_anno_array_class, no_params, sizeof(pObject))) == NULL)
             return NULL;
 
-        outer_array_data = ARRAY_DATA(outer_array, Object*);
+        outer_array_data = ARRAY_DATA(outer_array, pObject);
 
         for(i = 0; i < no_params; i++) {
-            Object **inner_array_data;
-            Object *inner_array;
+            pObject *inner_array_data;
+            pObject inner_array;
             int no_annos, j;
 
             READ_U2(no_annos, data_ptr, data_len);
-            if((inner_array = allocArray(anno_array_class, no_annos, sizeof(Object*))) == NULL)
+            if((inner_array = allocArray(anno_array_class, no_annos, sizeof(pObject))) == NULL)
                 return NULL;
 
-            inner_array_data = ARRAY_DATA(inner_array, Object*);
+            inner_array_data = ARRAY_DATA(inner_array, pObject);
 
             for(j = 0; j < no_annos; j++)
                 if((inner_array_data[j] = parseAnnotation(mb->class, &data_ptr, &data_len)) == NULL)
@@ -844,7 +844,7 @@ Object *getMethodParameterAnnotations(MethodBlock *mb) {
     }
 }
 
-Object *getMethodDefaultValue(MethodBlock *mb) {
+pObject getMethodDefaultValue(MethodBlock *mb) {
     if(!anno_inited && !initAnnotation())
         return NULL;
 
@@ -858,7 +858,7 @@ Object *getMethodDefaultValue(MethodBlock *mb) {
     }
 }
 
-int getWrapperPrimTypeIndex(Object *arg) {
+int getWrapperPrimTypeIndex(pObject arg) {
     if(arg != NULL)  {
         ClassBlock *cb = CLASS_CB(arg->class);
 
@@ -893,7 +893,7 @@ int getWrapperPrimTypeIndex(Object *arg) {
     return PRIM_IDX_VOID;
 }
 
-Object *createWrapperObject(int prim_type_no, void *pntr, int flags) {
+pObject createWrapperObject(int prim_type_no, void *pntr, int flags) {
     static char *wrapper_names[] = {"java/lang/Boolean",
                                     "java/lang/Byte",
                                     "java/lang/Character",
@@ -902,10 +902,10 @@ Object *createWrapperObject(int prim_type_no, void *pntr, int flags) {
                                     "java/lang/Float",
                                     "java/lang/Long",
                                     "java/lang/Double"};
-    Object *wrapper = NULL;
+    pObject wrapper = NULL;
 
     if(prim_type_no > PRIM_IDX_VOID) {
-        Class *wrapper_class;
+        pClass wrapper_class;
 
         if((wrapper_class = findSystemClass(wrapper_names[prim_type_no - 1]))
                   && (wrapper = allocObject(wrapper_class)) != NULL) {
@@ -922,13 +922,13 @@ Object *createWrapperObject(int prim_type_no, void *pntr, int flags) {
     return wrapper;
 }
 
-Object *getReflectReturnObject(Class *type, void *pntr, int flags) {
+pObject getReflectReturnObject(pClass type, void *pntr, int flags) {
     ClassBlock *type_cb = CLASS_CB(type);
 
     if(IS_PRIMITIVE(type_cb))
         return createWrapperObject(type_cb->state - CLASS_PRIM, pntr, flags);
 
-    return *(Object**)pntr;
+    return *(pObject*)pntr;
 }
 
 int widenPrimitiveValue(int src_idx, int dest_idx, void *src, void *dest,
@@ -1025,7 +1025,7 @@ illegal_arg:
     return 0;
 }
 
-int unwrapAndWidenObject(Class *type, Object *arg, void *pntr, int flags) {
+int unwrapAndWidenObject(pClass type, pObject arg, void *pntr, int flags) {
     ClassBlock *type_cb = CLASS_CB(type);
 
     if(IS_PRIMITIVE(type_cb)) {
@@ -1045,18 +1045,18 @@ int unwrapAndWidenObject(Class *type, Object *arg, void *pntr, int flags) {
     return 0;
 }
 
-Object *invoke(Object *ob, MethodBlock *mb, Object *arg_array,
-                Object *param_types) {
+pObject invoke(pObject ob, MethodBlock *mb, pObject arg_array,
+                pObject param_types) {
 
-    Object **args = ARRAY_DATA(arg_array, Object*);
-    Class **types = ARRAY_DATA(param_types, Class*);
+    pObject *args = ARRAY_DATA(arg_array, pObject);
+    pClass *types = ARRAY_DATA(param_types, pClass);
 
     int types_len = ARRAY_LEN(param_types);
     int args_len = arg_array ? ARRAY_LEN(arg_array) : 0;
 
     ExecEnv *ee = getExecEnv();
     uintptr_t *sp;
-    Object *excep;
+    pObject excep;
     void *ret;
     int i;
 
@@ -1097,9 +1097,9 @@ Object *invoke(Object *ob, MethodBlock *mb, Object *arg_array,
     POP_TOP_FRAME(ee);
 
     if((excep = exceptionOccurred())) {
-        Object *ite_excep;
+        pObject ite_excep;
         MethodBlock *init;
-        Class *ite_class;
+        pClass ite_class;
 
         clearException();        
         ite_class = findSystemClass("java/lang/reflect/InvocationTargetException");
@@ -1118,86 +1118,86 @@ Object *invoke(Object *ob, MethodBlock *mb, Object *arg_array,
 
 /* Functions to get values from the VM-level reflection objects */
 
-MethodBlock *getConsMethodBlock(Object *vm_cons_obj) {
-    Class *decl_class = INST_DATA(vm_cons_obj, Class*, vm_cons_class_offset);
+MethodBlock *getConsMethodBlock(pObject vm_cons_obj) {
+    pClass decl_class = INST_DATA(vm_cons_obj, pClass, vm_cons_class_offset);
     int slot = INST_DATA(vm_cons_obj, int, vm_cons_slot_offset);
 
     return &CLASS_CB(decl_class)->methods[slot];
 }
 
-int getConsAccessFlag(Object *vm_cons_obj) {
-    Object *cons_obj = INST_DATA(vm_cons_obj, Object*, vm_cons_cons_offset);
+int getConsAccessFlag(pObject vm_cons_obj) {
+    pObject cons_obj = INST_DATA(vm_cons_obj, pObject, vm_cons_cons_offset);
     return INST_DATA(cons_obj, int, acc_flag_offset);
 }
 
-int getMethodAccessFlag(Object *vm_mthd_obj) {
-    Object *mthd_obj = INST_DATA(vm_mthd_obj, Object*, vm_mthd_m_offset);
+int getMethodAccessFlag(pObject vm_mthd_obj) {
+    pObject mthd_obj = INST_DATA(vm_mthd_obj, pObject, vm_mthd_m_offset);
     return INST_DATA(mthd_obj, int, acc_flag_offset);
 }
 
-MethodBlock *getMethodMethodBlock(Object *vm_mthd_obj) {
-    Class *decl_class = INST_DATA(vm_mthd_obj, Class*, vm_mthd_class_offset);
+MethodBlock *getMethodMethodBlock(pObject vm_mthd_obj) {
+    pClass decl_class = INST_DATA(vm_mthd_obj, pClass, vm_mthd_class_offset);
     int slot = INST_DATA(vm_mthd_obj, int, vm_mthd_slot_offset);
 
     return &CLASS_CB(decl_class)->methods[slot];
 }
 
-FieldBlock *getFieldFieldBlock(Object *vm_fld_obj) {
-    Class *decl_class = INST_DATA(vm_fld_obj, Class*, vm_fld_class_offset);
+FieldBlock *getFieldFieldBlock(pObject vm_fld_obj) {
+    pClass decl_class = INST_DATA(vm_fld_obj, pClass, vm_fld_class_offset);
     int slot = INST_DATA(vm_fld_obj, int, vm_fld_slot_offset);
 
     return &(CLASS_CB(decl_class)->fields[slot]);
 }
 
-int getFieldAccessFlag(Object *vm_fld_obj) {
-    Object *fld_obj = INST_DATA(vm_fld_obj, Object*, vm_fld_f_offset);
+int getFieldAccessFlag(pObject vm_fld_obj) {
+    pObject fld_obj = INST_DATA(vm_fld_obj, pObject, vm_fld_f_offset);
     return INST_DATA(fld_obj, int, acc_flag_offset);
 }
 
 /* Reflection access from JNI */
 
-Object *createReflectConstructorObject(MethodBlock *mb) {
+pObject createReflectConstructorObject(MethodBlock *mb) {
     if(!inited && !initReflection())
         return NULL;
 
     return createConstructorObject(mb);
 }
 
-Object *createReflectMethodObject(MethodBlock *mb) {
+pObject createReflectMethodObject(MethodBlock *mb) {
     if(!inited && !initReflection())
         return NULL;
 
     return createMethodObject(mb);
 }
 
-Object *createReflectFieldObject(FieldBlock *fb) {
+pObject createReflectFieldObject(FieldBlock *fb) {
     if(!inited && !initReflection())
         return NULL;
 
     return createFieldObject(fb);
 }
 
-MethodBlock *mbFromReflectObject(Object *reflect_ob) {
+MethodBlock *mbFromReflectObject(pObject reflect_ob) {
     MethodBlock *mb;
 
     if(reflect_ob->class == cons_reflect_class) {
-        Object *vm_cons_obj = INST_DATA(reflect_ob, Object*, cons_cons_offset);
+        pObject vm_cons_obj = INST_DATA(reflect_ob, pObject, cons_cons_offset);
         mb = getConsMethodBlock(vm_cons_obj);
     } else {
-        Object *vm_mthd_obj = INST_DATA(reflect_ob, Object*, mthd_m_offset);
+        pObject vm_mthd_obj = INST_DATA(reflect_ob, pObject, mthd_m_offset);
         mb = getMethodMethodBlock(vm_mthd_obj);
     }
 
     return mb;
 }
 
-FieldBlock *fbFromReflectObject(Object *reflect_ob) {
-    Object *vm_fld_obj = INST_DATA(reflect_ob, Object*, fld_f_offset);
+FieldBlock *fbFromReflectObject(pObject reflect_ob) {
+    pObject vm_fld_obj = INST_DATA(reflect_ob, pObject, fld_f_offset);
     return getFieldFieldBlock(vm_fld_obj);
 }
 
 /* Needed for stack walking */
 
-Class *getReflectMethodClass() {
+pClass getReflectMethodClass() {
     return method_reflect_class;
 }

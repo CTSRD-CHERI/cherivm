@@ -21,7 +21,7 @@
 
 #include "jam.h"
 
-static int isSameRuntimePackage(Class *class1, Class *class2) {
+static int isSameRuntimePackage(pClass class1, pClass class2) {
     if(class1 != class2) {
         ClassBlock *cb1 = CLASS_CB(class1);
         ClassBlock *cb2 = CLASS_CB(class2);
@@ -70,7 +70,7 @@ static int isSameRuntimePackage(Class *class1, Class *class2) {
     return TRUE;
 }
 
-int checkClassAccess(Class *class1, Class *class2) {
+int checkClassAccess(pClass class1, pClass class2) {
     ClassBlock *cb1 = CLASS_CB(class1);
 
     /* We can access it if it is public */
@@ -81,8 +81,8 @@ int checkClassAccess(Class *class1, Class *class2) {
     return isSameRuntimePackage(class1, class2);
 }
 
-static int checkMethodOrFieldAccess(int access_flags, Class *decl_class,
-                                    Class *class) {
+static int checkMethodOrFieldAccess(int access_flags, pClass decl_class,
+                                    pClass class) {
 
     /* Public methods and fields are always accessible */
     if(access_flags & ACC_PUBLIC)
@@ -105,10 +105,10 @@ static int checkMethodOrFieldAccess(int access_flags, Class *decl_class,
     return isSameRuntimePackage(decl_class, class);
 }
 
-int checkMethodAccess(MethodBlock *mb, Class *class) {
+int checkMethodAccess(MethodBlock *mb, pClass class) {
     return checkMethodOrFieldAccess(mb->access_flags, mb->class, class);
 }
 
-int checkFieldAccess(FieldBlock *fb, Class *class) {
+int checkFieldAccess(FieldBlock *fb, pClass class) {
     return checkMethodOrFieldAccess(fb->access_flags, fb->class, class);
 }
