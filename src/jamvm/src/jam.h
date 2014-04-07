@@ -378,14 +378,15 @@ typedef struct line_no_table_entry {
     u2 line_no;
 } LineNoTableEntry;
 
-typedef struct object Class;
+typedef struct object Object;
+typedef Object Class;
 typedef Class* pClass;
+typedef Object* pObject;
 
-typedef struct object {
+struct object {
    uintptr_t lock;
    pClass class;
-} Object;
-typedef Object* pObject;
+};
 
 #ifdef DIRECT
 typedef union ins_operand {
