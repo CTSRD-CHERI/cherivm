@@ -1843,7 +1843,7 @@ char *getClassPath() {
     return classpath;
 }
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__FreeBSD__)
 int filter(const struct dirent *entry) {
 #else
 int filter(struct dirent *entry) {
