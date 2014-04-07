@@ -165,7 +165,7 @@ char *String2Cstr(pObject string) {
 }
 
 void initialiseString() {
-    FieldBlock *count = NULL, *value = NULL, *offset = NULL;
+    pFieldBlock count = NULL, value = NULL, offset = NULL;
 
     string_class = findSystemClass0(SYMBOL(java_lang_String));
     registerStaticClassRef(&string_class);

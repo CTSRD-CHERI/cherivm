@@ -31,7 +31,7 @@
  linkage area.  It's negative because the stack grows downwards.
 */
 
-int nativeExtraArg(MethodBlock *mb) {
+int nativeExtraArg(pMethodBlock mb) {
     int params = (mb->args_count + 1 +
                  ((mb->access_flags & ACC_STATIC) ? 1 : 0) + 7 + 6) * -sizeof(uintptr_t);
 

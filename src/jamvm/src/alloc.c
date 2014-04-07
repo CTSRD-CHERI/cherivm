@@ -475,7 +475,7 @@ void scanThread(Thread *thread) {
 void markClassData(pClass class, int mark) {
     ClassBlock *cb = CLASS_CB(class);
     ConstantPool *cp = &cb->constant_pool;
-    FieldBlock *fb = cb->fields;
+    pFieldBlock fb = cb->fields;
     int i;
 
     TRACE_GC("Marking class %s\n", cb->name);
@@ -1152,7 +1152,7 @@ int compactSlideBlock(char *block_addr, char *new_addr) {
 void threadClassData(pClass class, pClass new_addr) {
     ClassBlock *cb = CLASS_CB(class);
     ConstantPool *cp = &cb->constant_pool;
-    FieldBlock *fb = cb->fields;
+    pFieldBlock fb = cb->fields;
     int i;
 
     TRACE_COMPACT("Threading class %s @%p\n", cb->name, class);
@@ -1779,7 +1779,7 @@ void initialiseGC(InitArgs *args) {
     /* Pre-allocate an OutOfMemoryError exception object - we throw it
      * when we're really low on heap space, and can create FA... */
 
-    MethodBlock *init;
+    pMethodBlock init;
     pClass oom_clazz = findSystemClass(SYMBOL(java_lang_OutOfMemoryError));
     if(exceptionOccurred()) {
         printException();

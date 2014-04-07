@@ -92,7 +92,7 @@
     adjusted;                                               \
 })
 
-void *executeMethodArgs(pObject ob, pClass class, MethodBlock *mb, ...) {
+void *executeMethodArgs(pObject ob, pClass class, pMethodBlock mb, ...) {
     va_list jargs;
     void *ret;
 
@@ -103,7 +103,7 @@ void *executeMethodArgs(pObject ob, pClass class, MethodBlock *mb, ...) {
     return ret;
 }
 
-void *executeMethodVaList(pObject ob, pClass class, MethodBlock *mb,
+void *executeMethodVaList(pObject ob, pClass class, pMethodBlock mb,
                           va_list jargs) {
 
     ExecEnv *ee = getExecEnv();
@@ -136,7 +136,7 @@ void *executeMethodVaList(pObject ob, pClass class, MethodBlock *mb,
     return ADJUST_RET_ADDR(ret, *sig);
 }
 
-void *executeMethodList(pObject ob, pClass class, MethodBlock *mb, u8 *jargs) {
+void *executeMethodList(pObject ob, pClass class, pMethodBlock mb, u8 *jargs) {
     char *sig = mb->type;
 
     ExecEnv *ee = getExecEnv();

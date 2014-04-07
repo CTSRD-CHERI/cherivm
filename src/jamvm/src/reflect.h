@@ -37,11 +37,11 @@
 #define getFieldType(vm_field_obj) \
     INST_DATA(vm_field_obj, pClass, vm_fld_type_offset)
 
-extern MethodBlock *getConsMethodBlock(pObject cons_ref_obj);
+extern pMethodBlock getConsMethodBlock(pObject cons_ref_obj);
 extern int getConsAccessFlag(pObject cons_ref_obj);
-extern MethodBlock *getMethodMethodBlock(pObject mthd_ref_obj);
+extern pMethodBlock getMethodMethodBlock(pObject mthd_ref_obj);
 extern int getMethodAccessFlag(pObject mthd_ref_obj);
-extern FieldBlock *getFieldFieldBlock(pObject fld_ref_obj);
+extern pFieldBlock getFieldFieldBlock(pObject fld_ref_obj);
 extern int getFieldAccessFlag(pObject fld_ref_obj);
 
 extern int vm_cons_param_offset, vm_mthd_param_offset, vm_mthd_ret_offset;
@@ -57,24 +57,24 @@ extern pClass getEnclosingClass(pClass class);
 extern pObject getEnclosingMethodObject(pClass class);
 extern pObject getEnclosingConstructorObject(pClass class);
 extern pObject getClassAnnotations(pClass class);
-extern pObject getFieldAnnotations(FieldBlock *fb);
-extern pObject getMethodAnnotations(MethodBlock *mb);
-extern pObject getMethodParameterAnnotations(MethodBlock *mb);
-extern pObject getMethodDefaultValue(MethodBlock *mb);
-extern pObject getExceptionTypes(MethodBlock *mb);
+extern pObject getFieldAnnotations(pFieldBlock fb);
+extern pObject getMethodAnnotations(pMethodBlock mb);
+extern pObject getMethodParameterAnnotations(pMethodBlock mb);
+extern pObject getMethodDefaultValue(pMethodBlock mb);
+extern pObject getExceptionTypes(pMethodBlock mb);
 
 extern pObject getReflectReturnObject(pClass type, void *pntr, int flags);
 extern int widenPrimitiveValue(int src_idx, int dest_idx, void *src,
                                void *dest, int flags);
 extern int unwrapAndWidenObject(pClass type, pObject arg, void *pntr,
                                 int flags);
-extern pObject invoke(pObject ob, MethodBlock *mb, pObject arg_array,
+extern pObject invoke(pObject ob, pMethodBlock mb, pObject arg_array,
                       pObject param_types);
 
-extern MethodBlock *mbFromReflectObject(pObject reflect_ob);
-extern FieldBlock *fbFromReflectObject(pObject reflect_ob);
+extern pMethodBlock mbFromReflectObject(pObject reflect_ob);
+extern pFieldBlock fbFromReflectObject(pObject reflect_ob);
 
-extern pObject createReflectConstructorObject(MethodBlock *mb);
-extern pObject createReflectMethodObject(MethodBlock *mb);
-extern pObject createReflectFieldObject(FieldBlock *fb);
+extern pObject createReflectConstructorObject(pMethodBlock mb);
+extern pObject createReflectMethodObject(pMethodBlock mb);
+extern pObject createReflectFieldObject(pFieldBlock fb);
 extern pClass getReflectMethodClass();

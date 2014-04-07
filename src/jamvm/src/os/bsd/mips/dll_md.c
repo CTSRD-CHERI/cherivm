@@ -22,7 +22,7 @@
 #include "../../../jam.h"
 
 #ifndef USE_FFI
-int nativeExtraArg(MethodBlock *mb) {
+int nativeExtraArg(pMethodBlock mb) {
     return mb->args_count * 8;
 }
 #endif

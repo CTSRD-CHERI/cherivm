@@ -32,7 +32,7 @@
    method is called, and stored in the opaque "extra argument".
 */
 
-int nativeExtraArg(MethodBlock *mb) {
+int nativeExtraArg(pMethodBlock mb) {
     char *sig = mb->type;
     int iargs = 2; /* take into account the 2 extra arguments
                       passed (JNIEnv and class/this). */

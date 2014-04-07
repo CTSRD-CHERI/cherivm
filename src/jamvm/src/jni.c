@@ -59,11 +59,11 @@ static void initJNIGrefs();
 /* Cached values initialised on startup for JNI 1.4 NIO support */
 static int buffCap_offset, buffAddr_offset, rawdata_offset;
 static pClass buffImpl_class, rawdata_class;
-static MethodBlock *buffImpl_init_mb;
+static pMethodBlock buffImpl_init_mb;
 static char nio_init_OK = FALSE;
 
 void initialiseJNI() {
-    FieldBlock *buffCap_fb, *buffAddr_fb, *rawdata_fb;
+    pFieldBlock buffCap_fb, buffAddr_fb, rawdata_fb;
     pClass buffer_class;
 
     /* Initialise the global reference tables */
@@ -427,7 +427,7 @@ jfieldID Jam_FromReflectedField(JNIEnv *env, jobject field) {
 jobject Jam_ToReflectedMethod(JNIEnv *env, jclass cls, jmethodID methodID,
                               jboolean isStatic) {
 
-    MethodBlock *mb = methodID;
+    pMethodBlock mb = methodID;
     pObject method;
 
     if(mb->name == SYMBOL(object_init))
@@ -662,7 +662,7 @@ jmethodID getMethodID(JNIEnv *env, jclass clazz, const char *name,
                       const char *sig, char is_static) {
 
     pClass class = initClass(REF_TO_OBJ(clazz));
-    MethodBlock *mb = NULL;
+    pMethodBlock mb = NULL;
 
     if(class != NULL) {
         if(!IS_PRIMITIVE(CLASS_CB(class))) {
@@ -698,7 +698,7 @@ jfieldID Jam_GetFieldID(JNIEnv *env, jclass clazz, const char *name,
     char *field_sig = findUtf8((char*)sig);
 
     pClass class = initClass(REF_TO_OBJ(clazz));
-    FieldBlock *fb = NULL;
+    pFieldBlock fb = NULL;
 
     if(class != NULL) {
         if(field_name != NULL && field_sig != NULL)
@@ -724,7 +724,7 @@ jfieldID Jam_GetStaticFieldID(JNIEnv *env, jclass clazz, const char *name,
     char *field_sig = findUtf8((char*)sig);
 
     pClass class = initClass(REF_TO_OBJ(clazz));
-    FieldBlock *fb = NULL;
+    pFieldBlock fb = NULL;
 
     if(class != NULL) {
         if(field_name != NULL && field_sig != NULL)
@@ -903,7 +903,7 @@ jint Jam_GetJavaVM(JNIEnv *env, JavaVM **vm) {
 #define GET_FIELD(type, native_type)                                         \
 native_type Jam_Get##type##Field(JNIEnv *env, jobject obj,                   \
                                  jfieldID fieldID) {                         \
-    FieldBlock *fb = fieldID;                                                \
+    pFieldBlock fb = fieldID;                                                \
     pObject ob = REF_TO_OBJ(obj);                                            \
     return INST_DATA(ob, native_type, fb->u.offset);                         \
 }
@@ -911,7 +911,7 @@ native_type Jam_Get##type##Field(JNIEnv *env, jobject obj,                   \
 #define INT_GET_FIELD(type, native_type)                                     \
 native_type Jam_Get##type##Field(JNIEnv *env, jobject obj,                   \
                                  jfieldID fieldID) {                         \
-    FieldBlock *fb = fieldID;                                                \
+    pFieldBlock fb = fieldID;                                                \
     pObject ob = REF_TO_OBJ(obj);                                            \
     return (native_type)INST_DATA(ob, int, fb->u.offset);                    \
 }
@@ -919,7 +919,7 @@ native_type Jam_Get##type##Field(JNIEnv *env, jobject obj,                   \
 #define SET_FIELD(type, native_type)                                         \
 void Jam_Set##type##Field(JNIEnv *env, jobject obj, jfieldID fieldID,        \
                           native_type value) {                               \
-    FieldBlock *fb = fieldID;                                                \
+    pFieldBlock fb = fieldID;                                                \
     pObject ob = REF_TO_OBJ(obj);                                            \
     INST_DATA(ob, native_type, fb->u.offset) = value;                        \
 }
@@ -927,7 +927,7 @@ void Jam_Set##type##Field(JNIEnv *env, jobject obj, jfieldID fieldID,        \
 #define INT_SET_FIELD(type, native_type)                                     \
 void Jam_Set##type##Field(JNIEnv *env, jobject obj, jfieldID fieldID,        \
                           native_type value) {                               \
-    FieldBlock *fb = fieldID;                                                \
+    pFieldBlock fb = fieldID;                                                \
     pObject ob = REF_TO_OBJ(obj);                                            \
     INST_DATA(ob, int, fb->u.offset) = (int)value;                           \
 }
@@ -935,28 +935,28 @@ void Jam_Set##type##Field(JNIEnv *env, jobject obj, jfieldID fieldID,        \
 #define GET_STATIC_FIELD(type, native_type)                                  \
 native_type Jam_GetStatic##type##Field(JNIEnv *env, jclass clazz,            \
                                        jfieldID fieldID) {                   \
-    FieldBlock *fb = fieldID;                                                \
+    pFieldBlock fb = fieldID;                                                \
     return *(native_type *)fb->u.static_value.data;                          \
 }
 
 #define INT_GET_STATIC_FIELD(type, native_type)                              \
 native_type Jam_GetStatic##type##Field(JNIEnv *env, jclass clazz,            \
                                        jfieldID fieldID) {                   \
-    FieldBlock *fb = fieldID;                                                \
+    pFieldBlock fb = fieldID;                                                \
     return (native_type)fb->u.static_value.i;                                \
 }
 
 #define SET_STATIC_FIELD(type, native_type)                                  \
 void Jam_SetStatic##type##Field(JNIEnv *env, jclass clazz, jfieldID fieldID, \
                                 native_type value) {                         \
-    FieldBlock *fb = fieldID;                                                \
+    pFieldBlock fb = fieldID;                                                \
     *(native_type *)fb->u.static_value.data = value;                         \
 }
 
 #define INT_SET_STATIC_FIELD(type, native_type)                              \
 void Jam_SetStatic##type##Field(JNIEnv *env, jclass clazz, jfieldID fieldID, \
                 native_type value) {                                         \
-    FieldBlock *fb = fieldID;                                                \
+    pFieldBlock fb = fieldID;                                                \
     fb->u.static_value.i = (int)value;                                       \
 }
 
@@ -983,7 +983,7 @@ FIELD_ACCESS(Double, jdouble);
 
 jobject Jam_GetObjectField(JNIEnv *env, jobject obj, jfieldID fieldID) {
     pObject ob = REF_TO_OBJ(obj);
-    FieldBlock *fb = fieldID;
+    pFieldBlock fb = fieldID;
 
     return addJNILref(INST_DATA(ob, pObject, fb->u.offset));
 }
@@ -991,20 +991,20 @@ jobject Jam_GetObjectField(JNIEnv *env, jobject obj, jfieldID fieldID) {
 void Jam_SetObjectField(JNIEnv *env, jobject obj, jfieldID fieldID,
                         jobject value) {
     pObject ob = REF_TO_OBJ(obj);
-    FieldBlock *fb = fieldID;
+    pFieldBlock fb = fieldID;
 
     INST_DATA(ob, jobject, fb->u.offset) = value;
 }
 
 jobject Jam_GetStaticObjectField(JNIEnv *env, jclass clazz, jfieldID fieldID) {
-    FieldBlock *fb = fieldID;
+    pFieldBlock fb = fieldID;
     return addJNILref(fb->u.static_value.p);
 }
 
 void Jam_SetStaticObjectField(JNIEnv *env, jclass clazz, jfieldID fieldID,
                               jobject value) {
 
-    FieldBlock *fb = fieldID;
+    pFieldBlock fb = fieldID;
     fb->u.static_value.p = value;
 }
 
@@ -1015,7 +1015,7 @@ native_type Jam_Call##type##Method(JNIEnv *env, jobject obj,                 \
     native_type *ret;                                                        \
     va_list jargs;                                                           \
                                                                              \
-    MethodBlock *mb = lookupVirtualMethod(ob, mID);                          \
+    pMethodBlock mb = lookupVirtualMethod(ob, mID);                          \
     if(mb == NULL)                                                           \
         return (native_type) 0;                                              \
                                                                              \
@@ -1029,7 +1029,7 @@ native_type Jam_Call##type##Method(JNIEnv *env, jobject obj,                 \
 native_type Jam_Call##type##MethodV(JNIEnv *env, jobject obj, jmethodID mID, \
                                     va_list jargs) {                         \
     pObject ob = REF_TO_OBJ(obj);                                            \
-    MethodBlock *mb = lookupVirtualMethod(ob, mID);                          \
+    pMethodBlock mb = lookupVirtualMethod(ob, mID);                          \
     if(mb == NULL)                                                           \
         return (native_type) 0;                                              \
     return *(native_type*)executeMethodVaList(ob, ob->class, mb, jargs);     \
@@ -1038,7 +1038,7 @@ native_type Jam_Call##type##MethodV(JNIEnv *env, jobject obj, jmethodID mID, \
 native_type Jam_Call##type##MethodA(JNIEnv *env, jobject obj, jmethodID mID, \
                                     jvalue *jargs) {                         \
     pObject ob = REF_TO_OBJ(obj);                                            \
-    MethodBlock *mb = lookupVirtualMethod(ob, mID);                          \
+    pMethodBlock mb = lookupVirtualMethod(ob, mID);                          \
     if(mb == NULL)                                                           \
         return (native_type) 0;                                              \
     return *(native_type*)executeMethodList(ob, ob->class, mb, (u8*)jargs);  \
@@ -1119,7 +1119,7 @@ jobject Jam_CallObjectMethod(JNIEnv *env, jobject obj,
                              jmethodID methodID, ...) {
     va_list jargs;
     pObject *ret, ob = REF_TO_OBJ(obj);
-    MethodBlock *mb = lookupVirtualMethod(ob, methodID);
+    pMethodBlock mb = lookupVirtualMethod(ob, methodID);
 
     if(mb == NULL)
         return NULL;
@@ -1135,7 +1135,7 @@ jobject Jam_CallObjectMethodV(JNIEnv *env, jobject obj, jmethodID methodID,
                               va_list jargs) {
 
     pObject *ret, ob = REF_TO_OBJ(obj);
-    MethodBlock *mb = lookupVirtualMethod(ob, methodID);
+    pMethodBlock mb = lookupVirtualMethod(ob, methodID);
 
     if(mb == NULL)
         return NULL;
@@ -1148,7 +1148,7 @@ jobject Jam_CallObjectMethodA(JNIEnv *env, jobject obj, jmethodID methodID,
                               jvalue *jargs) {
 
     pObject *ret, ob = REF_TO_OBJ(obj);
-    MethodBlock *mb = lookupVirtualMethod(ob, methodID);
+    pMethodBlock mb = lookupVirtualMethod(ob, methodID);
 
     if(mb == NULL)
         return NULL;
@@ -1216,7 +1216,7 @@ jobject Jam_CallStaticObjectMethodA(JNIEnv *env, jclass clazz,
 
 void Jam_CallVoidMethod(JNIEnv *env, jobject obj, jmethodID methodID, ...) {
     va_list jargs;
-    MethodBlock *mb;
+    pMethodBlock mb;
     pObject ob = REF_TO_OBJ(obj);
  
     va_start(jargs, methodID);
@@ -1227,7 +1227,7 @@ void Jam_CallVoidMethod(JNIEnv *env, jobject obj, jmethodID methodID, ...) {
 
 void Jam_CallVoidMethodV(JNIEnv *env, jobject obj, jmethodID methodID,
                          va_list jargs) {
-    MethodBlock *mb;
+    pMethodBlock mb;
     pObject ob = REF_TO_OBJ(obj);
 
     if((mb = lookupVirtualMethod(ob, methodID)) != NULL)
@@ -1236,7 +1236,7 @@ void Jam_CallVoidMethodV(JNIEnv *env, jobject obj, jmethodID methodID,
 
 void Jam_CallVoidMethodA(JNIEnv *env, jobject obj, jmethodID methodID,
                          jvalue *jargs) {
-    MethodBlock *mb;
+    pMethodBlock mb;
     pObject ob = REF_TO_OBJ(obj);
 
     if((mb = lookupVirtualMethod(ob, methodID)) != NULL)

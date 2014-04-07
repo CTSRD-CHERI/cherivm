@@ -347,7 +347,7 @@ exit:
 int main(int argc, char *argv[]) {
     pClass array_class, main_class;
     pObject system_loader, array;
-    MethodBlock *mb;
+    pMethodBlock mb;
     InitArgs args;
     int class_arg;
     char *cpntr;

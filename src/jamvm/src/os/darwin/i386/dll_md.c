@@ -34,7 +34,7 @@
 #define RET_SHORT   6
 #define RET_DFLT    7
 
-int nativeExtraArg(MethodBlock *mb) {
+int nativeExtraArg(pMethodBlock mb) {
     int len = strlen(mb->type);
     if(mb->type[len-2] == ')')
         switch(mb->type[len-1]) {

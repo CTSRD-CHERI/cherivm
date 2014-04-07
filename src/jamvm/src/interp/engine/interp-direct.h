@@ -317,8 +317,8 @@ opc##x##_##y##_##z:
 #define MULTI_ARRAY_DIM(pc)      pc->operand.uui.u2
 #define GETFIELD_THIS_OFFSET(pc) pc->operand.i
 #define RESOLVED_CONSTANT(pc)    pc->operand.u
-#define RESOLVED_FIELD(pc)       ((FieldBlock*)pc->operand.pntr)
-#define RESOLVED_METHOD(pc)      ((MethodBlock*)pc->operand.pntr)
+#define RESOLVED_FIELD(pc)       ((pFieldBlock)pc->operand.pntr)
+#define RESOLVED_METHOD(pc)      ((pMethodBlock)pc->operand.pntr)
 #define RESOLVED_CLASS(pc)       (pClass )CP_INFO(cp, pc->operand.uui.u1)
 
 /* Macros for checking for common exceptions */
@@ -350,4 +350,4 @@ opc##x##_##y##_##z:
 
 
 extern void initialiseDirect(InitArgs *args);
-extern void prepare(MethodBlock *mb, const void ***handlers);
+extern void prepare(pMethodBlock mb, const void ***handlers);

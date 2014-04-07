@@ -111,15 +111,15 @@ pClass resolveClass(pClass class, int index, int init) {
     return NULL;
 }
 
-MethodBlock *resolveMethod(pClass class, int index) {
+pMethodBlock resolveMethod(pClass class, int index) {
     return NULL;
 }
 
-MethodBlock *resolveInterfaceMethod(pClass class, int index) {
+pMethodBlock resolveInterfaceMethod(pClass class, int index) {
     return NULL;
 }
 
-FieldBlock *resolveField(pClass class, int index) {
+pFieldBlock resolveField(pClass class, int index) {
     return NULL;
 }
 
@@ -158,7 +158,7 @@ void jam_fprintf(FILE *stream, const char *fmt, ...) {
 void initialiseDirect(InitArgs *args) {
 }
 
-void prepare(MethodBlock *mb, const void ***handlers) {
+void prepare(pMethodBlock mb, const void ***handlers) {
 }
 
 void objectLock(pObject ob) {
@@ -170,10 +170,10 @@ void objectUnlock(pObject ob) {
 void inlineBlockWrappedOpcode(Instruction *pc) {
 }
 
-void checkInliningQuickenedInstruction(Instruction *pc, MethodBlock *mb) {
+void checkInliningQuickenedInstruction(Instruction *pc, pMethodBlock mb) {
 }
 
-void inlineProfiledBlock(Instruction *pc, MethodBlock *mb) {
+void inlineProfiledBlock(Instruction *pc, pMethodBlock mb) {
 }
 
 void shutdownInlining() {

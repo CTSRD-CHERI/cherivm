@@ -22,7 +22,7 @@
 
 #ifndef USE_FFI
 #ifdef __x86_64__
-int nativeExtraArg(MethodBlock *mb) {
+int nativeExtraArg(pMethodBlock mb) {
     char *sig = mb->type;
     int stack_space;
     int iargs = 0;
@@ -67,7 +67,7 @@ int nativeExtraArg(MethodBlock *mb) {
 #define RET_SHORT   6
 #define RET_DFLT    7
 
-int nativeExtraArg(MethodBlock *mb) {
+int nativeExtraArg(pMethodBlock mb) {
     int len = strlen(mb->type);
     if(mb->type[len-2] == ')')
         switch(mb->type[len-1]) {

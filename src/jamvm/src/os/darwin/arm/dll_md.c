@@ -39,7 +39,7 @@
  * out stack requirements and then to push arguments.  To
  * save the first scan at call time, the signature is pre-
  * scanned and stack requirement stored in the extra argument. */
-int nativeExtraArg(MethodBlock *mb) {
+int nativeExtraArg(pMethodBlock mb) {
     char *sig = mb->type;
     int args = 0;
 
@@ -73,7 +73,7 @@ int nativeExtraArg(MethodBlock *mb) {
  * the return type must be pre-computed.  We take the
  * opportunity to turn it into a jump-table index number.
  */
-int nativeExtraArg(MethodBlock *mb) {
+int nativeExtraArg(pMethodBlock mb) {
     int len = strlen(mb->type);
     if(mb->type[len-2] == ')')
         switch(mb->type[len-1]) {

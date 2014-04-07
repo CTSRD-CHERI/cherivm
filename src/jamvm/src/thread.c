@@ -97,8 +97,8 @@ static int threadId_offset;
 static int run_mtbl_idx;
 static int rmveThrd_mtbl_idx;
 
-static MethodBlock *addThread_mb;
-static MethodBlock *init_mb;
+static pMethodBlock addThread_mb;
+static pMethodBlock init_mb;
 
 /* Cached java.lang.Thread class */
 static pClass thread_class;
@@ -396,7 +396,7 @@ void initialiseJavaStack(ExecEnv *ee) {
           ? (ee->stack_size > MIN_STACK ? ee->stack_size : MIN_STACK)
           : dflt_stack_size;
    char *stack = sysMalloc(stack_size);
-   MethodBlock *mb = (MethodBlock *)stack;
+   pMethodBlock mb = (pMethodBlock )stack;
    Frame *top = (Frame *)(mb + 1);
 
    top->ostack = (uintptr_t*)(top + 1);
@@ -579,13 +579,13 @@ void uncaughtException() {
     pObject jThread = ee->thread;
     pObject excep = exceptionOccurred();
     pObject group = INST_DATA(jThread, pObject, group_offset);
-    FieldBlock *fb = findField(thread_class,
+    pFieldBlock fb = findField(thread_class,
                         SYMBOL(exceptionHandler),
                         SYMBOL(sig_java_lang_Thread_UncaughtExceptionHandler));
     pObject thread_handler = fb == NULL ? NULL :
                                   INST_DATA(jThread, pObject, fb->u.offset);
     pObject handler = thread_handler == NULL ? group : thread_handler;
-    MethodBlock *uncaught_mb = lookupMethod(handler->class,
+    pMethodBlock uncaught_mb = lookupMethod(handler->class,
                               SYMBOL(uncaughtException),
                               SYMBOL(_java_lang_Thread_java_lang_Throwable__V));
 
@@ -1062,7 +1062,7 @@ void dumpThreadsLoop(Thread *self) {
 
             while(last->prev != NULL) {
                 for(; last->mb != NULL; last = last->prev) {
-                    MethodBlock *mb = last->mb;
+                    pMethodBlock mb = last->mb;
                     ClassBlock *cb = CLASS_CB(mb->class);
 
                     /* Convert slashes in class name to dots.  Similar to
@@ -1151,7 +1151,7 @@ void exitVM(int status) {
     if(!VMInitialising()) {
         pClass system = findSystemClass(SYMBOL(java_lang_System));
         if(system) {
-            MethodBlock *exit = findMethod(system, SYMBOL(exit), SYMBOL(_I__V));
+            pMethodBlock exit = findMethod(system, SYMBOL(exit), SYMBOL(_I__V));
             if(exit)
                 executeStaticMethod(system, exit, status);
         }
@@ -1176,7 +1176,7 @@ void mainThreadWaitToExitVM() {
 }
 
 void mainThreadSetContextClassLoader(pObject loader) {
-    FieldBlock *fb = findField(thread_class, SYMBOL(contextClassLoader),
+    pFieldBlock fb = findField(thread_class, SYMBOL(contextClassLoader),
                                              SYMBOL(sig_java_lang_ClassLoader));
     if(fb != NULL)
         INST_DATA(main_ee.thread, pObject, fb->u.offset) = loader;
@@ -1235,10 +1235,10 @@ void initialiseThreadStage1(InitArgs *args) {
 void initialiseThreadStage2(InitArgs *args) {
     pObject java_thread;
     pClass thrdGrp_class;
-    MethodBlock *run, *remove_thread;
-    FieldBlock *vmData, *daemon, *name;
-    FieldBlock *vmThread, *thread, *group;
-    FieldBlock *priority, *root, *threadId;
+    pMethodBlock run, remove_thread;
+    pFieldBlock vmData, daemon, name;
+    pFieldBlock vmThread, thread, group;
+    pFieldBlock priority, root, threadId;
 
     /* Load thread class and register reference for compaction threading */
     if((thread_class = findSystemClass0(SYMBOL(java_lang_Thread))) == NULL)

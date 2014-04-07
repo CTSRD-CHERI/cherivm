@@ -50,12 +50,12 @@ static int initReflection() {
     pClass mthd_ref_cls, fld_ary_cls, fld_ref_cls, vm_cons_cls;
     pClass vm_mthd_cls, vm_fld_cls;
 
-    FieldBlock *vm_cons_slot_fb, *vm_cons_class_fb, *vm_cons_param_fb;
-    FieldBlock *vm_cons_cons_fb, *vm_mthd_slot_fb, *vm_mthd_class_fb;
-    FieldBlock *vm_mthd_ret_fb, *vm_mthd_param_fb, *vm_mthd_m_fb;
-    FieldBlock *vm_fld_slot_fb, *vm_fld_class_fb, *vm_fld_type_fb;
-    FieldBlock *vm_fld_f_fb, *cons_cons_fb, *mthd_m_fb, *fld_f_fb;
-    FieldBlock *acc_flag_fb;
+    pFieldBlock vm_cons_slot_fb, vm_cons_class_fb, vm_cons_param_fb;
+    pFieldBlock vm_cons_cons_fb, vm_mthd_slot_fb, vm_mthd_class_fb;
+    pFieldBlock vm_mthd_ret_fb, vm_mthd_param_fb, vm_mthd_m_fb;
+    pFieldBlock vm_fld_slot_fb, vm_fld_class_fb, vm_fld_type_fb;
+    pFieldBlock vm_fld_f_fb, cons_cons_fb, mthd_m_fb, fld_f_fb;
+    pFieldBlock acc_flag_fb;
 
     cls_ary_cls = findArrayClass(SYMBOL(array_java_lang_Class));
     cons_ary_cls = findArrayClass(SYMBOL(array_java_lang_reflect_Constructor));
@@ -211,7 +211,7 @@ pObject convertSig2ClassArray(char **sig_pntr, pClass declaring_class) {
     return array;
 }
 
-pObject getExceptionTypes(MethodBlock *mb) {
+pObject getExceptionTypes(pMethodBlock mb) {
     int i;
     pObject array;
     pClass *excps;
@@ -228,7 +228,7 @@ pObject getExceptionTypes(MethodBlock *mb) {
     return array;
 }
 
-pObject createConstructorObject(MethodBlock *mb) {
+pObject createConstructorObject(pMethodBlock mb) {
     pObject reflect_ob, vm_reflect_ob, classes;
     char *signature, *sig;
 
@@ -269,7 +269,7 @@ pObject getClassConstructors(pClass class, int public) {
         return NULL;
 
     for(i = 0; i < cb->methods_count; i++) {
-        MethodBlock *mb = &cb->methods[i];
+        pMethodBlock mb = &cb->methods[i];
         if((mb->name == SYMBOL(object_init)) &&
                       (!public || (mb->access_flags & ACC_PUBLIC)))
             count++;
@@ -281,7 +281,7 @@ pObject getClassConstructors(pClass class, int public) {
     cons = ARRAY_DATA(array, pObject);
 
     for(i = 0, j = 0; j < count; i++) {
-        MethodBlock *mb = &cb->methods[i];
+        pMethodBlock mb = &cb->methods[i];
 
         if((mb->name == SYMBOL(object_init)) &&
                      (!public || (mb->access_flags & ACC_PUBLIC)))
@@ -293,7 +293,7 @@ pObject getClassConstructors(pClass class, int public) {
     return array;
 }
 
-pObject createMethodObject(MethodBlock *mb) {
+pObject createMethodObject(pMethodBlock mb) {
     pObject reflect_ob, vm_reflect_ob, classes;
     char *signature, *sig;
     pClass ret;
@@ -339,7 +339,7 @@ pObject getClassMethods(pClass class, int public) {
         return NULL;
 
     for(i = 0; i < cb->methods_count; i++) {
-        MethodBlock *mb = &cb->methods[i];
+        pMethodBlock mb = &cb->methods[i];
         if((mb->name[0] != '<') && (!public || (mb->access_flags & ACC_PUBLIC))
                                 && ((mb->access_flags & ACC_MIRANDA) == 0))
             count++;
@@ -351,7 +351,7 @@ pObject getClassMethods(pClass class, int public) {
     methods = ARRAY_DATA(array, pObject);
 
     for(i = 0, j = 0; j < count; i++) {
-        MethodBlock *mb = &cb->methods[i];
+        pMethodBlock mb = &cb->methods[i];
 
         if((mb->name[0] != '<') && (!public || (mb->access_flags & ACC_PUBLIC))
                                 && ((mb->access_flags & ACC_MIRANDA) == 0))
@@ -363,7 +363,7 @@ pObject getClassMethods(pClass class, int public) {
     return array;
 }
 
-pObject createFieldObject(FieldBlock *fb) {
+pObject createFieldObject(pFieldBlock fb) {
     pObject reflect_ob, vm_reflect_ob;
     char *signature, *sig;
     pClass type;
@@ -417,7 +417,7 @@ pObject getClassFields(pClass class, int public) {
     fields = ARRAY_DATA(array, pObject);
 
     for(i = 0, j = 0; j < count; i++) {
-        FieldBlock *fb = &cb->fields[i];
+        pFieldBlock fb = &cb->fields[i];
 
         if(!public || (fb->access_flags & ACC_PUBLIC))
             if((fields[j++] = createFieldObject(fb)) == NULL)
@@ -492,7 +492,7 @@ pClass getEnclosingClass(pClass class) {
                                : NULL;
 }
 
-MethodBlock *getEnclosingMethod(pClass class) {
+pMethodBlock getEnclosingMethod(pClass class) {
     pClass enclosing_class = getEnclosingClass(class);
 
     if(enclosing_class != NULL) {
@@ -504,7 +504,7 @@ MethodBlock *getEnclosingMethod(pClass class) {
                                                cb->enclosing_method));
             char *methodtype = CP_UTF8(cp, CP_NAME_TYPE_TYPE(cp,
                                                cb->enclosing_method));
-            MethodBlock *mb = findMethod(enclosing_class, methodname,
+            pMethodBlock mb = findMethod(enclosing_class, methodname,
                                          methodtype);
 
             if(mb != NULL)
@@ -522,7 +522,7 @@ MethodBlock *getEnclosingMethod(pClass class) {
 }
 
 pObject getEnclosingMethodObject(pClass class) {
-    MethodBlock *mb = getEnclosingMethod(class);
+    pMethodBlock mb = getEnclosingMethod(class);
 
     if(mb != NULL && mb->name == SYMBOL(object_init))
         return createMethodObject(mb);
@@ -531,7 +531,7 @@ pObject getEnclosingMethodObject(pClass class) {
 }
 
 pObject getEnclosingConstructorObject(pClass class) {
-    MethodBlock *mb = getEnclosingMethod(class);
+    pMethodBlock mb = getEnclosingMethod(class);
 
     if(mb != NULL && mb->name == SYMBOL(object_init))
         return createConstructorObject(mb);
@@ -543,7 +543,7 @@ static char anno_inited = FALSE;
 
 static pClass enum_class, map_class, anno_inv_class, obj_array_class;
 static pClass anno_array_class, dbl_anno_array_class;
-static MethodBlock *map_init_mb, *map_put_mb, *anno_create_mb, *enum_valueof_mb;
+static pMethodBlock map_init_mb, map_put_mb, anno_create_mb, enum_valueof_mb;
 
 static int initAnnotation() {
     pClass enum_cls, map_cls, anno_inv_cls, obj_ary_cls;
@@ -795,16 +795,16 @@ pObject getClassAnnotations(pClass class) {
     return parseAnnotations(class, CLASS_CB(class)->annotations);
 }
 
-pObject getFieldAnnotations(FieldBlock *fb) {
+pObject getFieldAnnotations(pFieldBlock fb) {
     return parseAnnotations(fb->class, fb->annotations);
 }
 
-pObject getMethodAnnotations(MethodBlock *mb) {
+pObject getMethodAnnotations(pMethodBlock mb) {
     return parseAnnotations(mb->class, mb->annotations == NULL ?
                                 NULL : mb->annotations->annotations);
 }
 
-pObject getMethodParameterAnnotations(MethodBlock *mb) {
+pObject getMethodParameterAnnotations(pMethodBlock mb) {
     if(!anno_inited && !initAnnotation())
         return NULL;
 
@@ -844,7 +844,7 @@ pObject getMethodParameterAnnotations(MethodBlock *mb) {
     }
 }
 
-pObject getMethodDefaultValue(MethodBlock *mb) {
+pObject getMethodDefaultValue(pMethodBlock mb) {
     if(!anno_inited && !initAnnotation())
         return NULL;
 
@@ -1045,7 +1045,7 @@ int unwrapAndWidenObject(pClass type, pObject arg, void *pntr, int flags) {
     return 0;
 }
 
-pObject invoke(pObject ob, MethodBlock *mb, pObject arg_array,
+pObject invoke(pObject ob, pMethodBlock mb, pObject arg_array,
                 pObject param_types) {
 
     pObject *args = ARRAY_DATA(arg_array, pObject);
@@ -1098,7 +1098,7 @@ pObject invoke(pObject ob, MethodBlock *mb, pObject arg_array,
 
     if((excep = exceptionOccurred())) {
         pObject ite_excep;
-        MethodBlock *init;
+        pMethodBlock init;
         pClass ite_class;
 
         clearException();        
@@ -1118,7 +1118,7 @@ pObject invoke(pObject ob, MethodBlock *mb, pObject arg_array,
 
 /* Functions to get values from the VM-level reflection objects */
 
-MethodBlock *getConsMethodBlock(pObject vm_cons_obj) {
+pMethodBlock getConsMethodBlock(pObject vm_cons_obj) {
     pClass decl_class = INST_DATA(vm_cons_obj, pClass, vm_cons_class_offset);
     int slot = INST_DATA(vm_cons_obj, int, vm_cons_slot_offset);
 
@@ -1135,14 +1135,14 @@ int getMethodAccessFlag(pObject vm_mthd_obj) {
     return INST_DATA(mthd_obj, int, acc_flag_offset);
 }
 
-MethodBlock *getMethodMethodBlock(pObject vm_mthd_obj) {
+pMethodBlock getMethodMethodBlock(pObject vm_mthd_obj) {
     pClass decl_class = INST_DATA(vm_mthd_obj, pClass, vm_mthd_class_offset);
     int slot = INST_DATA(vm_mthd_obj, int, vm_mthd_slot_offset);
 
     return &CLASS_CB(decl_class)->methods[slot];
 }
 
-FieldBlock *getFieldFieldBlock(pObject vm_fld_obj) {
+pFieldBlock getFieldFieldBlock(pObject vm_fld_obj) {
     pClass decl_class = INST_DATA(vm_fld_obj, pClass, vm_fld_class_offset);
     int slot = INST_DATA(vm_fld_obj, int, vm_fld_slot_offset);
 
@@ -1156,29 +1156,29 @@ int getFieldAccessFlag(pObject vm_fld_obj) {
 
 /* Reflection access from JNI */
 
-pObject createReflectConstructorObject(MethodBlock *mb) {
+pObject createReflectConstructorObject(pMethodBlock mb) {
     if(!inited && !initReflection())
         return NULL;
 
     return createConstructorObject(mb);
 }
 
-pObject createReflectMethodObject(MethodBlock *mb) {
+pObject createReflectMethodObject(pMethodBlock mb) {
     if(!inited && !initReflection())
         return NULL;
 
     return createMethodObject(mb);
 }
 
-pObject createReflectFieldObject(FieldBlock *fb) {
+pObject createReflectFieldObject(pFieldBlock fb) {
     if(!inited && !initReflection())
         return NULL;
 
     return createFieldObject(fb);
 }
 
-MethodBlock *mbFromReflectObject(pObject reflect_ob) {
-    MethodBlock *mb;
+pMethodBlock mbFromReflectObject(pObject reflect_ob) {
+    pMethodBlock mb;
 
     if(reflect_ob->class == cons_reflect_class) {
         pObject vm_cons_obj = INST_DATA(reflect_ob, pObject, cons_cons_offset);
@@ -1191,7 +1191,7 @@ MethodBlock *mbFromReflectObject(pObject reflect_ob) {
     return mb;
 }
 
-FieldBlock *fbFromReflectObject(pObject reflect_ob) {
+pFieldBlock fbFromReflectObject(pObject reflect_ob) {
     pObject vm_fld_obj = INST_DATA(reflect_ob, pObject, fld_f_offset);
     return getFieldFieldBlock(vm_fld_obj);
 }

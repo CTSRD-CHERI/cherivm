@@ -290,7 +290,7 @@ out:
     }
 }
 
-void freeMethodInlinedInfo(MethodBlock *mb) {
+void freeMethodInlinedInfo(pMethodBlock mb) {
     Instruction *instruction = mb->code;
     CodeBlockHeader **blocks = mb->code;
     CodeBlockHeader *block = NULL;
@@ -594,9 +594,9 @@ char *insSeqCodeCopy(char *code_pntr, Instruction *ins_start_pntr, char **map,
     return code_pntr + size;
 }
 
-void *inlineProfiledBlock(Instruction *pc, MethodBlock *mb, int force_inlining);
+void *inlineProfiledBlock(Instruction *pc, pMethodBlock mb, int force_inlining);
 
-char *blockSeqCodeCopy(MethodBlock *mb, TestCodeBlock *block, BasicBlock *start,
+char *blockSeqCodeCopy(pMethodBlock mb, TestCodeBlock *block, BasicBlock *start,
                        int ins_start, BasicBlock *end, int ins_end) {
 
     char *code_pntr = (char *)(block + 1);
@@ -665,7 +665,7 @@ void patchExternalJumps(TestCodeBlock *test_block, CodeBlockHeader *new_block) {
 
 #define INUM(mb, block, off) &block->start[off] - (Instruction*)mb->code
 
-void updateSeqStarts(MethodBlock *mb, char *code_pntr, BasicBlock *start,
+void updateSeqStarts(pMethodBlock mb, char *code_pntr, BasicBlock *start,
                      int ins_start, BasicBlock *end, int ins_end) {
 
     TRACE("Updating start block (%d len %d) %p\n", INUM(mb, start, ins_start),
@@ -695,7 +695,7 @@ void updateSeqStarts(MethodBlock *mb, char *code_pntr, BasicBlock *start,
     }
 }
 
-void inlineSequence(MethodBlock *mb, BasicBlock *start, int ins_start,
+void inlineSequence(pMethodBlock mb, BasicBlock *start, int ins_start,
                     BasicBlock *end, int ins_end) {
     CodeBlockHeader *hashed_block;
     TestCodeBlock *block;
@@ -736,7 +736,7 @@ void inlineSequence(MethodBlock *mb, BasicBlock *start, int ins_start,
     }
 }
 
-void inlineBlocks(MethodBlock *mb, BasicBlock *start, BasicBlock *end) {
+void inlineBlocks(pMethodBlock mb, BasicBlock *start, BasicBlock *end) {
     BasicBlock *block, *terminator = end->next;
     int ins_start = 0;
 
@@ -850,7 +850,7 @@ void rewriteUnlock(Thread *self) {
     unlockVMLock(rewrite_lock, self);
 }
 
-void removeFromProfile(MethodBlock *mb, BasicBlock *block) {
+void removeFromProfile(pMethodBlock mb, BasicBlock *block) {
     ProfileInfo *profile_info = block->u.profile.profiled;
 
     /* If the profile info is null, this is a non-quickened
@@ -890,7 +890,7 @@ void removeFromProfile(MethodBlock *mb, BasicBlock *block) {
     sysFree(profile_info);
 }
 
-void inlineBlock(MethodBlock *mb, BasicBlock *block, Thread *self) {
+void inlineBlock(pMethodBlock mb, BasicBlock *block, Thread *self) {
     BasicBlock *start, *end;
 
     /* We scan backwards and forwards from block to find the range
@@ -947,7 +947,7 @@ void inlineBlock(MethodBlock *mb, BasicBlock *block, Thread *self) {
    subsequent blocks which require quickening cannot be inlined until
    they have been executed).
 */
-void addToProfile(MethodBlock *mb, BasicBlock *block, Thread *self) {
+void addToProfile(pMethodBlock mb, BasicBlock *block, Thread *self) {
     ProfileInfo *info = sysMalloc(sizeof(ProfileInfo));
 
     TRACE("Adding block (start %p) to profile\n", block->start);
@@ -967,7 +967,7 @@ void addToProfile(MethodBlock *mb, BasicBlock *block, Thread *self) {
     rewriteUnlock(self);
 }
 
-void prepareBlock(MethodBlock *mb, BasicBlock *block, Thread *self) {
+void prepareBlock(pMethodBlock mb, BasicBlock *block, Thread *self) {
     if(profiling)
         addToProfile(mb, block, self);
     else {
@@ -979,7 +979,7 @@ void prepareBlock(MethodBlock *mb, BasicBlock *block, Thread *self) {
     }
 }
 
-void inlineBlockWrappedOpcode(MethodBlock *mb, Instruction *pc) {
+void inlineBlockWrappedOpcode(pMethodBlock mb, Instruction *pc) {
     PrepareInfo *prepare_info = pc->operand.pntr;
     OpcodeInfo *info;
     int i;
@@ -1011,7 +1011,7 @@ void inlineBlockWrappedOpcode(MethodBlock *mb, Instruction *pc) {
    blocks within the method that end with a quickened instruction.  If
    the quickened instruction being executed is in the list we must have
    reached the end of a block and we need to inline it */
-void checkInliningQuickenedInstruction(Instruction *pc, MethodBlock *mb) {
+void checkInliningQuickenedInstruction(Instruction *pc, pMethodBlock mb) {
 
     /* As there could be multiple threads executing this method,
        the list must be protected with a lock.  However, the 
@@ -1049,7 +1049,7 @@ void checkInliningQuickenedInstruction(Instruction *pc, MethodBlock *mb) {
    first 4.  This is more consistent than a hashtable where hit
    rate decreases with table occupancy.
 */
-void *inlineProfiledBlock(Instruction *pc, MethodBlock *mb, int force_inlining) {
+void *inlineProfiledBlock(Instruction *pc, pMethodBlock mb, int force_inlining) {
     ProfileInfo *info, *last = NULL;
     Thread *self = threadSelf();
     void *ret;

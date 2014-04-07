@@ -288,8 +288,8 @@ opc##x##_##y##_##z:
 #define MULTI_ARRAY_DIM(pc)      READ_U1_OP(pc + 2)
 #define GETFIELD_THIS_OFFSET(pc) READ_U1_OP(pc + 1)
 #define RESOLVED_CONSTANT(pc)    CP_INFO(cp, SINGLE_INDEX(pc))
-#define RESOLVED_FIELD(pc)       ((FieldBlock*)CP_INFO(cp, DOUBLE_INDEX(pc)))
-#define RESOLVED_METHOD(pc)      ((MethodBlock*)CP_INFO(cp, DOUBLE_INDEX(pc)))
+#define RESOLVED_FIELD(pc)       ((pFieldBlock)CP_INFO(cp, DOUBLE_INDEX(pc)))
+#define RESOLVED_METHOD(pc)      ((pMethodBlock)CP_INFO(cp, DOUBLE_INDEX(pc)))
 #define RESOLVED_CLASS(pc)       ((pClass )CP_INFO(cp, DOUBLE_INDEX(pc)))
 
 /* Macros for checking for common exceptions */

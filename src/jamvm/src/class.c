@@ -65,7 +65,7 @@ int ldr_vmdata_offset = -1;
 
 /* Helper method to create a Package Object representing a
    package loaded by the boot loader */
-static MethodBlock *vm_loader_create_package = NULL;
+static pMethodBlock vm_loader_create_package = NULL;
 static pClass package_array_class;
 
 /* hash table containing packages loaded by the boot loader */
@@ -78,7 +78,7 @@ typedef struct package_entry {
     char name[0];
 } PackageEntry;
 
-static MethodBlock *ldr_new_unloader = NULL;
+static pMethodBlock ldr_new_unloader = NULL;
 static int ldr_data_tbl_offset;
 
 /* Instance of java.lang.Class for java.lang.Class */
@@ -358,7 +358,7 @@ pClass defineClass(char *classname, char *data, int offset, int len,
     memset(classblock->methods, 0, classblock->methods_count * sizeof(MethodBlock));
 
     for(i = 0; i < classblock->methods_count; i++) {
-        MethodBlock *method = &classblock->methods[i];
+        pMethodBlock method = &classblock->methods[i];
         MethodAnnotationData annos;
         u2 name_idx, type_idx;
 
@@ -690,9 +690,9 @@ void prepareFields(pClass class) {
     RefsOffsetsEntry *spr_rfs_offsts_tbl = NULL;
     int spr_rfs_offsts_sze = 0;
 
-    FieldBlock *ref_head = NULL;
-    FieldBlock *int_head = NULL;
-    FieldBlock *dbl_head = NULL;
+    pFieldBlock ref_head = NULL;
+    pFieldBlock int_head = NULL;
+    pFieldBlock dbl_head = NULL;
 
     int field_offset = sizeof(Object);
     int refs_start_offset = 0;
@@ -711,12 +711,12 @@ void prepareFields(pClass class) {
        fields */
 
     for(i = 0; i < cb->fields_count; i++) {
-        FieldBlock *fb = &cb->fields[i];
+        pFieldBlock fb = &cb->fields[i];
 
         if(fb->access_flags & ACC_STATIC)
             fb->u.static_value.l = 0;
         else {
-            FieldBlock **list;
+            pFieldBlock *list;
 
             if(fb->type[0] == 'L' || fb->type[0] == '[')
                 list = &ref_head;
@@ -740,7 +740,7 @@ void prepareFields(pClass class) {
     if(dbl_head != NULL) {
         if(field_offset & 0x7) {
             if(int_head != NULL) {
-                FieldBlock *fb = int_head;
+                pFieldBlock fb = int_head;
                 int_head = int_head->u.static_value.p;
                 fb->u.offset = field_offset;
             }
@@ -748,7 +748,7 @@ void prepareFields(pClass class) {
         }
 
         do {
-            FieldBlock *fb = dbl_head;
+            pFieldBlock fb = dbl_head;
             dbl_head = dbl_head->u.static_value.p;
             fb->u.offset = field_offset;
             field_offset += 8;
@@ -762,7 +762,7 @@ void prepareFields(pClass class) {
     if(ref_head != NULL) {
         if(sizeof(pObject) == 8 && field_offset & 0x7) {
             if(int_head != NULL) {
-                FieldBlock *fb = int_head;
+                pFieldBlock fb = int_head;
                 int_head = int_head->u.static_value.p;
                 fb->u.offset = field_offset;
             }
@@ -772,7 +772,7 @@ void prepareFields(pClass class) {
         refs_start_offset = field_offset;
 
         do {
-            FieldBlock *fb = ref_head;
+            pFieldBlock fb = ref_head;
             ref_head = ref_head->u.static_value.p;
             fb->u.offset = field_offset;
             field_offset += sizeof(pObject);
@@ -784,7 +784,7 @@ void prepareFields(pClass class) {
     /* Layout the remaining int-sized fields */
 
     while(int_head != NULL) {
-        FieldBlock *fb = int_head;
+        pFieldBlock fb = int_head;
         int_head = int_head->u.static_value.p;
         fb->u.offset = field_offset;
         field_offset += 4;
@@ -823,11 +823,11 @@ void prepareFields(pClass class) {
 
 #define resizeMTable(method_table, method_table_size, miranda, count)  \
 {                                                                      \
-    method_table = (MethodBlock**)sysRealloc(method_table,             \
-                  (method_table_size + count) * sizeof(MethodBlock*)); \
+    method_table = (pMethodBlock*)sysRealloc(method_table,             \
+                  (method_table_size + count) * sizeof(pMethodBlock)); \
                                                                        \
     memcpy(&method_table[method_table_size], miranda,                  \
-                               count * sizeof(MethodBlock*));          \
+                               count * sizeof(pMethodBlock));          \
     method_table_size += count;                                        \
 }
 
@@ -843,17 +843,17 @@ void prepareFields(pClass class) {
 }
 
 void linkClass(pClass class) {
-   static MethodBlock *obj_fnlzr_mthd = NULL;
+   static pMethodBlock obj_fnlzr_mthd = NULL;
 
    ClassBlock *cb = CLASS_CB(class);
    pClass super = (cb->access_flags & ACC_INTERFACE) ? NULL : cb->super;
 
    ITableEntry *spr_imthd_tbl = NULL;
-   MethodBlock **method_table = NULL;
-   MethodBlock **spr_mthd_tbl = NULL;
-   MethodBlock *finalizer;
-   MethodBlock *mb;
-   FieldBlock *fb;
+   pMethodBlock *method_table = NULL;
+   pMethodBlock *spr_mthd_tbl = NULL;
+   pMethodBlock finalizer;
+   pMethodBlock mb;
+   pFieldBlock fb;
 
    int new_methods_count = 0;
    int spr_imthd_tbl_sze = 0;
@@ -962,10 +962,10 @@ void linkClass(pClass class) {
    method_table_size = spr_mthd_tbl_sze + new_methods_count;
 
    if(!(cb->access_flags & ACC_INTERFACE)) {
-       method_table = sysMalloc(method_table_size * sizeof(MethodBlock*));
+       method_table = sysMalloc(method_table_size * sizeof(pMethodBlock));
 
        /* Copy parents method table to the start */
-       memcpy(method_table, spr_mthd_tbl, spr_mthd_tbl_sze * sizeof(MethodBlock*));
+       memcpy(method_table, spr_mthd_tbl, spr_mthd_tbl_sze * sizeof(pMethodBlock));
 
        /* fill in the additional methods -- we use a
           temporary because fillinMtable alters mb */
@@ -1015,7 +1015,7 @@ void linkClass(pClass class) {
    if(!(cb->access_flags & ACC_INTERFACE)) {
        int *offsets_pntr = sysMalloc(itbl_offset_count * sizeof(int));
        int old_mtbl_size = method_table_size;
-       MethodBlock *miranda[MRNDA_CACHE_SZE];
+       pMethodBlock miranda[MRNDA_CACHE_SZE];
        int miranda_count = 0;
        int mtbl_idx;
 
@@ -1028,7 +1028,7 @@ void linkClass(pClass class) {
            cb->imethod_table[i].offsets = offsets_pntr;
 
            for(j = 0; j < intf_cb->methods_count; j++) {
-               MethodBlock *intf_mb = &intf_cb->methods[j];
+               pMethodBlock intf_mb = &intf_cb->methods[j];
 
                if((intf_mb->access_flags & (ACC_STATIC | ACC_PRIVATE)) ||
                       (intf_mb->name[0] == '<'))
@@ -1076,7 +1076,7 @@ void linkClass(pClass class) {
            /* We've created some abstract methods */
            int num_mirandas = method_table_size - old_mtbl_size;
    
-           mb = (MethodBlock *) sysRealloc(cb->methods,
+           mb = (pMethodBlock ) sysRealloc(cb->methods,
                    (cb->methods_count + num_mirandas) * sizeof(MethodBlock));
 
            /* If the realloc of the method list gave us a new pointer, the pointers
@@ -1132,9 +1132,9 @@ void linkClass(pClass class) {
    /* Handle reference classes */
 
    if(ref_referent_offset == -1 && cb->name == SYMBOL(java_lang_ref_Reference)) {
-       FieldBlock *ref_fb = findField(class, SYMBOL(referent), SYMBOL(sig_java_lang_Object));
-       FieldBlock *queue_fb = findField(class, SYMBOL(queue), SYMBOL(sig_java_lang_ref_ReferenceQueue));
-       MethodBlock *enqueue_mb = findMethod(class, SYMBOL(enqueue), SYMBOL(___Z));
+       pFieldBlock ref_fb = findField(class, SYMBOL(referent), SYMBOL(sig_java_lang_Object));
+       pFieldBlock queue_fb = findField(class, SYMBOL(queue), SYMBOL(sig_java_lang_ref_ReferenceQueue));
+       pMethodBlock enqueue_mb = findMethod(class, SYMBOL(enqueue), SYMBOL(___Z));
 
        if(ref_fb == NULL || queue_fb == NULL || enqueue_mb == NULL) {
            jam_fprintf(stderr, "Expected fields/methods missing in java.lang.ref.Reference\n");
@@ -1168,7 +1168,7 @@ void linkClass(pClass class) {
    /* Handle class loader classes */
 
    if(ldr_vmdata_offset == -1 && cb->name == SYMBOL(java_lang_ClassLoader)) {
-       FieldBlock *ldr_fb = findField(class, SYMBOL(vmdata), SYMBOL(sig_java_lang_Object));
+       pFieldBlock ldr_fb = findField(class, SYMBOL(vmdata), SYMBOL(sig_java_lang_Object));
 
        if(ldr_fb == NULL) {
            jam_fprintf(stderr, "Expected vmdata field missing in java.lang.ClassLoader\n");
@@ -1188,8 +1188,8 @@ unlock:
 pClass initClass(pClass class) {
    ClassBlock *cb = CLASS_CB(class);
    ConstantPool *cp = &cb->constant_pool;
-   FieldBlock *fb = cb->fields;
-   MethodBlock *mb;
+   pFieldBlock fb = cb->fields;
+   pMethodBlock mb;
    pObject excep;
    int state, i;
 
@@ -1507,7 +1507,7 @@ pClass findNonArrayClassFromClassLoader(char *classname, pObject loader) {
             return NULL;
 
         if(loadClass_mtbl_idx == -1) {
-            MethodBlock *mb = lookupMethod(loader->class, SYMBOL(loadClass),
+            pMethodBlock mb = lookupMethod(loader->class, SYMBOL(loadClass),
                             SYMBOL(_java_lang_String__java_lang_Class));
             if(mb == NULL)
                 return NULL;
@@ -1550,7 +1550,7 @@ pObject getSystemClassLoader() {
     pClass class_loader = findSystemClass(SYMBOL(java_lang_ClassLoader));
 
     if(!exceptionOccurred()) {
-        MethodBlock *mb;
+        pMethodBlock mb;
 
         if((mb = findMethod(class_loader, SYMBOL(getSystemClassLoader),
                                           SYMBOL(___java_lang_ClassLoader))) != NULL) {
@@ -1689,7 +1689,7 @@ void freeClassData(pClass class) {
     gcPendingFree(cb->interfaces);
 
     for(i = 0; i < cb->fields_count; i++) {
-        FieldBlock *fb = &cb->fields[i];
+        pFieldBlock fb = &cb->fields[i];
 
         if(fb->annotations != NULL) {
             gcPendingFree(fb->annotations->data);
@@ -1700,7 +1700,7 @@ void freeClassData(pClass class) {
     gcPendingFree(cb->fields);
 
     for(i = 0; i < cb->methods_count; i++) {
-        MethodBlock *mb = &cb->methods[i];
+        pMethodBlock mb = &cb->methods[i];
 
 #ifdef DIRECT
         if(!((uintptr_t)mb->code & 0x3)) {
@@ -1998,7 +1998,7 @@ out:
 
 void initialiseClass(InitArgs *args) {
     char *bcp = setBootClassPath(args->bootpath, args->bootpathopt);
-    FieldBlock *hashtable = NULL;
+    pFieldBlock hashtable = NULL;
     pClass loader_data_class;
     pClass vm_loader_class;
 

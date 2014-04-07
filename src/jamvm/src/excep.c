@@ -27,7 +27,7 @@
 #include "excep.h"
 
 static pClass ste_class, ste_array_class, throw_class, vmthrow_class;
-static MethodBlock *ste_init_mb;
+static pMethodBlock ste_init_mb;
 static int backtrace_offset;
 static int inited = FALSE;
 
@@ -38,7 +38,7 @@ static int exception_symbols[] = {
 };
 
 void initialiseException() {
-    FieldBlock *backtrace;
+    pFieldBlock backtrace;
     int i;
 
     ste_class = findSystemClass0(SYMBOL(java_lang_StackTraceElement));
@@ -98,13 +98,13 @@ void signalChainedExceptionClass(pClass exception, char *message,
 
     pObject exp = allocObject(exception);
     pObject str = message == NULL ? NULL : Cstr2String(message);
-    MethodBlock *init = lookupMethod(exception, SYMBOL(object_init),
+    pMethodBlock init = lookupMethod(exception, SYMBOL(object_init),
                                                 SYMBOL(_java_lang_String__V));
     if(exp && init) {
         executeMethod(exp, init, str);
 
         if(cause && !exceptionOccurred()) {
-            MethodBlock *mb = lookupMethod(exception, SYMBOL(initCause),
+            pMethodBlock mb = lookupMethod(exception, SYMBOL(initCause),
                              SYMBOL(_java_lang_Throwable__java_lang_Throwable));
             if(mb)
                 executeMethod(exp, mb, cause);
@@ -149,7 +149,7 @@ void printException() {
     pObject excep = ee->exception;
 
     if(excep != NULL) {
-        MethodBlock *mb = lookupMethod(excep->class, SYMBOL(printStackTrace),
+        pMethodBlock mb = lookupMethod(excep->class, SYMBOL(printStackTrace),
                                                      SYMBOL(___V));
         clearException();
         executeMethod(excep, mb);
@@ -166,7 +166,7 @@ void printException() {
     }
 }
 
-CodePntr findCatchBlockInMethod(MethodBlock *mb, pClass exception,
+CodePntr findCatchBlockInMethod(pMethodBlock mb, pClass exception,
                                 CodePntr pc_pntr) {
 
     ExceptionTableEntry *table = mb->exception_table;
@@ -218,7 +218,7 @@ CodePntr findCatchBlock(pClass exception) {
     return handler_pc;
 }
 
-int mapPC2LineNo(MethodBlock *mb, CodePntr pc_pntr) {
+int mapPC2LineNo(pMethodBlock mb, CodePntr pc_pntr) {
     int pc = pc_pntr - (CodePntr) mb->code;
     int i;
 
@@ -302,7 +302,7 @@ pObject convertStackTrace(pObject vmthrwble) {
     dest = ARRAY_DATA(ste_array, pObject);
 
     for(i = 0, j = 0; i < depth; j++) {
-        MethodBlock *mb = (MethodBlock*)src[i++];
+        pMethodBlock mb = (pMethodBlock)src[i++];
         CodePntr pc = (CodePntr)src[i++];
         ClassBlock *cb = CLASS_CB(mb->class);
         char *dot_name = slash2dots(cb->name);
@@ -343,7 +343,7 @@ void markVMThrowable(pObject vmthrwble, int mark) {
         int i, depth = ARRAY_LEN(array);
 
         for(i = 0; i < depth; i += 2) {
-            MethodBlock *mb = (MethodBlock*)src[i];
+            pMethodBlock mb = (pMethodBlock)src[i];
             markObject(mb->class, mark);
         }
     }

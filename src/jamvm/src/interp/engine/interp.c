@@ -64,7 +64,7 @@ uintptr_t *executeJava() {
     register uintptr_t *ostack = frame->ostack;
 
     pObject this = (pObject)lvars[0];
-    MethodBlock *new_mb, *mb = frame->mb;
+    pMethodBlock new_mb, mb = frame->mb;
     ConstantPool *cp = &(CLASS_CB(mb->class)->constant_pool);
 
     /* Initialise pc to the start of the method.  If it
@@ -1276,7 +1276,7 @@ uintptr_t *executeJava() {
 
     DEF_OPC_RW(OPC_GETSTATIC, ({
         int idx, cache, opcode;
-        FieldBlock *fb;
+        pFieldBlock fb;
         Operand operand;
                
         WITH_OPCODE_CHANGE_CP_DINDEX(OPC_GETSTATIC, idx, cache);
@@ -1303,7 +1303,7 @@ uintptr_t *executeJava() {
 
     DEF_OPC_RW(OPC_PUTSTATIC, ({
         int idx, cache, opcode;
-        FieldBlock *fb;
+        pFieldBlock fb;
         Operand operand;
 
         WITH_OPCODE_CHANGE_CP_DINDEX(OPC_PUTSTATIC, idx, cache);
@@ -1331,7 +1331,7 @@ uintptr_t *executeJava() {
     DEF_OPC_RW(OPC_GETFIELD, ({
         int idx, cache, opcode;
         Operand operand;
-        FieldBlock *fb;
+        pFieldBlock fb;
 
         WITH_OPCODE_CHANGE_CP_DINDEX(OPC_GETFIELD, idx, cache);
 
@@ -1357,7 +1357,7 @@ uintptr_t *executeJava() {
 
     DEF_OPC_RW(OPC_PUTFIELD, ({
         int idx, cache, opcode;
-        FieldBlock *fb;
+        pFieldBlock fb;
         Operand operand;
 
         WITH_OPCODE_CHANGE_CP_DINDEX(OPC_PUTFIELD, idx, cache);
@@ -1569,7 +1569,7 @@ uintptr_t *executeJava() {
     })
 
     DEF_OPC_210(OPC_GETSTATIC, {
-        FieldBlock *fb;
+        pFieldBlock fb;
         int opcode;
                
         frame->last_pc = pc;
@@ -1592,7 +1592,7 @@ uintptr_t *executeJava() {
     })
 
     DEF_OPC_210(OPC_PUTSTATIC, {
-        FieldBlock *fb;
+        pFieldBlock fb;
         int opcode;
                
         frame->last_pc = pc;
@@ -1616,7 +1616,7 @@ uintptr_t *executeJava() {
 
     DEF_OPC_210(OPC_GETFIELD, ({
         int idx;
-        FieldBlock *fb;
+        pFieldBlock fb;
 
         WITH_OPCODE_CHANGE_CP_DINDEX(OPC_GETFIELD, idx);
 
@@ -1647,7 +1647,7 @@ uintptr_t *executeJava() {
 
     DEF_OPC_210(OPC_PUTFIELD, {
         int idx;
-        FieldBlock *fb;
+        pFieldBlock fb;
 
         WITH_OPCODE_CHANGE_CP_DINDEX(OPC_PUTFIELD, idx);
 
@@ -1677,7 +1677,7 @@ uintptr_t *executeJava() {
     })
 
     DEF_OPC_210(OPC_GETFIELD_QUICK_W, {
-        FieldBlock *fb = RESOLVED_FIELD(pc);
+        pFieldBlock fb = RESOLVED_FIELD(pc);
         pObject obj = (pObject )*--ostack;
 
         NULL_POINTER_CHECK(obj);
@@ -1695,7 +1695,7 @@ uintptr_t *executeJava() {
 
 #ifdef USE_CACHE
     DEF_OPC_012(OPC_PUTFIELD_QUICK_W, {
-        FieldBlock *fb = RESOLVED_FIELD(pc);
+        pFieldBlock fb = RESOLVED_FIELD(pc);
  
         if((*fb->type == 'J') || (*fb->type == 'D')) {
             pObject obj = (pObject )*--ostack;
@@ -1716,7 +1716,7 @@ uintptr_t *executeJava() {
     })
 #else
     DEF_OPC_012(OPC_PUTFIELD_QUICK_W, {
-        FieldBlock *fb = RESOLVED_FIELD(pc);
+        pFieldBlock fb = RESOLVED_FIELD(pc);
  
         if((*fb->type == 'J') || (*fb->type == 'D')) {
             pObject obj = (pObject )ostack[-3];
@@ -1916,12 +1916,12 @@ uintptr_t *executeJava() {
 #endif /* DIRECT */
 
     DEF_OPC_210(OPC_GETSTATIC2_QUICK, {
-        FieldBlock *fb = RESOLVED_FIELD(pc);
+        pFieldBlock fb = RESOLVED_FIELD(pc);
         PUSH_LONG(fb->u.static_value.l, 3);
     })
 
     DEF_OPC_012(OPC_PUTSTATIC2_QUICK, {
-        FieldBlock *fb = RESOLVED_FIELD(pc);
+        pFieldBlock fb = RESOLVED_FIELD(pc);
         POP_LONG(fb->u.static_value.l, 3);
     })
 
@@ -1999,7 +1999,7 @@ uintptr_t *executeJava() {
         ClassBlock *cb;
         int cache = INV_INTF_CACHE(pc);
 
-        new_mb = (MethodBlock *)CP_INFO(cp, INV_INTF_IDX(pc));
+        new_mb = (pMethodBlock )CP_INFO(cp, INV_INTF_IDX(pc));
         arg1 = ostack - new_mb->args_count;
 
         NULL_POINTER_CHECK(*arg1);

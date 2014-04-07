@@ -498,6 +498,7 @@ typedef struct method_annotation_data {
 } MethodAnnotationData;
 
 typedef struct methodblock MethodBlock;
+typedef MethodBlock* pMethodBlock;
 
 typedef uintptr_t *(*NativeMethod)(pClass, struct methodblock*, uintptr_t*);
 
@@ -547,6 +548,7 @@ typedef struct fieldblock {
        u4 offset;
    } u;
 } FieldBlock;
+typedef FieldBlock* pFieldBlock;
 
 typedef struct itable_entry {
    pClass interface;
@@ -575,12 +577,12 @@ typedef struct classblock {
    u2 methods_count;
    u2 constant_pool_count;
    int object_size;
-   FieldBlock *fields;
-   MethodBlock *methods;
+   pFieldBlock fields;
+   pMethodBlock methods;
    pClass *interfaces;
    ConstantPool constant_pool;
    int method_table_size;
-   MethodBlock **method_table;
+   pMethodBlock *method_table;
    int imethod_table_size;
    ITableEntry *imethod_table;
    pClass element_class;
@@ -602,7 +604,7 @@ typedef struct frame {
    CodePntr last_pc;
    uintptr_t *lvars;
    uintptr_t *ostack;
-   MethodBlock *mb;
+   pMethodBlock mb;
    struct frame *prev;
 } Frame;
 
@@ -610,7 +612,7 @@ typedef struct jni_frame {
    pObject *next_ref;
    pObject *lrefs;
    uintptr_t *ostack;
-   MethodBlock *mb;
+   pMethodBlock mb;
    struct frame *prev;
 } JNIFrame;
 
@@ -850,15 +852,15 @@ extern pObject bootPackages();
 
 /* resolve */
 
-extern FieldBlock *findField(pClass , char *, char *);
-extern MethodBlock *findMethod(pClass class, char *methodname, char *type);
-extern FieldBlock *lookupField(pClass , char *, char *);
-extern MethodBlock *lookupMethod(pClass class, char *methodname, char *type);
-extern MethodBlock *lookupVirtualMethod(pObject ob, MethodBlock *mb);
+extern pFieldBlock findField(pClass , char *, char *);
+extern pMethodBlock findMethod(pClass class, char *methodname, char *type);
+extern pFieldBlock lookupField(pClass , char *, char *);
+extern pMethodBlock lookupMethod(pClass class, char *methodname, char *type);
+extern pMethodBlock lookupVirtualMethod(pObject ob, pMethodBlock mb);
 extern pClass resolveClass(pClass class, int index, int init);
-extern MethodBlock *resolveMethod(pClass class, int index);
-extern MethodBlock *resolveInterfaceMethod(pClass class, int index);
-extern FieldBlock *resolveField(pClass class, int index);
+extern pMethodBlock resolveMethod(pClass class, int index);
+extern pMethodBlock resolveInterfaceMethod(pClass class, int index);
+extern pFieldBlock resolveField(pClass class, int index);
 extern uintptr_t resolveSingleConstant(pClass class, int index);
 extern int peekIsFieldLong(pClass class, int index);
 
@@ -870,10 +872,10 @@ extern char arrayStoreCheck(pClass class, pClass test);
 
 /* execute */
 
-extern void *executeMethodArgs(pObject ob, pClass class, MethodBlock *mb, ...);
-extern void *executeMethodVaList(pObject ob, pClass class, MethodBlock *mb,
+extern void *executeMethodArgs(pObject ob, pClass class, pMethodBlock mb, ...);
+extern void *executeMethodVaList(pObject ob, pClass class, pMethodBlock mb,
                                   va_list args);
-extern void *executeMethodList(pObject ob, pClass class, MethodBlock *mb,
+extern void *executeMethodList(pObject ob, pClass class, pMethodBlock mb,
                                u8 *args);
 
 #define executeMethod(ob, mb, args...) \
@@ -897,7 +899,7 @@ extern void printException();
 extern CodePntr findCatchBlock(pClass exception);
 extern pObject setStackTrace0(ExecEnv *ee, int max_depth);
 extern pObject convertStackTrace(pObject vmthrwble);
-extern int mapPC2LineNo(MethodBlock *mb, CodePntr pc_pntr);
+extern int mapPC2LineNo(pMethodBlock mb, CodePntr pc_pntr);
 extern void markVMThrowable(pObject vmthrwble, int mark);
 extern void initialiseException();
 
@@ -963,13 +965,13 @@ extern void initialiseUtf8();
 
 /* Dll */
 
-extern void *resolveNativeMethod(MethodBlock *mb);
+extern void *resolveNativeMethod(pMethodBlock mb);
 extern int resolveDll(char *name, pObject loader);
 extern char *getDllPath();
 extern char *getBootDllPath();
 extern char *getDllName(char *name);
 extern void initialiseDll(InitArgs *args);
-extern uintptr_t *resolveNativeWrapper(pClass class, MethodBlock *mb,
+extern uintptr_t *resolveNativeWrapper(pClass class, pMethodBlock mb,
                                        uintptr_t *ostack);
 extern void unloaderUnloadDll(uintptr_t entry);
 extern void unloadClassLoaderDlls(pObject loader);
@@ -1023,8 +1025,8 @@ extern char *getCwd();
 /* access */
 
 extern int checkClassAccess(pClass class1, pClass class2);
-extern int checkMethodAccess(MethodBlock *mb, pClass class);
-extern int checkFieldAccess(FieldBlock *fb, pClass class);
+extern int checkMethodAccess(pMethodBlock mb, pClass class);
+extern int checkFieldAccess(pFieldBlock fb, pClass class);
 
 /* frame */
 
@@ -1056,7 +1058,7 @@ extern void jamvm_exit(int status);
 
 /* inlining */
 
-extern void freeMethodInlinedInfo(MethodBlock *mb);
+extern void freeMethodInlinedInfo(pMethodBlock mb);
 extern int  initialiseInlining(InitArgs *args);
 extern void showRelocatability();
 extern void shutdownInlining();

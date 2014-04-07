@@ -71,7 +71,7 @@ void initialiseDirect(InitArgs *args) {
     initVMWaitLock(prepare_lock);
 }
 
-void prepare(MethodBlock *mb, const void ***handlers) {
+void prepare(pMethodBlock mb, const void ***handlers) {
     int code_len = mb->code_size;
 #ifdef USE_CACHE
     signed char cache_depth[code_len + 1];
@@ -198,7 +198,7 @@ retry:
 
                 case OPC_ALOAD_0:
                 {
-                    FieldBlock *fb;
+                    pFieldBlock fb;
 #ifdef USE_CACHE
                     if(cache < 2) 
                         cache++;

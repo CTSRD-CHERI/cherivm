@@ -44,7 +44,7 @@ ffi_type *sig2ffi(char sig) {
     }
 }
 
-int nativeExtraArg(MethodBlock *mb) {
+int nativeExtraArg(pMethodBlock mb) {
     char *sig = mb->type;
     int count = 2;
 

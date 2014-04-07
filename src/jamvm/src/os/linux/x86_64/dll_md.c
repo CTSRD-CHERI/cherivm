@@ -23,7 +23,7 @@
 #ifndef USE_FFI
 #include <stdio.h>
 
-int nativeExtraArg(MethodBlock *mb) {
+int nativeExtraArg(pMethodBlock mb) {
     char *sig = mb->type;
     int stack_space;
     int iargs = 0;

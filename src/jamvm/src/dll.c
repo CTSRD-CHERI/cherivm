@@ -37,7 +37,7 @@
     results of dynamic method resolution */
 static int verbose;
 
-extern int nativeExtraArg(MethodBlock *mb);
+extern int nativeExtraArg(pMethodBlock mb);
 extern uintptr_t *callJNIMethod(void *env, pClass class, char *sig, int extra,
                                 uintptr_t *ostack, unsigned char *native_func,
                                 int args);
@@ -46,7 +46,7 @@ extern JavaVM invokeIntf;
 
 #define HASHTABSZE 1<<4
 static HashTable hash_table;
-void *lookupLoadedDlls(MethodBlock *mb);
+void *lookupLoadedDlls(pMethodBlock mb);
 #endif
 
 /* Trace library loading and method lookup */
@@ -120,7 +120,7 @@ char *mangleString(char *utf8) {
     return mangled;
 }
 
-char *mangleClassAndMethodName(MethodBlock *mb) {
+char *mangleClassAndMethodName(pMethodBlock mb) {
     char *classname = CLASS_CB(mb->class)->name;
     char *methodname = mb->name;
     char *nonMangled = sysMalloc(strlen(classname) + strlen(methodname) + 7);
@@ -133,7 +133,7 @@ char *mangleClassAndMethodName(MethodBlock *mb) {
     return mangled;
 }
 
-char *mangleSignature(MethodBlock *mb) {
+char *mangleSignature(pMethodBlock mb) {
     char *type = mb->type;
     char *nonMangled;
     char *mangled;
@@ -151,7 +151,7 @@ char *mangleSignature(MethodBlock *mb) {
     return mangled;
 }
 
-void *lookupInternal(MethodBlock *mb) {
+void *lookupInternal(pMethodBlock mb) {
     ClassBlock *cb = CLASS_CB(mb->class);
     int i;
 
@@ -180,7 +180,7 @@ void *lookupInternal(MethodBlock *mb) {
     return NULL;
 }
 
-void *resolveNativeMethod(MethodBlock *mb) {
+void *resolveNativeMethod(pMethodBlock mb) {
     void *func;
 
     if(verbose) {
@@ -204,7 +204,7 @@ void *resolveNativeMethod(MethodBlock *mb) {
     return func;
 }
 
-uintptr_t *resolveNativeWrapper(pClass class, MethodBlock *mb,
+uintptr_t *resolveNativeWrapper(pClass class, pMethodBlock mb,
                                 uintptr_t *ostack) {
 
     void *func = resolveNativeMethod(mb);
@@ -214,7 +214,7 @@ uintptr_t *resolveNativeWrapper(pClass class, MethodBlock *mb,
         return ostack;
     }
 
-    return (*(uintptr_t *(*)(pClass, MethodBlock*, uintptr_t*))func)
+    return (*(uintptr_t *(*)(pClass, pMethodBlock, uintptr_t*))func)
            (class, mb, ostack);
 }
 
@@ -423,7 +423,7 @@ void unloadClassLoaderDlls(pObject loader) {
 
 static void *env = &Jam_JNINativeInterface;
 
-uintptr_t *callJNIWrapper(pClass class, MethodBlock *mb, uintptr_t *ostack) {
+uintptr_t *callJNIWrapper(pClass class, pMethodBlock mb, uintptr_t *ostack) {
     TRACE("<DLL: Calling JNI method %s.%s%s>\n", CLASS_CB(class)->name,
           mb->name, mb->type);
 
@@ -435,7 +435,7 @@ uintptr_t *callJNIWrapper(pClass class, MethodBlock *mb, uintptr_t *ostack) {
                          mb->args_count);
 }
 
-void *lookupLoadedDlls(MethodBlock *mb) {
+void *lookupLoadedDlls(pMethodBlock mb) {
     pObject loader = (CLASS_CB(mb->class))->class_loader;
     char *mangled = mangleClassAndMethodName(mb);
     void *func;

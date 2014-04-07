@@ -105,10 +105,10 @@ static int checkMethodOrFieldAccess(int access_flags, pClass decl_class,
     return isSameRuntimePackage(decl_class, class);
 }
 
-int checkMethodAccess(MethodBlock *mb, pClass class) {
+int checkMethodAccess(pMethodBlock mb, pClass class) {
     return checkMethodOrFieldAccess(mb->access_flags, mb->class, class);
 }
 
-int checkFieldAccess(FieldBlock *fb, pClass class) {
+int checkFieldAccess(pFieldBlock fb, pClass class) {
     return checkMethodOrFieldAccess(fb->access_flags, fb->class, class);
 }
