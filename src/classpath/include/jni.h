@@ -100,7 +100,7 @@ typedef struct _Jv_JavaVM JavaVM;
 # else /* __cplusplus */
 
 /* For C, simply define the class types as generic pointers.  */
-typedef __capability void *jobject;
+typedef void *jobject;
 typedef jobject jclass;
 typedef jobject jstring;
 typedef jobject jthrowable;
