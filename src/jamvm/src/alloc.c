@@ -504,7 +504,7 @@ void markClassData(pClass class, int mark) {
     /* Scan the constant pool and mark all resolved string references */
     for(i = 1; i < cb->constant_pool_count; i++)
         if(CP_TYPE(cp, i) == CONSTANT_ResolvedString) {
-            pObject string = (pObject )CP_INFO(cp, i);
+            pObject string = (pObject) CP_INFO(cp, i);
             TRACE_GC("Resolved String @ constant pool idx %d @%p\n", i, string);
             if(mark > IS_MARKED(string))
                 MARK_AND_PUSH(string, mark);

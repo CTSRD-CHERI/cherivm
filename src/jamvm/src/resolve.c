@@ -98,7 +98,7 @@ retry:
             goto retry;
 
         case CONSTANT_ResolvedClass:
-            resolved_class = (pClass )CP_INFO(cp, cp_index);
+            resolved_class = (pClass) CP_INFO(cp, cp_index);
             break;
 
         case CONSTANT_Class: {
@@ -157,7 +157,7 @@ retry:
             goto retry;
 
         case CONSTANT_Resolved:
-            mb = (pMethodBlock )CP_INFO(cp, cp_index);
+            mb = (pMethodBlock) CP_INFO(cp, cp_index);
             break;
 
         case CONSTANT_Methodref: {
@@ -227,7 +227,7 @@ retry:
             goto retry;
 
         case CONSTANT_Resolved:
-            mb = (pMethodBlock )CP_INFO(cp, cp_index);
+            mb = (pMethodBlock) CP_INFO(cp, cp_index);
             break;
 
         case CONSTANT_InterfaceMethodref: {
@@ -288,7 +288,7 @@ retry:
             goto retry;
 
         case CONSTANT_Resolved:
-            fb = (pFieldBlock )CP_INFO(cp, cp_index);
+            fb = (pFieldBlock) CP_INFO(cp, cp_index);
             break;
 
         case CONSTANT_Fieldref: {
@@ -421,7 +421,7 @@ retry:
             goto retry;
 
         case CONSTANT_Resolved:
-            type = ((pFieldBlock )CP_INFO(cp, cp_index))->type;
+            type = ((pFieldBlock) CP_INFO(cp, cp_index))->type;
             break;
 
         case CONSTANT_Fieldref: {

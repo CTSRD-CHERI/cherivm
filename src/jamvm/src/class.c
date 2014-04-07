@@ -298,7 +298,7 @@ pClass defineClass(char *classname, char *data, int offset, int len,
     READ_U2(intf_count = classblock->interfaces_count, ptr, len);
     interfaces = classblock->interfaces = sysMalloc(intf_count * sizeof(pClass ));
 
-    memset(interfaces, 0, intf_count * sizeof(pClass ));
+    memset(interfaces, 0, intf_count * sizeof(pClass));
     for(i = 0; i < intf_count; i++) {
        u2 index;
        READ_TYPE_INDEX(index, constant_pool, CONSTANT_Class, ptr, len);
