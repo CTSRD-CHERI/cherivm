@@ -36,6 +36,14 @@
 #define         FALSE   0
 #endif
 
+#ifndef __CHERI__
+#define NO_CHERI_CAP
+#endif
+
+#if !defined(__CHERI__) && !defined(__capability)
+	#define __capability
+#endif
+
 /* These should go in the interpreter file */
 
 #define OPC_NOP                         0
@@ -380,8 +388,16 @@ typedef struct line_no_table_entry {
 
 typedef struct object Object;
 typedef Object Class;
-typedef Class* pClass;
-typedef Object* pObject;
+#ifdef NO_CHERI_CAP
+	typedef Object* pObject;
+	typedef pObject pClass;
+#else
+	typedef Object* 				capObject;
+	typedef capObject*				pObject;
+
+	typedef Object* 				capClass;
+	typedef capClass*				pClass;
+#endif
 
 struct object {
    uintptr_t lock;
