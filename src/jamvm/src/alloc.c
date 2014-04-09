@@ -122,6 +122,19 @@ static char *heapmax;
 
 static unsigned long heapfree;
 
+#ifndef NO_CHERI_CAP
+
+/* Capabilities are stored at the end of the heap.
+ * Object pointers on the stack point to this array.
+ */
+
+#define CAPABILITY_GRAIN	sizeof(pObject)
+
+static pObject *capheapbase;
+static pObject *capheapmax;
+
+#endif
+
 /* The mark bit array, used for marking objects during
    the mark phase.  Allocated on start-up. */
 static unsigned int *markbits;
@@ -286,8 +299,13 @@ void clearMarkBits() {
 }
 
 void initialiseAlloc(InitArgs *args) {
-    char *mem = (char*)mmap(0, args->max_heap, PROT_READ|PROT_WRITE,
-                                               MAP_PRIVATE|MAP_ANON, -1, 0);
+
+	size_t heapsize = args->max_heap;
+#ifndef NO_CHERI_CAP
+	heapsize += args->cap_heap;
+#endif
+
+    char *mem = (char*) mmap (NULL, heapsize, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0);
     if(mem == MAP_FAILED) {
         perror("Couldn't allocate the heap; try reducing the max heap size (-Xmx)\n");
         exitVM(1);
@@ -298,15 +316,27 @@ void initialiseAlloc(InitArgs *args) {
                ~(OBJECT_GRAIN-1))-HEADER_SIZE;
 
     /* Ensure size of heap is multiple of OBJECT_GRAIN */
-    heaplimit = heapbase+((args->min_heap-(heapbase-mem))&~(OBJECT_GRAIN-1));
-    heapmax = heapbase+((args->max_heap-(heapbase-mem))&~(OBJECT_GRAIN-1));
+    heaplimit = heapbase + ((args->min_heap - (heapbase - mem)) & ~(OBJECT_GRAIN-1));
+    heapmax = heapbase + ((args->max_heap - (heapbase - mem)) & ~(OBJECT_GRAIN-1));
+
+#ifndef NO_CHERI_CAP
+    char *capmem = mem + args->max_heap;
+
+    /* Align to capability width */
+    capheapbase = (pObject*) (((uintptr_t) capmem + CAPABILITY_GRAIN-1) & ~(CAPABILITY_GRAIN-1));
+    capheapmax = (pObject*) (((uintptr_t) capmem + + args->cap_heap) & ~(CAPABILITY_GRAIN-1));
+#endif
 
     /* Set initial free-list to one block covering entire heap */
     freelist = (Chunk*)heapbase;
-    freelist->header = heapfree = heaplimit-heapbase;
+    freelist->header = heapfree = heaplimit - heapbase;
     freelist->next = NULL;
 
+#ifdef NO_CHERI_CAP
     TRACE_GC("Alloced heap size %p\n", heaplimit-heapbase);
+#else
+    TRACE_GC("Alloced heap size %p with capheap size %p\n", heaplimit-heapbase, capheapmax-capheapbase);
+#endif
     allocMarkBits();
 
     /* Initialise GC locks */

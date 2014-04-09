@@ -46,6 +46,9 @@ void setDefaultInitArgs(InitArgs *args) {
     args->java_stack = DEFAULT_STACK;
     args->min_heap   = DEFAULT_MIN_HEAP;
     args->max_heap   = DEFAULT_MAX_HEAP;
+#ifndef NO_CHERI_CAP
+    args->cap_heap   = DEFAULT_CAP_HEAP;
+#endif
 
     args->props_count = 0;
 

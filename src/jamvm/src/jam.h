@@ -665,6 +665,9 @@ typedef struct InitArgs {
     int java_stack;
     unsigned long min_heap;
     unsigned long max_heap;
+#ifndef NO_CHERI_CAP
+    unsigned long cap_heap;
+#endif
 
     Property *commandline_props;
     int props_count;

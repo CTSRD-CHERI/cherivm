@@ -23,7 +23,12 @@
 #define LOG_OBJECT_GRAIN	3
 #define FLC_BIT			2
 
-#define HDR_ADDRESS(obj) (uintptr_t*)(((char*)obj)-HEADER_SIZE)
+#ifdef NO_CHERI_CAP
+	#define HDR_ADDRESS(obj) (uintptr_t*)(((char*)obj)-HEADER_SIZE)
+#else // NO_CHERI_CAP
+	#define HDR_ADDRESS(obj) (uintptr_t*)(((char*)obj)-HEADER_SIZE)
+//	#define HDR_ADDRESS(obj) (uintptr_t*)(__builtin_cheri_get_cap_base(obj) - HEADER_SIZE)
+#endif // NO_CHERI_CAP
 
 #define clearFlcBit(obj) {                      \
 	uintptr_t *hdr_addr = HDR_ADDRESS(obj); \

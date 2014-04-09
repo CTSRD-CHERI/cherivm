@@ -26,6 +26,10 @@
 #define DEFAULT_MAX_HEAP 8*MB
 #define DEFAULT_MIN_HEAP 1*MB
 
+#ifdef __CHERI__
+#define DEFAULT_CAP_HEAP 4*MB
+#endif
+
 #define HANDLER_TABLE_T static const void
 #define DOUBLE_1_BITS 0x3ff0000000000000LL
 
