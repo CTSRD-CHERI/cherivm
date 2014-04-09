@@ -429,21 +429,21 @@ uintptr_t *executeJava() {
 
 #define GETFIELD_QUICK_0(offset, type)                     \
 {                                                          \
-    pObject obj = (pObject )*--ostack;                     \
+    pObject obj = (pObject)*--ostack;                     \
     NULL_POINTER_CHECK(obj);                               \
     PUSH_0(INST_DATA(obj, type, offset), 3);               \
 }
 
 #define GETFIELD_QUICK_1(offset, type)                     \
 {                                                          \
-    pObject obj = (pObject )cache.i.v1;                    \
+    pObject obj = (pObject)cache.i.v1;                    \
     NULL_POINTER_CHECK(obj);                               \
     PUSH_0(INST_DATA(obj, type, offset), 3);               \
 }
 
 #define GETFIELD_QUICK_2(offset, type)                     \
 {                                                          \
-    pObject obj = (pObject )cache.i.v2;                    \
+    pObject obj = (pObject)cache.i.v2;                    \
     NULL_POINTER_CHECK(obj);                               \
     PUSH_1(INST_DATA(obj, type, offset), 3);               \
 }
@@ -639,7 +639,7 @@ uintptr_t *executeJava() {
 #define ARRAY_LOAD(TYPE)                       \
 {                                              \
     int idx = ARRAY_LOAD_IDX;                  \
-    pObject array = (pObject )ARRAY_LOAD_ARY;  \
+    pObject array = (pObject)ARRAY_LOAD_ARY;  \
                                                \
     NULL_POINTER_CHECK(array);                 \
     ARRAY_BOUNDS_CHECK(array, idx);            \
@@ -672,7 +672,7 @@ uintptr_t *executeJava() {
             OPC_LALOAD,
             OPC_DALOAD, {
         int idx = ARRAY_LOAD_IDX;
-        pObject array = (pObject )ARRAY_LOAD_ARY;
+        pObject array = (pObject)ARRAY_LOAD_ARY;
 
         NULL_POINTER_CHECK(array);
         ARRAY_BOUNDS_CHECK(array, idx);
@@ -691,7 +691,7 @@ uintptr_t *executeJava() {
 {                                             \
     int val = ARRAY_STORE_VAL;                \
     int idx = ARRAY_STORE_IDX;                \
-    pObject array = (pObject )*--ostack;      \
+    pObject array = (pObject)*--ostack;      \
                                               \
     NULL_POINTER_CHECK(array);                \
     ARRAY_BOUNDS_CHECK(array, idx);           \
@@ -718,7 +718,7 @@ uintptr_t *executeJava() {
     DEF_OPC_012(OPC_AASTORE, { 
         pObject obj = (pObject)ARRAY_STORE_VAL;
         int idx = ARRAY_STORE_IDX;
-        pObject array = (pObject )*--ostack;
+        pObject array = (pObject)*--ostack;
 
         NULL_POINTER_CHECK(array);
         ARRAY_BOUNDS_CHECK(array, idx);
@@ -735,7 +735,7 @@ uintptr_t *executeJava() {
             OPC_LASTORE,
             OPC_DASTORE, {
         int idx = ostack[-1];
-        pObject array = (pObject )ostack[-2];
+        pObject array = (pObject)ostack[-2];
 
         ostack -= 2;
         NULL_POINTER_CHECK(array);
@@ -749,7 +749,7 @@ uintptr_t *executeJava() {
             OPC_LASTORE,
             OPC_DASTORE, {
         int idx = ostack[-3];
-        pObject array = (pObject )ostack[-4];
+        pObject array = (pObject)ostack[-4];
 
         ostack -= 4;
         NULL_POINTER_CHECK(array);
@@ -1184,14 +1184,14 @@ uintptr_t *executeJava() {
     )
 
     DEF_OPC_210(OPC_ARRAYLENGTH, {
-        pObject array = (pObject )*--ostack;
+        pObject array = (pObject)*--ostack;
 
         NULL_POINTER_CHECK(array);
         PUSH_0(ARRAY_LEN(array), 1);
     })
 
     DEF_OPC_210(OPC_ATHROW, {
-        pObject obj = (pObject )ostack[-1];
+        pObject obj = (pObject)ostack[-1];
         frame->last_pc = pc;
         NULL_POINTER_CHECK(obj);
                 
@@ -1212,14 +1212,14 @@ uintptr_t *executeJava() {
     })
 
     DEF_OPC_210(OPC_MONITORENTER, {
-        pObject obj = (pObject )*--ostack;
+        pObject obj = (pObject)*--ostack;
         NULL_POINTER_CHECK(obj);
         objectLock(obj);
         DISPATCH(0, 1);
     })
 
     DEF_OPC_210(OPC_MONITOREXIT, {
-        pObject obj = (pObject )*--ostack;
+        pObject obj = (pObject)*--ostack;
         NULL_POINTER_CHECK(obj);
         objectUnlock(obj);
         DISPATCH(0, 1);
@@ -1678,7 +1678,7 @@ uintptr_t *executeJava() {
 
     DEF_OPC_210(OPC_GETFIELD_QUICK_W, {
         pFieldBlock fb = RESOLVED_FIELD(pc);
-        pObject obj = (pObject )*--ostack;
+        pObject obj = (pObject)*--ostack;
 
         NULL_POINTER_CHECK(obj);
 
@@ -1698,12 +1698,12 @@ uintptr_t *executeJava() {
         pFieldBlock fb = RESOLVED_FIELD(pc);
  
         if((*fb->type == 'J') || (*fb->type == 'D')) {
-            pObject obj = (pObject )*--ostack;
+            pObject obj = (pObject)*--ostack;
 
             NULL_POINTER_CHECK(obj);
             INST_DATA(obj, u8, fb->u.offset) = cache.l;
         } else {
-            pObject obj = (pObject )cache.i.v1;
+            pObject obj = (pObject)cache.i.v1;
 
             NULL_POINTER_CHECK(obj);
 
@@ -1719,13 +1719,13 @@ uintptr_t *executeJava() {
         pFieldBlock fb = RESOLVED_FIELD(pc);
  
         if((*fb->type == 'J') || (*fb->type == 'D')) {
-            pObject obj = (pObject )ostack[-3];
+            pObject obj = (pObject)ostack[-3];
 
             ostack -= 3;
             NULL_POINTER_CHECK(obj);
             INST_DATA(obj, u8, fb->u.offset) = *(u8*)&ostack[1];
         } else {
-            pObject obj = (pObject )ostack[-2];
+            pObject obj = (pObject)ostack[-2];
 
             ostack -= 2;
             NULL_POINTER_CHECK(obj);
@@ -1926,7 +1926,7 @@ uintptr_t *executeJava() {
     })
 
     DEF_OPC_210(OPC_GETFIELD2_QUICK, {
-        pObject obj = (pObject )*--ostack;
+        pObject obj = (pObject)*--ostack;
         NULL_POINTER_CHECK(obj);
                 
         PUSH_LONG(INST_DATA(obj, u8, SINGLE_INDEX(pc)), 3);
@@ -1934,7 +1934,7 @@ uintptr_t *executeJava() {
 
 #ifdef USE_CACHE
     DEF_OPC_012(OPC_PUTFIELD2_QUICK, {
-        pObject obj = (pObject )*--ostack;
+        pObject obj = (pObject)*--ostack;
         NULL_POINTER_CHECK(obj);
 
         INST_DATA(obj, u8, SINGLE_INDEX(pc)) = cache.l;
@@ -1943,7 +1943,7 @@ uintptr_t *executeJava() {
 
 #define PUTFIELD_QUICK(type, suffix)                         \
     DEF_OPC_012(OPC_PUTFIELD_QUICK##suffix, {                \
-        pObject obj = (pObject )cache.i.v1;                  \
+        pObject obj = (pObject)cache.i.v1;                  \
         NULL_POINTER_CHECK(obj);                             \
                                                              \
         INST_DATA(obj, type, SINGLE_INDEX(pc)) = cache.i.v2; \
@@ -1951,7 +1951,7 @@ uintptr_t *executeJava() {
     })
 #else
     DEF_OPC_012(OPC_PUTFIELD2_QUICK, {
-        pObject obj = (pObject )ostack[-3];
+        pObject obj = (pObject)ostack[-3];
 
         ostack -= 3;
         NULL_POINTER_CHECK(obj);
@@ -1961,7 +1961,7 @@ uintptr_t *executeJava() {
 
 #define PUTFIELD_QUICK(type, suffix)                        \
     DEF_OPC_012(OPC_PUTFIELD_QUICK##suffix, {               \
-        pObject obj = (pObject )ostack[-2];                 \
+        pObject obj = (pObject)ostack[-2];                 \
                                                             \
         ostack -= 2;                                        \
         NULL_POINTER_CHECK(obj);                            \
@@ -1999,7 +1999,7 @@ uintptr_t *executeJava() {
         ClassBlock *cb;
         int cache = INV_INTF_CACHE(pc);
 
-        new_mb = (pMethodBlock )CP_INFO(cp, INV_INTF_IDX(pc));
+        new_mb = (pMethodBlock)CP_INFO(cp, INV_INTF_IDX(pc));
         arg1 = ostack - new_mb->args_count;
 
         NULL_POINTER_CHECK(*arg1);

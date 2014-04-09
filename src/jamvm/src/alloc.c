@@ -354,7 +354,7 @@ void addConservativeRoot(pObject object) {
     if((conservative_root_count % LIST_INCREMENT) == 0) {
         int new_size = conservative_root_count + LIST_INCREMENT;
         conservative_roots = gcMemRealloc(conservative_roots,
-                                          new_size * sizeof(pObject ));
+                                          new_size * sizeof(pObject));
     }
     conservative_roots[conservative_root_count++] = object;
 }

@@ -67,7 +67,7 @@ uintptr_t *jamClone(pClass class, pMethodBlock mb, uintptr_t *ostack) {
 
 /* static method wait(Ljava/lang/Object;JI)V */
 uintptr_t *jamWait(pClass class, pMethodBlock mb, uintptr_t *ostack) {
-    pObject obj = (pObject )ostack[0];
+    pObject obj = (pObject)ostack[0];
     long long ms = *((long long *)&ostack[1]);
     int ns = ostack[3];
 
@@ -77,14 +77,14 @@ uintptr_t *jamWait(pClass class, pMethodBlock mb, uintptr_t *ostack) {
 
 /* static method notify(Ljava/lang/Object;)V */
 uintptr_t *notify(pClass class, pMethodBlock mb, uintptr_t *ostack) {
-    pObject obj = (pObject )*ostack;
+    pObject obj = (pObject)*ostack;
     objectNotify(obj);
     return ostack;
 }
 
 /* static method notifyAll(Ljava/lang/Object;)V */
 uintptr_t *notifyAll(pClass class, pMethodBlock mb, uintptr_t *ostack) {
-    pObject obj = (pObject )*ostack;
+    pObject obj = (pObject)*ostack;
     objectNotifyAll(obj);
     return ostack;
 }
@@ -93,9 +93,9 @@ uintptr_t *notifyAll(pClass class, pMethodBlock mb, uintptr_t *ostack) {
 
 /* arraycopy(Ljava/lang/Object;ILjava/lang/Object;II)V */
 uintptr_t *arraycopy(pClass class, pMethodBlock mb, uintptr_t *ostack) {
-    pObject src = (pObject )ostack[0];
+    pObject src = (pObject)ostack[0];
     int start1 = ostack[1];
-    pObject dest = (pObject )ostack[2];
+    pObject dest = (pObject)ostack[2];
     int start2 = ostack[3];
     int length = ostack[4];
 
@@ -205,7 +205,7 @@ uintptr_t *exitInternal(pClass class, pMethodBlock mb, uintptr_t *ostack) {
 
 uintptr_t *nativeLoad(pClass class, pMethodBlock mb, uintptr_t *ostack) {
     char *name = String2Cstr((pObject)ostack[0]);
-    pObject class_loader = (pObject )ostack[1];
+    pObject class_loader = (pObject)ostack[1];
 
     ostack[0] = resolveDll(name, class_loader);
     sysFree(name);
@@ -225,13 +225,13 @@ uintptr_t *mapLibraryName(pClass class, pMethodBlock mb, uintptr_t *ostack) {
 }
 
 uintptr_t *propertiesPreInit(pClass class, pMethodBlock mb, uintptr_t *ostack) {
-    pObject properties = (pObject )*ostack;
+    pObject properties = (pObject)*ostack;
     addDefaultProperties(properties);
     return ostack;
 }
 
 uintptr_t *propertiesPostInit(pClass class, pMethodBlock mb, uintptr_t *ostack) {
-    pObject properties = (pObject )*ostack;
+    pObject properties = (pObject)*ostack;
     addCommandLineProperties(properties);
     return ostack;
 }
@@ -437,7 +437,7 @@ uintptr_t *getClassModifiers(pClass class, pMethodBlock mb, uintptr_t *ostack) {
 }
 
 uintptr_t *forName0(uintptr_t *ostack, int resolve, pObject loader) {
-    pObject string = (pObject )ostack[0];
+    pObject string = (pObject)ostack[0];
     pClass class = NULL;
     int len, i = 0;
     char *cstr;
@@ -512,7 +512,7 @@ uintptr_t *forName(pClass clazz, pMethodBlock mb, uintptr_t *ostack) {
 }
 
 uintptr_t *throwException(pClass class, pMethodBlock mb, uintptr_t *ostack) {
-    pObject excep = (pObject )ostack[0];
+    pObject excep = (pObject)ostack[0];
     setException(excep);
     return ostack;
 }
@@ -534,7 +534,7 @@ uintptr_t *fillInStackTrace(pClass class, pMethodBlock mb, uintptr_t *ostack) {
 }
 
 uintptr_t *getStackTrace(pClass class, pMethodBlock m, uintptr_t *ostack) {
-    pObject this = (pObject )*ostack;
+    pObject this = (pObject)*ostack;
     *ostack++ = (uintptr_t) convertStackTrace(this);
     return ostack;
 }
@@ -622,9 +622,9 @@ uintptr_t *getPrimitiveClass(pClass class, pMethodBlock mb, uintptr_t *ostack) {
 }
 
 uintptr_t *defineClass0(pClass clazz, pMethodBlock mb, uintptr_t *ostack) {
-    pObject class_loader = (pObject )ostack[0];
-    pObject string = (pObject )ostack[1];
-    pObject array = (pObject )ostack[2];
+    pObject class_loader = (pObject)ostack[0];
+    pObject string = (pObject)ostack[1];
+    pObject array = (pObject)ostack[2];
     int offset = ostack[3];
     int data_len = ostack[4];
     uintptr_t pd = ostack[5];
@@ -660,8 +660,8 @@ uintptr_t *defineClass0(pClass clazz, pMethodBlock mb, uintptr_t *ostack) {
 }
 
 uintptr_t *findLoadedClass(pClass clazz, pMethodBlock mb, uintptr_t *ostack) {
-    pObject class_loader = (pObject )ostack[0];
-    pObject string = (pObject )ostack[1];
+    pObject class_loader = (pObject)ostack[0];
+    pObject string = (pObject)ostack[1];
     pClass class;
     char *cstr;
     int len, i;
@@ -685,7 +685,7 @@ uintptr_t *findLoadedClass(pClass clazz, pMethodBlock mb, uintptr_t *ostack) {
 }
 
 uintptr_t *resolveClass0(pClass class, pMethodBlock mb, uintptr_t *ostack) {
-    pClass clazz = (pClass )*ostack;
+    pClass clazz = (pClass)*ostack;
 
     if(clazz == NULL)
         signalException(java_lang_NullPointerException, NULL);
@@ -705,7 +705,7 @@ uintptr_t *getBootClassPathSize(pClass class, pMethodBlock mb,
 uintptr_t *getBootClassPathResource(pClass class, pMethodBlock mb,
                                     uintptr_t *ostack) {
 
-    pObject string = (pObject ) ostack[0];
+    pObject string = (pObject) ostack[0];
     char *filename = String2Cstr(string);
     int index = ostack[1];
 
@@ -718,7 +718,7 @@ uintptr_t *getBootClassPathResource(pClass class, pMethodBlock mb,
 uintptr_t *getBootClassPackage(pClass class, pMethodBlock mb,
                                uintptr_t *ostack) {
 
-    pObject string = (pObject ) ostack[0];
+    pObject string = (pObject) ostack[0];
     char *package_name = String2Cstr(string);
 
     *ostack++ = (uintptr_t) bootPackage(package_name);
@@ -1141,7 +1141,7 @@ uintptr_t *currentThread(pClass class, pMethodBlock mb, uintptr_t *ostack) {
 
 /* static method create(Ljava/lang/Thread;J)V */
 uintptr_t *create(pClass class, pMethodBlock mb, uintptr_t *ostack) {
-    pObject this = (pObject )ostack[0];
+    pObject this = (pObject)ostack[0];
     long long stack_size = *((long long*)&ostack[1]);
     createJavaThread(this, stack_size);
     return ostack;
@@ -1159,7 +1159,7 @@ uintptr_t *jamSleep(pClass class, pMethodBlock mb, uintptr_t *ostack) {
 
 /* instance method interrupt()V */
 uintptr_t *interrupt(pClass class, pMethodBlock mb, uintptr_t *ostack) {
-    pObject vmThread = (pObject )*ostack;
+    pObject vmThread = (pObject)*ostack;
     Thread *thread = vmThread2Thread(vmThread);
     if(thread)
         threadInterrupt(thread);
@@ -1168,7 +1168,7 @@ uintptr_t *interrupt(pClass class, pMethodBlock mb, uintptr_t *ostack) {
 
 /* instance method isAlive()Z */
 uintptr_t *isAlive(pClass class, pMethodBlock mb, uintptr_t *ostack) {
-    pObject vmThread = (pObject )*ostack;
+    pObject vmThread = (pObject)*ostack;
     Thread *thread = vmThread2Thread(vmThread);
     *ostack++ = thread ? threadIsAlive(thread) : FALSE;
     return ostack;
@@ -1183,7 +1183,7 @@ uintptr_t *yield(pClass class, pMethodBlock mb, uintptr_t *ostack) {
 
 /* instance method isInterrupted()Z */
 uintptr_t *isInterrupted(pClass class, pMethodBlock mb, uintptr_t *ostack) {
-    pObject vmThread = (pObject )*ostack;
+    pObject vmThread = (pObject)*ostack;
     Thread *thread = vmThread2Thread(vmThread);
     *ostack++ = thread ? threadIsInterrupted(thread) : FALSE;
     return ostack;
@@ -1203,7 +1203,7 @@ uintptr_t *nativeSetPriority(pClass class, pMethodBlock mb, uintptr_t *ostack) {
 
 /* instance method holdsLock(Ljava/lang/Object;)Z */
 uintptr_t *holdsLock(pClass class, pMethodBlock mb, uintptr_t *ostack) {
-    pObject ob = (pObject )ostack[0];
+    pObject ob = (pObject)ostack[0];
     if(ob == NULL)
         signalException(java_lang_NullPointerException, NULL);
     else
@@ -1213,7 +1213,7 @@ uintptr_t *holdsLock(pClass class, pMethodBlock mb, uintptr_t *ostack) {
 
 /* instance method getState()Ljava/lang/String; */
 uintptr_t *getState(pClass class, pMethodBlock mb, uintptr_t *ostack) {
-    pObject vmThread = (pObject )*ostack;
+    pObject vmThread = (pObject)*ostack;
     Thread *thread = vmThread2Thread(vmThread);
     char *state = thread ? getThreadStateString(thread) : "TERMINATED";
 
@@ -1649,7 +1649,7 @@ uintptr_t *arrayIndexScale(pClass class, pMethodBlock mb, uintptr_t *ostack) {
 }
 
 uintptr_t *unpark(pClass class, pMethodBlock mb, uintptr_t *ostack) {
-    pObject jThread = (pObject )ostack[1];
+    pObject jThread = (pObject)ostack[1];
 
     if(jThread != NULL) {
         Thread *thread = jThread2Thread(jThread);

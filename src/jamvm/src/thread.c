@@ -396,7 +396,7 @@ void initialiseJavaStack(ExecEnv *ee) {
           ? (ee->stack_size > MIN_STACK ? ee->stack_size : MIN_STACK)
           : dflt_stack_size;
    char *stack = sysMalloc(stack_size);
-   pMethodBlock mb = (pMethodBlock )stack;
+   pMethodBlock mb = (pMethodBlock)stack;
    Frame *top = (Frame *)(mb + 1);
 
    top->ostack = (uintptr_t*)(top + 1);

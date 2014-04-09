@@ -290,7 +290,7 @@ opc##x##_##y##_##z:
 #define RESOLVED_CONSTANT(pc)    CP_INFO(cp, SINGLE_INDEX(pc))
 #define RESOLVED_FIELD(pc)       ((pFieldBlock)CP_INFO(cp, DOUBLE_INDEX(pc)))
 #define RESOLVED_METHOD(pc)      ((pMethodBlock)CP_INFO(cp, DOUBLE_INDEX(pc)))
-#define RESOLVED_CLASS(pc)       ((pClass )CP_INFO(cp, DOUBLE_INDEX(pc)))
+#define RESOLVED_CLASS(pc)       ((pClass)CP_INFO(cp, DOUBLE_INDEX(pc)))
 
 /* Macros for checking for common exceptions */
 

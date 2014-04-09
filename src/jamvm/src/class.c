@@ -112,9 +112,9 @@ static pClass addClassToHash(pClass class, pObject class_loader) {
     HashTable *table;
     pClass entry;
 
-#define HASH(ptr) utf8Hash(CLASS_CB((pClass )ptr)->name)
+#define HASH(ptr) utf8Hash(CLASS_CB((pClass)ptr)->name)
 #define COMPARE(ptr1, ptr2, hash1, hash2) (hash1 == hash2) && \
-            CLASS_CB((pClass )ptr1)->name == CLASS_CB((pClass )ptr2)->name
+            CLASS_CB((pClass)ptr1)->name == CLASS_CB((pClass)ptr2)->name
 
     if(class_loader == NULL)
         table = &boot_classes;
@@ -296,7 +296,7 @@ pClass defineClass(char *classname, char *data, int offset, int len,
     classblock->class_loader = class_loader;
 
     READ_U2(intf_count = classblock->interfaces_count, ptr, len);
-    interfaces = classblock->interfaces = sysMalloc(intf_count * sizeof(pClass ));
+    interfaces = classblock->interfaces = sysMalloc(intf_count * sizeof(pClass));
 
     memset(interfaces, 0, intf_count * sizeof(pClass));
     for(i = 0; i < intf_count; i++) {
@@ -1076,7 +1076,7 @@ void linkClass(pClass class) {
            /* We've created some abstract methods */
            int num_mirandas = method_table_size - old_mtbl_size;
    
-           mb = (pMethodBlock ) sysRealloc(cb->methods,
+           mb = (pMethodBlock) sysRealloc(cb->methods,
                    (cb->methods_count + num_mirandas) * sizeof(MethodBlock));
 
            /* If the realloc of the method list gave us a new pointer, the pointers
@@ -1403,7 +1403,7 @@ pClass findHashedClass(char *classname, pObject class_loader) {
 #undef COMPARE
 #define HASH(ptr) utf8Hash(ptr)
 #define COMPARE(ptr1, ptr2, hash1, hash2) (hash1 == hash2) && \
-            (ptr1 == CLASS_CB((pClass )ptr2)->name)
+            (ptr1 == CLASS_CB((pClass)ptr2)->name)
 
     /* Do not add if absent, no scavenge, locked */
    findHashEntry((*table), name, class, FALSE, FALSE, TRUE);
@@ -1651,7 +1651,7 @@ void threadBootClasses() {
 
 #undef ITERATE
 #define ITERATE(ptr)                                         \
-    if(CLASS_CB((pClass )ptr)->class_loader == class_loader) \
+    if(CLASS_CB((pClass)ptr)->class_loader == class_loader) \
         markObject(ptr, mark)
 
 void markLoaderClasses(pObject class_loader, int mark) {
