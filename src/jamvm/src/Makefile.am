@@ -39,7 +39,8 @@ libcore_la_SOURCES = alloc.c alloc.h cast.c class.c dll.c excep.c execute.c \
 jamvm_SOURCES = jam.c
 libjvm_la_SOURCES =
 
-jamvm_LDADD = libcore.la
+jamvm_LDADD = -lcheri libcore.la
+jamvm_LDFLAGS = -static
 libjvm_la_LIBADD = libcore.la
 libcore_la_LIBADD = interp/libinterp.la os/@os@/@arch@/libnative.la os/@os@/libos.la
 

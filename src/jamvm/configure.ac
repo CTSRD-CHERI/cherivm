@@ -21,10 +21,12 @@
 
 dnl Process this file with autoconf to produce a configure script.
 
-AC_INIT(src/jam.c)
-AM_INIT_AUTOMAKE(jamvm, 1.5.4)
+AC_INIT([jamvm], [1.5.4])
+AC_CONFIG_SRCDIR([src/jam.c])
+AM_INIT_AUTOMAKE
 AC_CONFIG_HEADERS([src/config.h])
 AC_PREFIX_DEFAULT(/usr/local/jamvm)
+AC_CONFIG_MACRO_DIR([m4])
 
 AC_CANONICAL_HOST
 
