@@ -4,6 +4,7 @@
 *.obj
 *.elf
 *.bin
+*.class
 
 # Libraries
 *.lib
@@ -25,5 +26,7 @@
 *.x86_64
 *.hex
 
+Makefile.in
+Makefile
 .deps
 *.zip
