@@ -2,7 +2,7 @@
  
 source chericc.inc
 
-for x in "$DIR_SRC/"*; do
+for x in "$DIR_SRC/jamvm"; do
     pushd "$x" > /dev/null
         echo "Reconfiguring $x..."
         try_to_run autoreconf -fvi 
