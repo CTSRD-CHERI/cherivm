@@ -33,6 +33,14 @@
 
 #include "../../jam.h"
 
+#ifdef JNI_CHERI
+#include <machine/cheri.h>
+#include <machine/cheric.h>
+#include <machine/cpuregs.h>
+
+#include <cheri/sandbox.h>
+#endif
+
 #ifdef __OpenBSD__
 void *nativeStackBase() {
     stack_t sinfo;
@@ -67,24 +75,22 @@ int nativeAvailableProcessors() {
         return processors;
 }
 
-char *nativeLibError() {
-    return dlerror();
-}
-
 char *nativeLibPath() {
     return getenv("LD_LIBRARY_PATH");
-}
-
-void *nativeLibOpen(char *path) {
-    return dlopen(path, RTLD_LAZY);
 }
 
 void nativeLibClose(void *handle) {
     dlclose(handle);
 }
 
-void *nativeLibSym(void *handle, char *symbol) {
-    return dlsym(handle, symbol);
+#ifndef JNI_CHERI
+
+char *nativeLibError() {
+    return dlerror();
+}
+
+void *nativeLibOpen(char *path) {
+    return dlopen(path, RTLD_LAZY);
 }
 
 char *nativeLibMapName(char *name) {
@@ -93,3 +99,69 @@ char *nativeLibMapName(char *name) {
    sprintf(buff, "lib%s.so", name);
    return buff;
 }
+
+void *nativeLibSym(void *handle, char *symbol) {
+    return dlsym(handle, symbol);
+}
+
+#else // JNI_CHERI
+
+struct cherijni_sandbox {
+	struct sandbox_class    *classp;
+	struct sandbox_object   *objectp;
+};
+
+#define CHERIJNI_METHOD_RESOLVE		0
+
+char *nativeLibError() {
+    return NULL;
+}
+
+void *nativeLibOpen(char *path) {
+	/*
+	 *	Initialize the sandbox class and object
+	 */
+
+	struct cherijni_sandbox *sandbox = sysMalloc(sizeof(struct cherijni_sandbox));
+
+	if (sandbox_class_new(path, DEFAULT_SANDBOX_MEM, &sandbox->classp) < 0) {
+		sysFree(sandbox);
+		return NULL;
+	}
+
+	if (sandbox_object_new(sandbox->classp, &sandbox->objectp) < 0) {
+		sysFree(sandbox);
+		return NULL;
+	}
+
+	return sandbox;
+}
+
+char *nativeLibMapName(char *name) {
+   char *buff = sysMalloc(strlen(name) + sizeof("CHERI_.bin") + 1);
+
+   sprintf(buff, "CHERI_%s.bin", name);
+   return buff;
+}
+
+void *nativeLibSym(void *handle, char *method) {
+	jam_printf("CheriJni: Looking up %s\n", method);
+
+	struct cherijni_sandbox *sandbox = (struct cherijni_sandbox *) handle;
+
+	__capability void *cclear = cheri_zerocap();
+
+	register_t res = sandbox_object_cinvoke(
+            sandbox->objectp,
+            CHERIJNI_METHOD_RESOLVE,
+            0, 0, 0, 0, 0, 0, 0,
+            sandbox_object_getsystemobject(sandbox->objectp).co_codecap,
+            sandbox_object_getsystemobject(sandbox->objectp).co_datacap,
+            cclear, cclear,
+            cclear, cclear,
+            cclear, cclear);
+
+	return NULL;
+}
+
+#endif // JNI_CHERI

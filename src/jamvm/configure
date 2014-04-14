@@ -779,6 +779,7 @@ enable_tracecompact
 enable_tracedirect
 enable_traceinlining
 enable_trace
+enable_cherijni
 enable_int_threading
 enable_int_direct
 enable_int_caching
@@ -1440,6 +1441,7 @@ Optional Features:
   --enable-tracedirect    add interpreter direct-mode tracing (for debugging)
   --enable-traceinlining  add interpreter inlining tracing (for debugging)
   --enable-trace          add all tracing (for debugging)
+  --enable-cherijni       support CHERI JNI
   --enable-int-threading  enable threaded version of the interpreter (default
                           enabled)
   --enable-int-direct     enable direct threaded version of the interpreter
@@ -3166,6 +3168,16 @@ $as_echo "#define TRACEDIRECT 1" >>confdefs.h
 
 
 $as_echo "#define TRACEINLINING 1" >>confdefs.h
+
+    fi
+fi
+
+
+# Check whether --enable-cherijni was given.
+if test "${enable_cherijni+set}" = set; then :
+  enableval=$enable_cherijni; if test "$enableval" != no; then
+
+$as_echo "#define JNI_CHERI 1" >>confdefs.h
 
     fi
 fi
