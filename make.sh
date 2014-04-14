@@ -8,7 +8,7 @@ else
     TARGET="$1"
 fi
 
-for x in "$DIR_SRC/"*; do
+for x in "$DIR_SRC/test" "$DIR_SRC/jamvm"; do
     pushd "$x" > /dev/null
         gmake "$TARGET" || exit
     popd > /dev/null
