@@ -314,12 +314,13 @@ int resolveDll(char *name, pObject loader) {
         if(loader != NULL && nativeLibSym(dll->handle, "JNI_OnUnload") != NULL)
             newLibraryUnloader(loader, dll);
 
-    } else
+    } else {
         if(dll->loader != loader) {
             if(verbose)
-                jam_printf("[%s: already loaded by another classloader]\n");
+                jam_printf("[%s: already loaded by another classloader]\n", name);
             return FALSE;
         }
+    }
 
     return TRUE;
 }

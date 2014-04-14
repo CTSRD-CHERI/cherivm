@@ -25,6 +25,7 @@
    usually embedded, and the standard defaults are too large. */
 #define DEFAULT_MAX_HEAP 8*MB
 #define DEFAULT_MIN_HEAP 1*MB
+#define DEFAULT_SANDBOX_MEM 4*MB
 
 #define HANDLER_TABLE_T static const void
 #define DOUBLE_1_BITS 0x3ff0000000000000LL

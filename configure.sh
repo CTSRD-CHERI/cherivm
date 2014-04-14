@@ -30,6 +30,7 @@ pushd "$DIR_JAMVM" > /dev/null
       --prefix="$DIR_TARGET" \
       --host=mips4-unknown-freebsd \
       --with-sysroot="$DIR_CHERISDK" \
+      --enable-cherijni \
       $JAMVM_DEBUG \
       --with-classpath-install-dir="$DIR_TARGET"
 popd > /dev/null
