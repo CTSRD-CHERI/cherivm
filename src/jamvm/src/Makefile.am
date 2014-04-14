@@ -25,24 +25,15 @@ DIST_SUBDIRS = os arch interp
 bin_PROGRAMS = jamvm
 include_HEADERS = jni.h
 
-lib_LTLIBRARIES = libjvm.la
-noinst_LTLIBRARIES = libcore.la
+jamvm_SOURCES = alloc.c alloc.h cast.c class.c dll.c excep.c execute.c \
+                frame.h hash.c hash.h jam.h jni.c lock.c lock.h \
+                natives.c reflect.c resolve.c sig.h string.c thread.c \
+                thread.h utf8.c zip.c zip.h properties.c natives.h \
+                dll_ffi.c access.c frame.c init.c hooks.c class.h \
+                symbol.c symbol.h excep.h shutdown.c time.c reflect.h \
+                jni-internal.h properties.h sig.c jam.c
 
-libcore_la_SOURCES = alloc.c alloc.h cast.c class.c dll.c excep.c execute.c \
-                     frame.h hash.c hash.h jam.h jni.c lock.c lock.h \
-                     natives.c reflect.c resolve.c sig.h string.c thread.c \
-                     thread.h utf8.c zip.c zip.h properties.c natives.h \
-                     dll_ffi.c access.c frame.c init.c hooks.c class.h \
-                     symbol.c symbol.h excep.h shutdown.c time.c reflect.h \
-                     jni-internal.h properties.h sig.c
-
-jamvm_SOURCES = jam.c
-libjvm_la_SOURCES =
-
-jamvm_LDADD = -lcheri libcore.la
-jamvm_LDFLAGS = -static
-libjvm_la_LIBADD = libcore.la
-libcore_la_LIBADD = interp/libinterp.la os/@os@/@arch@/libnative.la os/@os@/libos.la
+jamvm_LDADD =  interp/engine/libengine.la interp/libinterp.la os/@os@/@arch@/libnative.la os/@os@/libos.la libcheri.a
 
 AM_CPPFLAGS = -I$(top_srcdir)/src/interp/engine
 
