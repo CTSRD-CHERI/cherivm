@@ -128,6 +128,12 @@ AC_ARG_ENABLE(trace,
         AC_DEFINE([TRACEINLINING],1,[defined if interpreter inlining tracing enabled for debugging])
     fi],)
 
+AC_ARG_ENABLE(cherijni,
+    [AS_HELP_STRING(--enable-cherijni,support CHERI JNI)],
+    [if test "$enableval" != no; then
+        AC_DEFINE([JNI_CHERI],1,[defined if CHERI JNI should be enabled])
+    fi],)
+
 AC_ARG_ENABLE(int-threading,
     [AS_HELP_STRING(--enable-int-threading,enable threaded version of the interpreter (default enabled))],,)
 

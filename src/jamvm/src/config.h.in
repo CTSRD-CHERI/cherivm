@@ -108,6 +108,9 @@
 /* Installation directory (prefix) */
 #undef INSTALL_DIR
 
+/* defined if CHERI JNI should be enabled */
+#undef JNI_CHERI
+
 /* Define to the sub-directory in which libtool stores uninstalled libraries.
    */
 #undef LT_OBJDIR

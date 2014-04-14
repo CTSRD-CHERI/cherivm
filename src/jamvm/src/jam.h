@@ -1079,3 +1079,10 @@ extern void getTimeoutRelative(struct timespec *ts, long long millis,
 
 extern int sigElement2Size(char element);
 
+/* CHERI JNI */
+
+#ifdef JNI_CHERI
+	#if !__has_feature(capabilities)
+	#error "This code requires a CHERI-aware compiler"
+	#endif
+#endif
