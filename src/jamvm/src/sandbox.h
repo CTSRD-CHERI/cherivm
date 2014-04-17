@@ -5,6 +5,7 @@
 
 #include "jni.h"
 
+extern char *cheriJNI_libName(char *name);
 extern void *cheriJNI_lookup(void *handle, char *methodName);
 extern void *cheriJNI_open(char *path);
 extern jint cheriJNI_callOnLoad(void *handle, void *ptr, JavaVM *jvm, void *reserved);

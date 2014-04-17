@@ -108,7 +108,7 @@ am_jamvm_OBJECTS = alloc.$(OBJEXT) cast.$(OBJEXT) class.$(OBJEXT) \
 	sig.$(OBJEXT) jam.$(OBJEXT) sandbox.$(OBJEXT)
 jamvm_OBJECTS = $(am_jamvm_OBJECTS)
 jamvm_DEPENDENCIES = interp/engine/libengine.la interp/libinterp.la \
-	os/@os@/@arch@/libnative.la os/@os@/libos.la
+	os/@os@/@arch@/libnative.la os/@os@/libos.la libcheri.a
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
@@ -385,8 +385,8 @@ jamvm_SOURCES = alloc.c alloc.h cast.c class.c dll.c excep.c execute.c \
                 jni-internal.h properties.h sig.c jam.c \
                 sandbox.h sandbox.c
 
-jamvm_LDADD = interp/engine/libengine.la interp/libinterp.la os/@os@/@arch@/libnative.la os/@os@/libos.la -lcheri
-jamvm_LDFLAGS = -static
+jamvm_LDADD = interp/engine/libengine.la interp/libinterp.la os/@os@/@arch@/libnative.la os/@os@/libos.la libcheri.a
+jamvm_LDFLAGS = -all-static
 AM_CPPFLAGS = -I$(top_srcdir)/src/interp/engine
 DISTCLEANFILES = arch.h
 all: config.h

@@ -34,8 +34,8 @@ jamvm_SOURCES = alloc.c alloc.h cast.c class.c dll.c excep.c execute.c \
                 jni-internal.h properties.h sig.c jam.c \
                 sandbox.h sandbox.c
 
-jamvm_LDADD =  interp/engine/libengine.la interp/libinterp.la os/@os@/@arch@/libnative.la os/@os@/libos.la -lcheri
-jamvm_LDFLAGS = -static
+jamvm_LDADD =  interp/engine/libengine.la interp/libinterp.la os/@os@/@arch@/libnative.la os/@os@/libos.la libcheri.a
+jamvm_LDFLAGS = -all-static
 
 AM_CPPFLAGS = -I$(top_srcdir)/src/interp/engine
 

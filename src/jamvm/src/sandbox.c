@@ -27,6 +27,13 @@ struct cherijni_sandbox {
 	struct sandbox_object   *objectp;
 };
 
+char *cheriJNI_libName(char *name) {
+   char *buff = sysMalloc(strlen(name) + sizeof(".cheri") + 1);
+
+   sprintf(buff, "%s.cheri", name);
+   return buff;
+}
+
 void *cheriJNI_open(char *path) {
 	/*
 	 *	Initialize the sandbox class and object

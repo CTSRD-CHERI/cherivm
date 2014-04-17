@@ -249,17 +249,11 @@ int dllNameHash(char *name) {
     return hash;
 }
 
-static int endsWith (char* base, char* str) {
-    int blen = strlen(base);
-    int slen = strlen(str);
-    return (blen >= slen) && (0 == strcmp(base + blen - slen, str));
-}
-
 int resolveDll(char *name, pObject loader) {
     DllEntry *dll;
 
 #ifdef JNI_CHERI
-    int loadSandboxed = endsWith(name, ".cheri.so");
+    int loadSandboxed = TRUE;
 #endif
 
     TRACE("<DLL: Attempting to resolve library %s>\n", name);
@@ -318,14 +312,12 @@ int resolveDll(char *name, pObject loader) {
             	ver = (*(jint (*)(JavaVM*, void*))onload)(&invokeIntf, NULL);
 #endif
 
+            jam_printf("Executed onLoad with ver=%d\n", ver);
+
             if(ver != JNI_VERSION_1_2 && ver != JNI_VERSION_1_4) {
                 if(verbose)
                     jam_printf("[%s: JNI_OnLoad returned unsupported version"
                                " number %d.\n>", name, ver);
-
-#ifdef JNI_CHERI
-                // TODO: destroy sandbox
-#endif
 
                 return FALSE;
             }
