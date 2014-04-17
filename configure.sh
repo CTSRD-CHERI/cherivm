@@ -7,6 +7,14 @@ if [ "$1" == "-d" ]; then
     JAMVM_DEBUG="--enable-trace"
 fi
 
+echo "Configuring libCheriJNI..."
+pushd "$DIR_LIBCHERIJNI" > /dev/null
+    try_to_run ./configure \
+      --prefix="$DIR_TARGET" \
+      --host=mips4-unknown-freebsd \
+      --with-sysroot="$DIR_CHERISDK" 
+popd > /dev/null
+
 echo "Configuring GNU Classpath..."
 pushd "$DIR_CLASSPATH" > /dev/null
     try_to_run ./configure \

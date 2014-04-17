@@ -2,7 +2,7 @@
  
 source chericc.inc
 
-for x in "$DIR_SRC/classpath" "$DIR_SRC/jamvm"; do
+for x in "$DIR_LIBCHERIJNI" "$DIR_CLASSPATH" "$DIR_JAMVM"; do
     pushd "$x" > /dev/null
         echo "Reconfiguring $x..."
         try_to_run autoreconf -fvi 

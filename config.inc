@@ -3,6 +3,7 @@
 DIR_ROOT=`pwd`
 DIR_REALROOT=`realpath .`
 DIR_SRC="$DIR_ROOT/src"
+DIR_LIBCHERIJNI="$DIR_SRC/libcherijni"
 DIR_CLASSPATH="$DIR_SRC/classpath"
 DIR_JAMVM="$DIR_SRC/jamvm"
 DIR_TARGET="$DIR_ROOT/target"
