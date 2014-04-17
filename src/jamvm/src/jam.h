@@ -518,6 +518,9 @@ struct methodblock {
    int native_extra_arg;
    NativeMethod native_invoker;
    void *code;
+#ifdef JNI_CHERI
+   void *sandbox_handle;
+#endif
    int code_size;
    u2 *throw_table;
    ExceptionTableEntry *exception_table;
@@ -1015,6 +1018,14 @@ extern void markJNIGlobalRefs();
 extern void scanJNIWeakGlobalRefs();
 extern void markJNIClearedWeakRefs();
 
+/* CheriJNI */
+
+#ifdef JNI_CHERI
+	#if !__has_feature(capabilities)
+	#error "This code requires a CHERI-aware compiler"
+	#endif
+#endif
+
 /* properties */
 
 extern void initialiseProperties(InitArgs *args);
@@ -1078,11 +1089,3 @@ extern void getTimeoutRelative(struct timespec *ts, long long millis,
 /* sig */
 
 extern int sigElement2Size(char element);
-
-/* CHERI JNI */
-
-#ifdef JNI_CHERI
-	#if !__has_feature(capabilities)
-	#error "This code requires a CHERI-aware compiler"
-	#endif
-#endif

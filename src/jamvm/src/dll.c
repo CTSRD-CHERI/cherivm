@@ -33,6 +33,10 @@
 #include "symbol.h"
 #include "excep.h"
 
+#ifdef JNI_CHERI
+#include "sandbox.h"
+#endif
+
 /* Set by call to initialise -- if true, prints out
     results of dynamic method resolution */
 static int verbose;
@@ -231,6 +235,9 @@ typedef struct {
     char *name;
     void *handle;
     pObject loader;
+#ifdef JNI_CHERI
+    int sandboxed;
+#endif
 } DllEntry;
 
 int dllNameHash(char *name) {
@@ -242,8 +249,18 @@ int dllNameHash(char *name) {
     return hash;
 }
 
+static int endsWith (char* base, char* str) {
+    int blen = strlen(base);
+    int slen = strlen(str);
+    return (blen >= slen) && (0 == strcmp(base + blen - slen, str));
+}
+
 int resolveDll(char *name, pObject loader) {
     DllEntry *dll;
+
+#ifdef JNI_CHERI
+    int loadSandboxed = endsWith(name, ".cheri.so");
+#endif
 
     TRACE("<DLL: Attempting to resolve library %s>\n", name);
 
@@ -259,11 +276,21 @@ int resolveDll(char *name, pObject loader) {
 
     if(dll == NULL) {
         DllEntry *dll2;
-        void *onload, *handle = nativeLibOpen(name);
+        void *onload, *onunload, *handle;
+
+#ifndef JNI_CHERI
+        handle = nativeLibOpen(name);
+#else
+        handle = loadSandboxed ? cheriJNI_open(name) : nativeLibOpen(name);
+#endif
 
         if(handle == NULL) {
             if(verbose) {
+#ifndef JNI_CHERI
                 char *error = nativeLibError();
+#else
+                char *error = loadSandboxed ? "sandbox error" : nativeLibError();
+#endif
 
                 jam_printf("[Failed to open library %s: %s]\n", name,
                            error == NULL ? "<no reason available>" : error);
@@ -271,11 +298,27 @@ int resolveDll(char *name, pObject loader) {
             return FALSE;
         }
 
-        if((onload = nativeLibSym(handle, "JNI_OnLoad")) != NULL) {
+#ifndef JNI_CHERI
+        onload = nativeLibSym(handle, "JNI_OnLoad")
+		onunload = nativeLibSym(handle, "JNI_OnUnload")
+#else
+		onload = loadSandboxed ? cheriJNI_lookup(handle, "JNI_OnLoad") : nativeLibSym(handle, "JNI_OnLoad");
+		onunload = loadSandboxed ? cheriJNI_lookup(handle, "JNI_OnUnload") : nativeLibSym(handle, "JNI_OnUnload");
+#endif
+        if(onload != NULL) {
             int ver;
 
             initJNILrefs();
+#ifndef JNI_CHERI
             ver = (*(jint (*)(JavaVM*, void*))onload)(&invokeIntf, NULL);
+#else
+            if (loadSandboxed)
+            	ver = cheriJNI_callOnLoad(handle, onload, &invokeIntf, NULL);
+            else
+            	ver = (*(jint (*)(JavaVM*, void*))onload)(&invokeIntf, NULL);
+#endif
+
+            jam_printf("Executed onLoad with ver=%d\n", ver);
 
             if(ver != JNI_VERSION_1_2 && ver != JNI_VERSION_1_4) {
                 if(verbose)
@@ -293,6 +336,9 @@ int resolveDll(char *name, pObject loader) {
         dll->name = strcpy(sysMalloc(strlen(name) + 1), name);
         dll->handle = handle;
         dll->loader = loader;
+#ifdef JNI_CHERI
+        dll->sandboxed = loadSandboxed;
+#endif
 
 #undef HASH
 #undef COMPARE
@@ -311,16 +357,22 @@ int resolveDll(char *name, pObject loader) {
            the bootstrap classloader will never be collected,
            therefore libraries loaded by it will never be
            unloaded */
-        if(loader != NULL && nativeLibSym(dll->handle, "JNI_OnUnload") != NULL)
+        if(loader != NULL && onunload != NULL)
             newLibraryUnloader(loader, dll);
 
-    } else {
+    } else
         if(dll->loader != loader) {
             if(verbose)
-                jam_printf("[%s: already loaded by another classloader]\n", name);
+                jam_printf("[%s: already loaded by another classloader]\n");
             return FALSE;
         }
-    }
+#ifdef JNI_CHERI
+		if(dll->sandboxed != loadSandboxed) {
+			if(verbose)
+				jam_printf("[%s: already loaded with different sandboxing settings]\n");
+			return FALSE;
+		}
+#endif
 
     return TRUE;
 }
@@ -338,7 +390,12 @@ char *getDllName(char *name) {
    return nativeLibMapName(name);
 }
 
-void *lookupLoadedDlls0(char *name, pObject loader) {
+typedef struct lookup_result {
+	void *func;
+	DllEntry *dll;
+} LookupResult;
+
+LookupResult lookupLoadedDlls0(char *name, pObject loader) {
     TRACE("<DLL: Looking up %s loader %p in loaded DLL's>\n", name, loader);
 
 #define ITERATE(ptr)                                          \
@@ -347,12 +404,12 @@ void *lookupLoadedDlls0(char *name, pObject loader) {
     if(dll->loader == loader) {                               \
         void *sym = nativeLibSym(dll->handle, name);          \
         if(sym != NULL)                                       \
-            return sym;                                       \
+        return (LookupResult) { .func = sym, .dll = dll};      \
     }                                                         \
 }
 
     hashIterate(hash_table);
-    return NULL;
+    return (LookupResult) { .func = NULL, .dll = NULL};
 }
 
 void unloadDll(DllEntry *dll, int unloader) {
@@ -439,16 +496,16 @@ uintptr_t *callJNIWrapper(pClass class, pMethodBlock mb, uintptr_t *ostack) {
 void *lookupLoadedDlls(pMethodBlock mb) {
     pObject loader = (CLASS_CB(mb->class))->class_loader;
     char *mangled = mangleClassAndMethodName(mb);
-    void *func;
+    LookupResult lookup;
 
-    func = lookupLoadedDlls0(mangled, loader);
+    lookup = lookupLoadedDlls0(mangled, loader);
 
-    if(func == NULL) {
+    if(lookup.func == NULL) {
         char *mangledSig = mangleSignature(mb);
         char *fullyMangled = sysMalloc(strlen(mangled)+strlen(mangledSig)+3);
 
         sprintf(fullyMangled, "%s__%s", mangled, mangledSig);
-        func = lookupLoadedDlls0(fullyMangled, loader);
+        lookup = lookupLoadedDlls0(fullyMangled, loader);
 
         sysFree(fullyMangled);
         sysFree(mangledSig);
@@ -456,12 +513,15 @@ void *lookupLoadedDlls(pMethodBlock mb) {
 
     sysFree(mangled);
 
-    if(func) {
+    if(lookup.func) {
         if(verbose)
             jam_printf("JNI");
 
-        mb->code = (unsigned char *) func;
+        mb->code = (unsigned char *) lookup.func;
         mb->native_extra_arg = nativeExtraArg(mb);
+#ifdef JNI_CHERI
+        mb->sandbox_handle = lookup.dll->sandboxed ? lookup.dll->handle : NULL;
+#endif
         return mb->native_invoker = &callJNIWrapper;
     }
 
