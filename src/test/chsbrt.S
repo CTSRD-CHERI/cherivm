@@ -112,9 +112,9 @@ __ccall_enter:
 	sd	$t1, 0($t2)
 
 	#
-	# Invoke MIPS ABI C "invoke" function.
+	# Invoke MIPS ABI C "cherijni_invoke" function.
 	#
-	dla	$t9, invoke
+	dla	$t9, cherijni_invoke
 	jalr	$t9
 	nop			# Branch-delay slot
 

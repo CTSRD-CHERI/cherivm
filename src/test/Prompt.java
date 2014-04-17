@@ -10,7 +10,7 @@ public class Prompt {
     }
 
     static {
-        System.loadLibrary("Prompt");
+        System.loadLibrary("Prompt.cheri");
     }
 }
 
