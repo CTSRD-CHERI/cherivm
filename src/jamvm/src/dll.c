@@ -318,12 +318,14 @@ int resolveDll(char *name, pObject loader) {
             	ver = (*(jint (*)(JavaVM*, void*))onload)(&invokeIntf, NULL);
 #endif
 
-            jam_printf("Executed onLoad with ver=%d\n", ver);
-
             if(ver != JNI_VERSION_1_2 && ver != JNI_VERSION_1_4) {
                 if(verbose)
                     jam_printf("[%s: JNI_OnLoad returned unsupported version"
                                " number %d.\n>", name, ver);
+
+#ifdef JNI_CHERI
+                // TODO: destroy sandbox
+#endif
 
                 return FALSE;
             }
