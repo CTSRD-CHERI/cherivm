@@ -392,13 +392,18 @@ typedef struct lookup_result {
 LookupResult lookupLoadedDlls0(char *name, pObject loader) {
     TRACE("<DLL: Looking up %s loader %p in loaded DLL's>\n", name, loader);
 
+#ifndef JNI_CHERI
+#define SYM_LOOKUP(dll, name) nativeLibSym(dll->handle, name)
+#else
+#define SYM_LOOKUP(dll, name) dll->sandboxed ? cheriJNI_lookup(dll->handle, name) : nativeLibSym(dll->handle, name)
+#endif
 #define ITERATE(ptr)                                          \
 {                                                             \
     DllEntry *dll = (DllEntry*)ptr;                           \
     if(dll->loader == loader) {                               \
-        void *sym = nativeLibSym(dll->handle, name);          \
+        void *sym = SYM_LOOKUP(dll, name);                    \
         if(sym != NULL)                                       \
-        return (LookupResult) { .func = sym, .dll = dll};      \
+        return (LookupResult) { .func = sym, .dll = dll};     \
     }                                                         \
 }
 
@@ -509,7 +514,11 @@ void *lookupLoadedDlls(pMethodBlock mb) {
 
     if(lookup.func) {
         if(verbose)
-            jam_printf("JNI");
+#ifndef JNI_CHERI
+        	jam_printf("JNI");
+#else
+            jam_printf(lookup.dll->sandboxed ? "CheriJNI" : "JNI");
+#endif
 
         mb->code = (unsigned char *) lookup.func;
         mb->native_extra_arg = nativeExtraArg(mb);
