@@ -31,14 +31,7 @@ typedef struct method_entry {
 extern JavaVM *cherijni_getJavaVM();
 extern JNIEnv *cherijni_getJNIEnv();
 
-extern JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *jvm, void *reserved);
-extern JNIEXPORT jstring JNICALL Java_Prompt_getLine(JNIEnv *env, jobject self, jstring prompt);
-extern JNIEXPORT void JNICALL Java_gnu_java_nio_VMChannel_initIDs(JNIEnv *env, jclass clazz);
-
 static methodEntry methodList[] = {
-	{"JNI_OnLoad", &JNI_OnLoad },
-	{"Java_Prompt_getLine", &Java_Prompt_getLine },
-	{"Java_gnu_java_nio_VMChannel_initIDs", &Java_gnu_java_nio_VMChannel_initIDs },
 	{NULL, NULL}
 };
 

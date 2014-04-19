@@ -382,6 +382,7 @@ AC_PROG_AWK
 AC_PROG_CC
 AM_PROG_CC_C_O
 AC_PROG_CPP
+AM_PROG_AS
 
 # Handle -Werror default case.
 if test "$ENABLE_WERROR" = default; then
@@ -1087,6 +1088,7 @@ native/fdlibm/Makefile
 native/jawt/Makefile
 native/jni/Makefile
 native/jni/classpath/Makefile
+native/jni/sandbox/Makefile
 native/jni/java-io/Makefile
 native/jni/java-lang/Makefile
 native/jni/java-math/Makefile

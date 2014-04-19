@@ -1,6 +1,6 @@
-nativeexeclib_LTLIBRARIES = libjavanio.la
+noinst_PROGRAMS = javanio
 
-libjavanio_la_SOURCES = gnu_java_nio_VMPipe.c \
+javanio_SOURCES = gnu_java_nio_VMPipe.c \
 			gnu_java_nio_VMChannel.c \
 			gnu_java_nio_VMSelector.c \
 			gnu_java_nio_charset_iconv_IconvDecoder.c \
@@ -11,9 +11,23 @@ libjavanio_la_SOURCES = gnu_java_nio_VMPipe.c \
 			gnu_java_nio_KqueueSelectorImpl.c \
 			javanio.h
 
-libjavanio_la_LIBADD = $(top_builddir)/native/jni/classpath/jcl.lo \
+javanio_LDADD = $(top_builddir)/native/jni/classpath/jcl.lo \
 		       $(top_builddir)/native/jni/native-lib/libclasspathnative.la \
-		       $(LTLIBICONV) 
+		       $(LTLIBICONV) \
+		       $(top_srcdir)/../libcherijni/src/libcherijni.a \
+		       $(top_srcdir)/../libcherijni/src/libc_cheri.a \
+		       chsbrt.o
+
+javanio_LDFLAGS = -all-static -nostdlib -Wl,--script=sandbox.ld
+
+chsbrt.o:
+	ln -s ../sandbox/chsbrt.o .
+
+libjavanio.so: javanio
+	${OBJCOPY} -S -O binary javanio libjavanio.so 
+
+install-exec-local: libjavanio.so
+	cp -v libjavanio.so ${libdir}/classpath/
 
 # Directly included through javanio.h
 EXTRA_DIST = javanio.c
