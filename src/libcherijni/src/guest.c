@@ -35,6 +35,7 @@ typedef struct method_entry {
 
 extern JavaVM *cherijni_getJavaVM();
 extern JNIEnv *cherijni_getJNIEnv();
+extern void cherijni_destroyJNIEnv(JNIEnv *ppEnv);
 
 extern methodEntry cherijni_MethodList[];
 
@@ -101,21 +102,30 @@ register_t cherijni_invoke(u_int op,
 
 		methodEntry *entry = (methodEntry*) a1;
 		JNIEnv *env = cherijni_getJNIEnv();
+		register_t result;
 
 		if (entry->type == FNTYPE_VOID) {
+
 			printf("[SANDBOX: invoke method (void) %s]\n", entry->name);
 			((fn_void) entry->func)(env, a2, a3, a4, a5, a6, a7);
-			return 0;
+			result = 0;
+
 		} else if (entry->type == FNTYPE_PRIMITIVE) {
+
 			printf("[SANDBOX: invoke method (prim) %s]\n", entry->name);
-			register_t result = ((fn_prim) entry->func)(env, a2, a3, a4, a5, a6, a7);
-			printf("[SANDBOX: returning %p]\n", (void*) result);
-			return result;
+			result = ((fn_prim) entry->func)(env, a2, a3, a4, a5, a6, a7);
+
 		} else if (entry->type == FNTYPE_OBJECT) {
+
 			printf("[SANDBOX: invoke method (obj) %s]\n", entry->name);
-			return (-1);
+			result = (-1);
+
 		} else
-			return (-1);
+			result = (-1);
+
+		printf("[SANDBOX: returning %p]\n", (void*) result);
+		cherijni_destroyJNIEnv(env);
+		return result;
 
 	} else
 		return (-1);
