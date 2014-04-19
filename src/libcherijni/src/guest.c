@@ -31,9 +31,7 @@ typedef struct method_entry {
 extern JavaVM *cherijni_getJavaVM();
 extern JNIEnv *cherijni_getJNIEnv();
 
-static methodEntry methodList[] = {
-	{NULL, NULL}
-};
+extern methodEntry cherijni_MethodList[];
 
 static char* cherijni_extractHostString(__capability char* str_cap) {
 	unsigned int i;
@@ -45,7 +43,7 @@ static char* cherijni_extractHostString(__capability char* str_cap) {
 }
 
 static void* cherijni_methodLookup(char *name) {
-	methodEntry* entry = methodList;
+	methodEntry* entry = cherijni_MethodList;
 	while (entry->name) {
 		if (!strcmp(name, entry->name))
 			return entry->func;
@@ -72,6 +70,7 @@ register_t cherijni_invoke(u_int op,
 
 		char *method_name = cherijni_extractHostString(c5);
 		void *method_ptr = cherijni_methodLookup(method_name);
+		printf(" [SANDBOX: method lookup, %s => %p] ", method_name, method_ptr);
 		return (register_t) method_ptr;
 
 	} else if (op == METHOD_ONLOAD) {
@@ -95,6 +94,7 @@ register_t cherijni_invoke(u_int op,
 		 */
 
 		void *method_ptr = (void*) a1;
+		return (-1);
 
 	} else
 		return (-1);

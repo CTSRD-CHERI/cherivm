@@ -9,7 +9,8 @@ javanio_SOURCES = gnu_java_nio_VMPipe.c \
 			java_nio_VMDirectByteBuffer.c \
 			gnu_java_nio_EpollSelectorImpl.c \
 			gnu_java_nio_KqueueSelectorImpl.c \
-			javanio.h
+			javanio.h \
+			cherijni_names.c
 
 javanio_LDADD = $(top_builddir)/native/jni/classpath/jcl.lo \
 		       $(top_builddir)/native/jni/native-lib/libclasspathnative.la \
