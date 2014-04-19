@@ -17,10 +17,9 @@
 
 #include <cheri/sandbox.h>
 
-#define CHERIJNI_METHOD_LOOKUP      0
-#define CHERIJNI_METHOD_ONLOAD      1
-#define CHERIJNI_METHOD_ONUNLOAD    2
-#define CHERIJNI_METHOD_RUN         3
+#define CHERIJNI_METHOD_LOOKUP               0
+#define CHERIJNI_METHOD_ONLOAD_ONUNLOAD      1
+#define CHERIJNI_METHOD_RUN                  2
 
 struct cherijni_sandbox {
 	struct sandbox_class    *classp;
@@ -76,17 +75,9 @@ void *cheriJNI_lookup(void *handle, char *methodName) {
 	return (void*) CInvoke_0_1(handle, CHERIJNI_METHOD_LOOKUP, CString(methodName));
 }
 
-static jint cheriJNI_callOnLoadUnload(void *handle, void *ptr, u_int op, JavaVM *jvm, void *reserved) {
+jint cheriJNI_callOnLoadUnload(void *handle, void *ptr, JavaVM *jvm, void *reserved) {
 	__capability void *cJvm = cheri_ptr(jvm, sizeof(JavaVM));
-	return (jint) CInvoke_1_0(handle, op, ptr);
-}
-
-jint cheriJNI_callOnLoad(void *handle, void *ptr, JavaVM *jvm, void *reserved) {
-	return cheriJNI_callOnLoadUnload(handle, ptr, CHERIJNI_METHOD_ONLOAD, jvm, reserved);
-}
-
-jint cheriJNI_callOnUnload(void *handle, void *ptr, JavaVM *jvm, void *reserved) {
-	return cheriJNI_callOnLoadUnload(handle, ptr, CHERIJNI_METHOD_ONUNLOAD, jvm, reserved);
+	return (jint) CInvoke_1_0(handle, CHERIJNI_METHOD_ONLOAD_ONUNLOAD, ptr);
 }
 
 #define SCAN_SIGNATURE(sig)               \
@@ -112,6 +103,21 @@ jint cheriJNI_callOnUnload(void *handle, void *ptr, JavaVM *jvm, void *reserved)
 	}                                     \
 }
 
+#define SCAN_RETURNTYPE(sig)              \
+{                                         \
+	char *s = sig;                        \
+	char c = s[1];                        \
+	while (c != ')')                      \
+		c = (++s)[1];                     \
+	c = (++s)[1];                         \
+	if (c == 'D' || c == 'J')             \
+		SCAN_PRIM_DOUBLE                  \
+	else if (c == 'L' || c == '[')        \
+		SCAN_OBJECT                       \
+	else                                  \
+		SCAN_PRIM_SINGLE                  \
+}
+
 uintptr_t *cheriJNI_callMethod(void* handle, void *native_func, JNIEnv *env, pClass class, char *sig, uintptr_t *ostack) {
 	__capability void *cEnv = cheri_ptr(env, sizeof(JNIEnv*));
 
@@ -120,10 +126,10 @@ uintptr_t *cheriJNI_callMethod(void* handle, void *native_func, JNIEnv *env, pCl
 	/* Is it an instance call? */
 
 	__capability void *cThis;
-	if (class == NULL)
-		cThis = CObject(*(_ostack++));
-	else
-		cThis = CObject(class);
+//	if (class == NULL)
+//		cThis = CObject(*(_ostack++));
+//	else
+//		cThis = CObject(class);
 
 	/* Count the arguments */
 
@@ -146,9 +152,16 @@ uintptr_t *cheriJNI_callMethod(void* handle, void *native_func, JNIEnv *env, pCl
 	register_t *_pPrimitiveArgs = pPrimitiveArgs;
 	__capability void **_pObjectArgs = pObjectArgs;
 
+	// TODO: remove this and use the above
+	if (class == NULL)
+		*(_pPrimitiveArgs++) = *(_ostack++);
+	else
+		*(_pPrimitiveArgs++) = class;
+
 	#define SCAN_PRIM_SINGLE    { *(_pPrimitiveArgs++) = *(_ostack++); }
 	#define SCAN_PRIM_DOUBLE    { *(_pPrimitiveArgs++) = *(_ostack++); _ostack++; }
-	#define SCAN_OBJECT         { *(_pObjectArgs++) = CObject(*(_ostack++)); }
+//	#define SCAN_OBJECT         { *(_pObjectArgs++) = CObject(*(_ostack++)); }
+	#define SCAN_OBJECT         { *(_pPrimitiveArgs++) = *(_ostack++); }
 	SCAN_SIGNATURE(sig);
 	#undef SCAN_PRIM_SINGLE
 	#undef SCAN_PRIM_DOUBLE
@@ -167,9 +180,24 @@ uintptr_t *cheriJNI_callMethod(void* handle, void *native_func, JNIEnv *env, pCl
 	__capability void* c3 = pObjectArgs[3];
 	__capability void* c4 = pObjectArgs[4];
 
+	jam_printf("Calling cherijni function %p with handle %p and %d args\n", native_func, handle, cPrimitiveArgs + cObjectArgs);
+
 	register_t result = CInvoke_7_6(handle, CHERIJNI_METHOD_RUN, native_func, a0, a1, a2, a3, a4, a5, cThis, c0, c1, c2, c3, c4);
 
 	// TODO: put return value on the stack
+
+	// TODO: if it returns (-1), it *might* have failed executing!
+	// TODO: ask rwatson: how much would it take to return the error code in $v1?
+
+	jam_printf("Sandbox returned %p\n", (void*) result);
+
+	#define SCAN_PRIM_SINGLE    { *(ostack++) = result; }
+	#define SCAN_PRIM_DOUBLE    { *(ostack++) = result; ostack++; }
+	#define SCAN_OBJECT         { *(ostack++) = result; }
+	SCAN_RETURNTYPE(sig);
+	#undef SCAN_PRIM_SINGLE
+	#undef SCAN_PRIM_DOUBLE
+	#undef SCAN_OBJECT
 
 	return ostack;
 }

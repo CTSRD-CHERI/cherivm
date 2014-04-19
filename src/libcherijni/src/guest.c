@@ -18,20 +18,29 @@
 #ifndef __capability
 #define __capability
 #endif
+
 #define METHOD_LOOKUP               0
-#define METHOD_ONLOAD               1
-#define METHOD_ONUNLOAD             2
-#define METHOD_RUN                  3
+#define METHOD_ONLOAD_ONUNLOAD      1
+#define METHOD_RUN                  2
+
+#define FNTYPE_VOID					1
+#define FNTYPE_PRIMITIVE				2
+#define FNTYPE_OBJECT					3
 
 typedef struct method_entry {
 	char *name;
 	void *func;
+	int type;
 } methodEntry;
 
 extern JavaVM *cherijni_getJavaVM();
 extern JNIEnv *cherijni_getJNIEnv();
 
 extern methodEntry cherijni_MethodList[];
+
+typedef jint (*fn_init)(JavaVM*, void*);
+typedef void (*fn_void)(JNIEnv*, register_t, register_t, register_t, register_t, register_t, register_t);
+typedef register_t (*fn_prim)(JNIEnv*, register_t, register_t, register_t, register_t, register_t, register_t);
 
 static char* cherijni_extractHostString(__capability char* str_cap) {
 	unsigned int i;
@@ -46,7 +55,7 @@ static void* cherijni_methodLookup(char *name) {
 	methodEntry* entry = cherijni_MethodList;
 	while (entry->name) {
 		if (!strcmp(name, entry->name))
-			return entry->func;
+			return entry;
 		entry++;
 	}
 	return NULL;
@@ -70,31 +79,43 @@ register_t cherijni_invoke(u_int op,
 
 		char *method_name = cherijni_extractHostString(c5);
 		void *method_ptr = cherijni_methodLookup(method_name);
-		printf(" [SANDBOX: method lookup, %s => %p] ", method_name, method_ptr);
 		return (register_t) method_ptr;
 
-	} else if (op == METHOD_ONLOAD) {
+	} else if (op == METHOD_ONLOAD_ONUNLOAD) {
 
 		/*
-		 * Lookup and run (if found) JNI_OnLoad.
-		 * Pointer to it is provided in $a1
+		 * Run JNI_OnLoad or JNI_OnUnload, pointer to the relevant
+		 * method list entry is provided in $a1
 		 */
 
-		void* method_ptr = (void*) a1;
-		jint result = (*(jint (*)(JavaVM*, void*)) method_ptr)(cherijni_getJavaVM(), NULL);
+		fn_init func = (fn_init) ((methodEntry*) a1)->func;
+		jint result = func(cherijni_getJavaVM(), NULL);
 		return (register_t) result;
 
-	} else if (op == METHOD_ONUNLOAD) {
-		return (-1);
 	} else if (op == METHOD_RUN) {
 
 		/*
 		 * Run arbitrary method with JNI call convention.
-		 * Pointer provided in $a1
+		 * Pointer to the method list entry is in $a1
 		 */
 
-		void *method_ptr = (void*) a1;
-		return (-1);
+		methodEntry *entry = (methodEntry*) a1;
+		JNIEnv *env = cherijni_getJNIEnv();
+
+		if (entry->type == FNTYPE_VOID) {
+			printf("[SANDBOX: invoke method (void) %s]\n", entry->name);
+			((fn_void) entry->func)(env, a2, a3, a4, a5, a6, a7);
+			return 0;
+		} else if (entry->type == FNTYPE_PRIMITIVE) {
+			printf("[SANDBOX: invoke method (prim) %s]\n", entry->name);
+			register_t result = ((fn_prim) entry->func)(env, a2, a3, a4, a5, a6, a7);
+			printf("[SANDBOX: returning %p]\n", (void*) result);
+			return result;
+		} else if (entry->type == FNTYPE_OBJECT) {
+			printf("[SANDBOX: invoke method (obj) %s]\n", entry->name);
+			return (-1);
+		} else
+			return (-1);
 
 	} else
 		return (-1);

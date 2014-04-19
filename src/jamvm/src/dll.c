@@ -307,7 +307,7 @@ int resolveDll(char *name, pObject loader) {
             ver = (*(jint (*)(JavaVM*, void*))onload)(&invokeIntf, NULL);
 #else
             if (loadSandboxed)
-            	ver = cheriJNI_callOnLoad(handle, onload, &invokeIntf, NULL);
+            	ver = cheriJNI_callOnLoadUnload(handle, onload, &invokeIntf, NULL);
             else
             	ver = (*(jint (*)(JavaVM*, void*))onload)(&invokeIntf, NULL);
 #endif
@@ -476,7 +476,7 @@ void unloadClassLoaderDlls(pObject loader) {
     }
 }
 
-static void *env = &Jam_JNINativeInterface;
+static JNIEnv *env = &Jam_JNINativeInterface;
 
 uintptr_t *callJNIWrapper(pClass class, pMethodBlock mb, uintptr_t *ostack) {
     TRACE("<DLL: Calling JNI method %s.%s%s>\n", CLASS_CB(class)->name,
@@ -485,9 +485,19 @@ uintptr_t *callJNIWrapper(pClass class, pMethodBlock mb, uintptr_t *ostack) {
     if(!initJNILrefs())
         return NULL;
 
-    return callJNIMethod(&env, (mb->access_flags & ACC_STATIC) ? class : NULL,
-                         mb->type, mb->native_extra_arg, ostack, mb->code,
-                         mb->args_count);
+    uintptr_t *new_ostack;
+    pClass call_class = (mb->access_flags & ACC_STATIC) ? class : NULL;
+
+#ifdef JNI_CHERI
+    if (mb->sandbox_handle != NULL)
+    	new_ostack = cheriJNI_callMethod(mb->sandbox_handle, mb->code, &env,
+    	                                 call_class, mb->type, ostack);
+    else
+#endif
+    new_ostack = callJNIMethod(&env, call_class, mb->type, mb->native_extra_arg,
+                               ostack, mb->code, mb->args_count);
+
+    return new_ostack;
 }
 
 void *lookupLoadedDlls(pMethodBlock mb) {
