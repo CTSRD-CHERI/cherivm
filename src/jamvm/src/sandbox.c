@@ -34,7 +34,6 @@ char *cherijni_libName(char *name) {
 #define CInvoke_1_0(handle, op, a1)      CInvoke_1_1(handle, op, a1, cNULL)
 #define CInvoke_0_1(handle, op, c5)      CInvoke_1_1(handle, op, 0, c5)
 #define CInvoke_0_0(handle, op)          CInvoke_1_1(handle, op, 0, cNULL)
-#define CString(str)                     (cheri_ptrperm(str, strlen(str) + 1, CHERI_PERM_LOAD))
 #define CObject(ptr)                     (cheri_ptr((void*) ptr, sizeof(Object)))
 
 void cherijni_init() {
