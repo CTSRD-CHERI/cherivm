@@ -19,7 +19,7 @@
 #include "sandbox.h"
 #include "sandbox_shared.h"
 
-void cherijni_initJNIEnv() {
+void cherijni_initTrampoline(cherijniSandbox *sandbox) {
 
 }
 

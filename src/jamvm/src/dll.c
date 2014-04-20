@@ -60,6 +60,8 @@ void *lookupLoadedDlls(pMethodBlock mb);
 #define TRACE(fmt, ...)
 #endif
 
+static JNIEnv *env = &Jam_JNINativeInterface;
+
 char *mangleString(char *utf8) {
     int len = utf8Len(utf8);
     unsigned short *unicode = sysMalloc(len * 2);
@@ -275,7 +277,7 @@ int resolveDll(char *name, pObject loader) {
 #ifndef JNI_CHERI
         handle = nativeLibOpen(name);
 #else
-        handle = loadSandboxed ? cheriJNI_open(name) : nativeLibOpen(name);
+        handle = loadSandboxed ? cherijni_open(name) : nativeLibOpen(name);
 #endif
 
         if(handle == NULL) {
@@ -296,8 +298,8 @@ int resolveDll(char *name, pObject loader) {
         onload = nativeLibSym(handle, "JNI_OnLoad")
 		onunload = nativeLibSym(handle, "JNI_OnUnload")
 #else
-		onload = loadSandboxed ? cheriJNI_lookup(handle, "JNI_OnLoad") : nativeLibSym(handle, "JNI_OnLoad");
-		onunload = loadSandboxed ? cheriJNI_lookup(handle, "JNI_OnUnload") : nativeLibSym(handle, "JNI_OnUnload");
+		onload = loadSandboxed ? cherijni_lookup(handle, "JNI_OnLoad") : nativeLibSym(handle, "JNI_OnLoad");
+		onunload = loadSandboxed ? cherijni_lookup(handle, "JNI_OnUnload") : nativeLibSym(handle, "JNI_OnUnload");
 #endif
         if(onload != NULL) {
             int ver;
@@ -307,7 +309,7 @@ int resolveDll(char *name, pObject loader) {
             ver = (*(jint (*)(JavaVM*, void*))onload)(&invokeIntf, NULL);
 #else
             if (loadSandboxed)
-            	ver = cheriJNI_callOnLoadUnload(handle, onload, &invokeIntf, NULL);
+            	ver = cherijni_callOnLoadUnload(handle, onload, &invokeIntf, NULL);
             else
             	ver = (*(jint (*)(JavaVM*, void*))onload)(&invokeIntf, NULL);
 #endif
@@ -330,6 +332,7 @@ int resolveDll(char *name, pObject loader) {
         dll->loader = loader;
 #ifdef JNI_CHERI
         dll->sandboxed = loadSandboxed;
+        if (loadSandboxed) cherijni_runTests(dll->handle, &env);
 #endif
 
 #undef HASH
@@ -393,7 +396,7 @@ LookupResult lookupLoadedDlls0(char *name, pObject loader) {
 #ifndef JNI_CHERI
 #define SYM_LOOKUP(dll, name) nativeLibSym(dll->handle, name)
 #else
-#define SYM_LOOKUP(dll, name) dll->sandboxed ? cheriJNI_lookup(dll->handle, name) : nativeLibSym(dll->handle, name)
+#define SYM_LOOKUP(dll, name) dll->sandboxed ? cherijni_lookup(dll->handle, name) : nativeLibSym(dll->handle, name)
 #endif
 #define ITERATE(ptr)                                          \
 {                                                             \
@@ -476,8 +479,6 @@ void unloadClassLoaderDlls(pObject loader) {
     }
 }
 
-static JNIEnv *env = &Jam_JNINativeInterface;
-
 uintptr_t *callJNIWrapper(pClass class, pMethodBlock mb, uintptr_t *ostack) {
     TRACE("<DLL: Calling JNI method %s.%s%s>\n", CLASS_CB(class)->name,
           mb->name, mb->type);
@@ -490,7 +491,7 @@ uintptr_t *callJNIWrapper(pClass class, pMethodBlock mb, uintptr_t *ostack) {
 
 #ifdef JNI_CHERI
     if (mb->sandbox_handle != NULL)
-    	new_ostack = cheriJNI_callMethod(mb->sandbox_handle, mb->code, &env,
+    	new_ostack = cherijni_callMethod(mb->sandbox_handle, mb->code, &env,
     	                                 call_class, mb->type, ostack);
     else
 #endif

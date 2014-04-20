@@ -34,6 +34,7 @@ typedef struct method_entry {
 extern JavaVM *cherijni_getJavaVM();
 extern JNIEnv *cherijni_getJNIEnv();
 extern void cherijni_destroyJNIEnv(JNIEnv *ppEnv);
+extern void cherijni_runTests(JNIEnv *env);
 
 extern methodEntry cherijni_MethodList[];
 
@@ -124,6 +125,14 @@ register_t cherijni_invoke(u_int op,
 		printf("[SANDBOX: returning %p]\n", (void*) result);
 		cherijni_destroyJNIEnv(env);
 		return result;
+
+	} else if (op == CHERIJNI_METHOD_TEST) {
+
+		JNIEnv *env = cherijni_getJNIEnv();
+		cherijni_runTests(env);
+		cherijni_destroyJNIEnv(env);
+
+		return 0;
 
 	} else
 		return (-1);
