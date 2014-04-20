@@ -15,17 +15,15 @@
 
 #include <jni.h>
 
+#include "sandbox_shared.h"
+
 #ifndef __capability
 #define __capability
 #endif
 
-#define METHOD_LOOKUP               0
-#define METHOD_ONLOAD_ONUNLOAD      1
-#define METHOD_RUN                  2
-
-#define FNTYPE_VOID					1
-#define FNTYPE_PRIMITIVE				2
-#define FNTYPE_OBJECT					3
+#define FNTYPE_VOID       1
+#define FNTYPE_PRIMITIVE  2
+#define FNTYPE_OBJECT     3
 
 typedef struct method_entry {
 	char *name;
@@ -72,7 +70,7 @@ register_t cherijni_invoke(u_int op,
 
 	cheri_system_setup(system_object);
 
-	if (op == METHOD_LOOKUP) {
+	if (op == CHERIJNI_METHOD_LOOKUP) {
 
 		/*
 		 * Find method by its name stored in $c5
@@ -82,7 +80,7 @@ register_t cherijni_invoke(u_int op,
 		void *method_ptr = cherijni_methodLookup(method_name);
 		return (register_t) method_ptr;
 
-	} else if (op == METHOD_ONLOAD_ONUNLOAD) {
+	} else if (op == CHERIJNI_METHOD_ONLOAD_ONUNLOAD) {
 
 		/*
 		 * Run JNI_OnLoad or JNI_OnUnload, pointer to the relevant
@@ -93,7 +91,7 @@ register_t cherijni_invoke(u_int op,
 		jint result = func(cherijni_getJavaVM(), NULL);
 		return (register_t) result;
 
-	} else if (op == METHOD_RUN) {
+	} else if (op == CHERIJNI_METHOD_RUN) {
 
 		/*
 		 * Run arbitrary method with JNI call convention.

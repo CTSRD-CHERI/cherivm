@@ -7,7 +7,6 @@
 #include <pthread.h>
 
 #include "jam.h"
-#include "sandbox.h"
 
 #ifdef JNI_CHERI
 
@@ -17,9 +16,8 @@
 
 #include <cheri/sandbox.h>
 
-#define CHERIJNI_METHOD_LOOKUP               0
-#define CHERIJNI_METHOD_ONLOAD_ONUNLOAD      1
-#define CHERIJNI_METHOD_RUN                  2
+#include "sandbox.h"
+#include "sandbox_shared.h"
 
 struct cherijni_sandbox {
 	struct sandbox_class    *classp;
