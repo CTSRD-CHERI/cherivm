@@ -19,11 +19,6 @@
 #include "sandbox.h"
 #include "sandbox_shared.h"
 
-struct cherijni_sandbox {
-	struct sandbox_class    *classp;
-	struct sandbox_object   *objectp;
-};
-
 char *cheriJNI_libName(char *name) {
    char *buff = sysMalloc(strlen(name) + sizeof(".cheri") + 1);
 
@@ -32,11 +27,8 @@ char *cheriJNI_libName(char *name) {
 }
 
 void *cheriJNI_open(char *path) {
-	/*
-	 *	Initialize the sandbox class and object
-	 */
-
-	struct cherijni_sandbox *sandbox = sysMalloc(sizeof(struct cherijni_sandbox));
+	/* Initialize the sandbox class and object */
+	cherijniSandbox *sandbox = sysMalloc(sizeof(cherijniSandbox));
 
 	if (sandbox_class_new(path, DEFAULT_SANDBOX_MEM, &sandbox->classp) < 0) {
 		sysFree(sandbox);
@@ -57,11 +49,11 @@ void *cheriJNI_open(char *path) {
 #define cNULL	(cheri_zerocap())
 #define CInvoke_7_6(handle, op, a1, a2, a3, a4, a5, a6, a7, c5, c6, c7, c8, c9, c10)                         \
 		sandbox_object_cinvoke(                                                                              \
-				((struct cherijni_sandbox *) handle)->objectp, op,                                           \
+				((cherijniSandbox *) handle)->objectp, op,                                           \
 	            (register_t) a1, (register_t) a2, (register_t) a3, (register_t) a4,                          \
                 (register_t) a5, (register_t) a6, (register_t) a7,                                           \
-	            sandbox_object_getsystemobject(((struct cherijni_sandbox *) handle)->objectp).co_codecap,    \
-	            sandbox_object_getsystemobject(((struct cherijni_sandbox *) handle)->objectp).co_datacap,    \
+	            sandbox_object_getsystemobject(((cherijniSandbox *) handle)->objectp).co_codecap,    \
+	            sandbox_object_getsystemobject(((cherijniSandbox *) handle)->objectp).co_datacap,    \
 	            c5, c6, c7, c8, c9, c10)
 #define CInvoke_1_1(handle, op, a1, c5)  CInvoke_7_6(handle, op, a1, 0, 0, 0, 0, 0, 0, c5, cNULL, cNULL, cNULL, cNULL, cNULL)
 #define CInvoke_1_0(handle, op, a1)      CInvoke_1_1(handle, op, a1, cNULL)
