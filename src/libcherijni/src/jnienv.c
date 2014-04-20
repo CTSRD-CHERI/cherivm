@@ -9,7 +9,11 @@ static jint GetVersion(JNIEnv *env) {
 }
 
 static jclass FindClass(JNIEnv *env, const char *className) {
-	printf("[JNIEnv %s stub]\n", __func__);
+	return (jclass) (cheri_invoke(cherijni_SystemObject,
+	    CHERIJNI_JNIEnv_FindClass, className, 0, 0, 0, 0, 0, 0,
+	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
+	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
+	    cheri_zerocap(), cheri_zerocap()));
 	return NULL;
 }
 

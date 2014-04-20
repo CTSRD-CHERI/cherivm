@@ -1,40 +1,23 @@
 .PHONY: build
-build: libPrompt.cheri.so
+build: libjavanio.so
 
 .PHONY: install
 install: build
 	mkdir -p "${DIR_CHERIJNI_INSTALL}"
-	cp -vf libPrompt.cheri.so "${DIR_CHERIJNI_INSTALL}/"
-	cp -vf Prompt.class "${DIR_CHERIJNI_INSTALL}/"
+	cp -vf libjavanio.so "${DIR_CHERIJNI_INSTALL}/"
 
 .PHONY: clean
 clean:
 	rm -f *.class *.o *.bin
 
-Prompt.class: Prompt.java
-	javac Prompt.java
-
-Prompt.h: Prompt.class
-	javah Prompt
-
-cherijni_guest.o: cherijni_guest.c 
-	${CC} ${CFLAGS} -I"${DIR_JAMVM_INCLUDE}" -c cherijni_guest.c
-
-cherijni_javavm.o: cherijni_javavm.c 
-	${CC} ${CFLAGS} -I"${DIR_JAMVM_INCLUDE}" -c cherijni_javavm.c
-
-cherijni_jnienv.o: cherijni_jnienv.c 
-	${CC} ${CFLAGS} -I"${DIR_JAMVM_INCLUDE}" -c cherijni_jnienv.c
-
-Prompt.o: Prompt.h Prompt.c
-	${CC} ${CFLAGS} -I"${DIR_JAMVM_INCLUDE}" -c Prompt.c
+cherijni_names.o: cherijni_names.c 
+	${CC} ${CFLAGS} -I../libcherijni/src -c cherijni_names.c
 
 chsbrt.o: chsbrt.S
 	${CC} ${CCASFLAGS} -c chsbrt.S
 
-Prompt: Prompt.o chsbrt.o sandbox.ld cherijni_guest.o cherijni_javavm.o cherijni_jnienv.o
-	${CC} ${CFLAGS} ${LDFLAGS} -o Prompt Prompt.o chsbrt.o cherijni_guest.o cherijni_javavm.o cherijni_jnienv.o libc_cheri.a -Wl,--script=sandbox.ld -nostdlib -all-static
+javanio: cherijni_names.o chsbrt.o ../libcherijni/src/libcherijni.a ../libcherijni/src/libc_cheri.a
+	${CC} ${CFLAGS} ${LDFLAGS} -o javanio cherijni_names.o chsbrt.o ../libcherijni/src/libcherijni.a ../libcherijni/src/libc_cheri.a -Wl,--script=sandbox.ld -nostdlib -all-static
 
-libPrompt.cheri.so: Prompt
-	${OBJCOPY} -S -O binary Prompt libPrompt.cheri.so
-	
+libjavanio.so: javanio
+	${OBJCOPY} -S -O binary javanio libjavanio.so

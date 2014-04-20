@@ -20,23 +20,44 @@
  * of different type to the trampoline.
  */
 
-static uintptr_t type_JNIEnv;
-static __capability void *sealcap_JNIEnv;
+static uintptr_t type_JNIContext, type_JNIObject;
+static __capability void *sealcap_JNIContext, *sealcap_JNIObject;
 
 void cherijni_initCapabilities() {
-	sealcap_JNIEnv = cheri_ptrtype(&type_JNIEnv, sizeof(uintptr_t), 0); // sets PERMIT_SEAL
+	sealcap_JNIContext = cheri_ptrtype(&type_JNIContext, sizeof(uintptr_t), 0); // sets PERMIT_SEAL
+	sealcap_JNIObject = cheri_ptrtype(&type_JNIObject, sizeof(uintptr_t), 0); // sets PERMIT_SEAL
 }
 
-__capability void *cherijni_sealJNIEnv(JNIEnv *env) {
-	jam_printf("[CHERIJNI: sealing JNIEnv %p]\n", env);
+__capability void *cherijni_sealJNIContext(pClass context) {
+	jam_printf("[CHERIJNI: sealing context %s]\n", context ? CLASS_CB(context)->name : "NULL");
 
-	__capability void *datacap_JNIEnv;
-	datacap_JNIEnv = cheri_ptrperm(env, sizeof(JNIEnv), CHERI_PERM_LOAD);
-	datacap_JNIEnv = cheri_sealdata(datacap_JNIEnv, sealcap_JNIEnv);
+	if (context == NULL)
+		return cheri_zerocap();
 
-	CHERI_CAP_PRINT(datacap_JNIEnv);
+	__capability void *datacap_JNIContext;
+	datacap_JNIContext = cheri_ptrperm(context, sizeof(Class),
+	                                   CHERI_PERM_LOAD | CHERI_PERM_STORE |
+	                                   CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE_CAP);
+	datacap_JNIContext = cheri_sealdata(datacap_JNIContext, sealcap_JNIContext);
 
-	return datacap_JNIEnv;
+	return datacap_JNIContext;
+}
+
+pClass cherijni_unsealJNIContext(__capability void *cap) {
+
+}
+
+__capability void *cherijni_sealObject(pObject object) {
+	if (object == NULL)
+		return cheri_zerocap();
+
+	__capability void *datacap_JNIObject;
+	datacap_JNIObject = cheri_ptrperm(object, sizeof(Object),
+	                                   CHERI_PERM_LOAD | CHERI_PERM_STORE |
+	                                   CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE_CAP);
+	datacap_JNIObject = cheri_sealdata(datacap_JNIObject, sealcap_JNIObject);
+
+	return datacap_JNIObject;
 }
 
 #endif

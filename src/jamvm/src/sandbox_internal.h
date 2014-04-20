@@ -19,8 +19,6 @@
 typedef struct cherijni_sandbox {
 	struct sandbox_class    *classp;
 	struct sandbox_object   *objectp;
-	JNIEnv                  *env_cache;
-	__capability void       *code_env;
 } cherijniSandbox;
 
 extern register_t cherijni_trampoline(register_t methodnum,
@@ -31,6 +29,9 @@ extern register_t cherijni_trampoline(register_t methodnum,
                                __capability void *c6, __capability void *c7)
                                __attribute__((cheri_ccall));
 
+extern void cherijni_initCapabilities();
+extern __capability void *cherijni_sealJNIContext(pClass context);
+extern __capability void *cherijni_sealObject(pObject object);
 
 #endif
 

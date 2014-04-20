@@ -39,6 +39,7 @@ char *cherijni_libName(char *name) {
 
 void cherijni_init() {
 	cheri_system_user_register_fn(&cherijni_trampoline);
+	cherijni_initCapabilities();
 }
 
 void *cherijni_open(char *path) {
@@ -55,12 +56,12 @@ void *cherijni_open(char *path) {
 		return NULL;
 	}
 
-	sandbox->env_cache = NULL;
 	return sandbox;
 }
 
-void cherijni_runTests(void *handle, JNIEnv *env) {
-	CInvoke_0_0(handle, CHERIJNI_METHOD_TEST);
+void cherijni_runTests(void *handle, pClass context) {
+	__capability void *cJNIContext = cherijni_sealJNIContext(context);
+	CInvoke_0_1(handle, CHERIJNI_METHOD_TEST, cJNIContext);
 }
 
 // TODO: make sure only one thread ever enters the sandbox !!!
@@ -115,14 +116,13 @@ jint cherijni_callOnLoadUnload(void *handle, void *ptr, JavaVM *jvm, void *reser
 		SCAN_PRIM_SINGLE                  \
 }
 
-uintptr_t *cherijni_callMethod(void* handle, void *native_func, JNIEnv *env, pClass class, char *sig, uintptr_t *ostack) {
-	__capability void *cEnv = cheri_ptr(env, sizeof(JNIEnv*));
-
+uintptr_t *cherijni_callMethod(void* handle, void *native_func, pClass class, char *sig, uintptr_t *ostack) {
+	__capability void *cJNIContext = cherijni_sealJNIContext(class);
+	__capability void *cThis;
 	uintptr_t *_ostack = ostack;
 
 	/* Is it an instance call? */
 
-	__capability void *cThis;
 //	if (class == NULL)
 //		cThis = CObject(*(_ostack++));
 //	else
@@ -141,7 +141,7 @@ uintptr_t *cherijni_callMethod(void* handle, void *native_func, JNIEnv *env, pCl
 	// TODO: check number of arguments
 
 	register_t pPrimitiveArgs [6] = {0, 0, 0, 0, 0, 0};
-	__capability void *pObjectArgs [5] = {cNULL, cNULL, cNULL, cNULL, cNULL};
+	__capability void *pObjectArgs [4] = {cNULL, cNULL, cNULL, cNULL};
 
 	register_t *_pPrimitiveArgs = pPrimitiveArgs;
 	__capability void **_pObjectArgs = pObjectArgs;
@@ -168,11 +168,10 @@ uintptr_t *cherijni_callMethod(void* handle, void *native_func, JNIEnv *env, pCl
 	__capability void* c1 = pObjectArgs[1];
 	__capability void* c2 = pObjectArgs[2];
 	__capability void* c3 = pObjectArgs[3];
-	__capability void* c4 = pObjectArgs[4];
 
 	jam_printf("Calling cherijni function %p with handle %p and %d args\n", native_func, handle, cPrimitiveArgs + cObjectArgs);
 
-	register_t result = CInvoke_7_6(handle, CHERIJNI_METHOD_RUN, native_func, a0, a1, a2, a3, a4, a5, cThis, c0, c1, c2, c3, c4);
+	register_t result = CInvoke_7_6(handle, CHERIJNI_METHOD_RUN, native_func, a0, a1, a2, a3, a4, a5, cJNIContext, cThis, c0, c1, c2, c3);
 
 	// TODO: if it returns (-1), it *might* have failed executing!
 	// TODO: ask rwatson: how much would it take to return the error code in $v1?
