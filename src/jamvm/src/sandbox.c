@@ -10,34 +10,41 @@
 
 #ifdef JNI_CHERI
 
-#include <machine/cheri.h>
-#include <machine/cheric.h>
-#include <machine/cpuregs.h>
-
-#include <cheri/sandbox.h>
-
 #include "sandbox.h"
+#include "sandbox_internal.h"
 #include "sandbox_shared.h"
 
-struct cherijni_sandbox {
-	struct sandbox_class    *classp;
-	struct sandbox_object   *objectp;
-};
-
-char *cheriJNI_libName(char *name) {
+char *cherijni_libName(char *name) {
    char *buff = sysMalloc(strlen(name) + sizeof(".cheri") + 1);
 
    sprintf(buff, "%s.cheri", name);
    return buff;
 }
 
-void *cheriJNI_open(char *path) {
-	/*
-	 *	Initialize the sandbox class and object
-	 */
+#define cNULL	(cheri_zerocap())
+#define CInvoke_7_6(handle, op, a1, a2, a3, a4, a5, a6, a7, c5, c6, c7, c8, c9, c10)                         \
+		sandbox_object_cinvoke(                                                                              \
+				((cherijniSandbox *) handle)->objectp, op,                                           \
+	            (register_t) a1, (register_t) a2, (register_t) a3, (register_t) a4,                          \
+                (register_t) a5, (register_t) a6, (register_t) a7,                                           \
+	            sandbox_object_getsystemobject(((cherijniSandbox *) handle)->objectp).co_codecap,    \
+	            sandbox_object_getsystemobject(((cherijniSandbox *) handle)->objectp).co_datacap,    \
+	            c5, c6, c7, c8, c9, c10)
+#define CInvoke_1_1(handle, op, a1, c5)  CInvoke_7_6(handle, op, a1, 0, 0, 0, 0, 0, 0, c5, cNULL, cNULL, cNULL, cNULL, cNULL)
+#define CInvoke_1_0(handle, op, a1)      CInvoke_1_1(handle, op, a1, cNULL)
+#define CInvoke_0_1(handle, op, c5)      CInvoke_1_1(handle, op, 0, c5)
+#define CInvoke_0_0(handle, op)          CInvoke_1_1(handle, op, 0, cNULL)
+#define CString(str)                     (cheri_ptrperm(str, strlen(str) + 1, CHERI_PERM_LOAD))
+#define CObject(ptr)                     (cheri_ptr((void*) ptr, sizeof(Object)))
 
-	struct cherijni_sandbox *sandbox = sysMalloc(sizeof(struct cherijni_sandbox));
+void cherijni_init() {
+	cheri_system_user_register_fn(&cherijni_trampoline);
+}
 
+void *cherijni_open(char *path) {
+	cherijniSandbox *sandbox = sysMalloc(sizeof(cherijniSandbox));
+
+	/* Initialize the sandbox class and object */
 	if (sandbox_class_new(path, DEFAULT_SANDBOX_MEM, &sandbox->classp) < 0) {
 		sysFree(sandbox);
 		return NULL;
@@ -48,32 +55,22 @@ void *cheriJNI_open(char *path) {
 		return NULL;
 	}
 
+	sandbox->env_cache = NULL;
 	return sandbox;
+}
+
+void cherijni_runTests(void *handle, JNIEnv *env) {
+	CInvoke_0_0(handle, CHERIJNI_METHOD_TEST);
 }
 
 // TODO: make sure only one thread ever enters the sandbox !!!
 // TODO: check the return value? -1 *may* mean that a trap happened inside the sandbox (will be replaced with signals)
 
-#define cNULL	(cheri_zerocap())
-#define CInvoke_7_6(handle, op, a1, a2, a3, a4, a5, a6, a7, c5, c6, c7, c8, c9, c10)                         \
-		sandbox_object_cinvoke(                                                                              \
-				((struct cherijni_sandbox *) handle)->objectp, op,                                           \
-	            (register_t) a1, (register_t) a2, (register_t) a3, (register_t) a4,                          \
-                (register_t) a5, (register_t) a6, (register_t) a7,                                           \
-	            sandbox_object_getsystemobject(((struct cherijni_sandbox *) handle)->objectp).co_codecap,    \
-	            sandbox_object_getsystemobject(((struct cherijni_sandbox *) handle)->objectp).co_datacap,    \
-	            c5, c6, c7, c8, c9, c10)
-#define CInvoke_1_1(handle, op, a1, c5)  CInvoke_7_6(handle, op, a1, 0, 0, 0, 0, 0, 0, c5, cNULL, cNULL, cNULL, cNULL, cNULL)
-#define CInvoke_1_0(handle, op, a1)      CInvoke_1_1(handle, op, a1, cNULL)
-#define CInvoke_0_1(handle, op, c5)      CInvoke_1_1(handle, op, 0, c5)
-#define CString(str)                     (cheri_ptrperm(str, strlen(str) + 1, CHERI_PERM_LOAD))
-#define CObject(ptr)                     (cheri_ptr((void*) ptr, sizeof(Object)))
-
-void *cheriJNI_lookup(void *handle, char *methodName) {
+void *cherijni_lookup(void *handle, char *methodName) {
 	return (void*) CInvoke_0_1(handle, CHERIJNI_METHOD_LOOKUP, CString(methodName));
 }
 
-jint cheriJNI_callOnLoadUnload(void *handle, void *ptr, JavaVM *jvm, void *reserved) {
+jint cherijni_callOnLoadUnload(void *handle, void *ptr, JavaVM *jvm, void *reserved) {
 	__capability void *cJvm = cheri_ptr(jvm, sizeof(JavaVM));
 	return (jint) CInvoke_1_0(handle, CHERIJNI_METHOD_ONLOAD_ONUNLOAD, ptr);
 }
@@ -118,7 +115,7 @@ jint cheriJNI_callOnLoadUnload(void *handle, void *ptr, JavaVM *jvm, void *reser
 		SCAN_PRIM_SINGLE                  \
 }
 
-uintptr_t *cheriJNI_callMethod(void* handle, void *native_func, JNIEnv *env, pClass class, char *sig, uintptr_t *ostack) {
+uintptr_t *cherijni_callMethod(void* handle, void *native_func, JNIEnv *env, pClass class, char *sig, uintptr_t *ostack) {
 	__capability void *cEnv = cheri_ptr(env, sizeof(JNIEnv*));
 
 	uintptr_t *_ostack = ostack;

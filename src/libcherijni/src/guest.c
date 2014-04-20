@@ -1,25 +1,4 @@
-#include <sys/types.h>
-#include <sys/stat.h>
-
-#include <machine/cheri.h>
-#include <machine/cheric.h>
-
-#include <cheri/cheri_fd.h>
-#include <cheri/cheri_invoke.h>
-#include <cheri/cheri_memcpy.h>
-#include <cheri/cheri_system.h>
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include <jni.h>
-
-#include "sandbox_shared.h"
-
-#ifndef __capability
-#define __capability
-#endif
+#include "guest.h"
 
 #define FNTYPE_VOID       1
 #define FNTYPE_PRIMITIVE  2
@@ -31,11 +10,9 @@ typedef struct method_entry {
 	int type;
 } methodEntry;
 
-extern JavaVM *cherijni_getJavaVM();
-extern JNIEnv *cherijni_getJNIEnv();
-extern void cherijni_destroyJNIEnv(JNIEnv *ppEnv);
-
 extern methodEntry cherijni_MethodList[];
+
+struct cheri_object cherijni_SystemObject;
 
 typedef jint (*fn_init)(JavaVM*, void*);
 typedef void (*fn_void)(JNIEnv*, register_t, register_t, register_t, register_t, register_t, register_t);
@@ -69,6 +46,7 @@ register_t cherijni_invoke(u_int op,
                            __capability void *c9, __capability void *c10) {
 
 	cheri_system_setup(system_object);
+	cherijni_SystemObject = system_object;
 
 	if (op == CHERIJNI_METHOD_LOOKUP) {
 
@@ -124,6 +102,14 @@ register_t cherijni_invoke(u_int op,
 		printf("[SANDBOX: returning %p]\n", (void*) result);
 		cherijni_destroyJNIEnv(env);
 		return result;
+
+	} else if (op == CHERIJNI_METHOD_TEST) {
+
+		JNIEnv *env = cherijni_getJNIEnv();
+		cherijni_runTests(env);
+		cherijni_destroyJNIEnv(env);
+
+		return 0;
 
 	} else
 		return (-1);
