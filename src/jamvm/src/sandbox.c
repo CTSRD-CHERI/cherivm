@@ -58,13 +58,7 @@ void *cherijni_open(char *path) {
 		return NULL;
 	}
 
-	/* Register trampoline */
-	if (sandbox_class_method_declare(sandbox->classp, CHERIJNI_TRAMPOLINE_JNIENV, "trampoline_JNIEnv") < 0) {
-		sysFree(sandbox);
-		return NULL;
-	}
-
-	return sandbox;
+	return NULL;
 }
 
 void cherijni_runTests(void *handle, JNIEnv *env) {

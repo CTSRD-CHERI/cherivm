@@ -17,6 +17,7 @@ extern void cherijni_runTests(void *handle, JNIEnv *env);
 typedef struct cherijni_sandbox {
 	struct sandbox_class    *classp;
 	struct sandbox_object   *objectp;
+	__capability void       *code_env;
 } cherijniSandbox;
 
 #endif
