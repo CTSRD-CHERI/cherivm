@@ -49,7 +49,7 @@ exception statement from your version. */
 
 #include <stdarg.h>
 
-#include "jni_md.h"
+//#include "jni_md.h"
 
 /* The VM might define jobject and friends.  */
 #ifndef _CLASSPATH_VM_JNI_TYPES_DEFINED
@@ -58,73 +58,75 @@ exception statement from your version. */
 
 #error "No C++ capability support at the moment"
 
-/* Define dummy classes and then define the JNI types as pointers.  */
-struct __jobject {};
-struct __jclass : __jobject {};
-struct __jstring : __jobject {};
-struct __jthrowable : __jobject {};
-struct __jweak : __jobject {};
-struct __jarray : __jobject {};
-struct __jobjectArray : __jarray {};
-struct __jbyteArray : __jarray {};
-struct __jshortArray : __jarray {};
-struct __jintArray : __jarray {};
-struct __jlongArray : __jarray {};
-struct __jbooleanArray : __jarray {};
-struct __jcharArray : __jarray {};
-struct __jfloatArray : __jarray {};
-struct __jdoubleArray : __jarray {};
-
-typedef __jobject *jobject;
-typedef __jclass *jclass;
-typedef __jstring *jstring;
-typedef __jthrowable *jthrowable;
-typedef __jweak *jweak;
-typedef __jarray *jarray;
-typedef __jobjectArray *jobjectArray;
-typedef __jbyteArray *jbyteArray;
-typedef __jshortArray *jshortArray;
-typedef __jintArray *jintArray;
-typedef __jlongArray *jlongArray;
-typedef __jbooleanArray *jbooleanArray;
-typedef __jcharArray *jcharArray;
-typedef __jfloatArray *jfloatArray;
-typedef __jdoubleArray *jdoubleArray;
-
-#define JNI_TRUE true
-#define JNI_FALSE false
-
-typedef struct _Jv_JNIEnv JNIEnv;
-typedef struct _Jv_JavaVM JavaVM;
-
-# else /* __cplusplus */
-
-/* For C, simply define the class types as generic pointers.  */
-typedef void *jobject;
-typedef jobject jclass;
-typedef jobject jstring;
-typedef jobject jthrowable;
-typedef jobject jweak;
-typedef jobject jarray;
-typedef jobject jobjectArray;
-typedef jobject jbyteArray;
-typedef jobject jshortArray;
-typedef jobject jintArray;
-typedef jobject jlongArray;
-typedef jobject jbooleanArray;
-typedef jobject jcharArray;
-typedef jobject jfloatArray;
-typedef jobject jdoubleArray;
-
-#define JNI_TRUE  1
-#define JNI_FALSE 0
-
-typedef const struct JNINativeInterface_ *JNIEnv;
-typedef const struct JNIInvokeInterface_ *JavaVM;
+///* Define dummy classes and then define the JNI types as pointers.  */
+//struct __jobject {};
+//struct __jclass : __jobject {};
+//struct __jstring : __jobject {};
+//struct __jthrowable : __jobject {};
+//struct __jweak : __jobject {};
+//struct __jarray : __jobject {};
+//struct __jobjectArray : __jarray {};
+//struct __jbyteArray : __jarray {};
+//struct __jshortArray : __jarray {};
+//struct __jintArray : __jarray {};
+//struct __jlongArray : __jarray {};
+//struct __jbooleanArray : __jarray {};
+//struct __jcharArray : __jarray {};
+//struct __jfloatArray : __jarray {};
+//struct __jdoubleArray : __jarray {};
+//
+//typedef __jobject *jobject;
+//typedef __jclass *jclass;
+//typedef __jstring *jstring;
+//typedef __jthrowable *jthrowable;
+//typedef __jweak *jweak;
+//typedef __jarray *jarray;
+//typedef __jobjectArray *jobjectArray;
+//typedef __jbyteArray *jbyteArray;
+//typedef __jshortArray *jshortArray;
+//typedef __jintArray *jintArray;
+//typedef __jlongArray *jlongArray;
+//typedef __jbooleanArray *jbooleanArray;
+//typedef __jcharArray *jcharArray;
+//typedef __jfloatArray *jfloatArray;
+//typedef __jdoubleArray *jdoubleArray;
+//
+//#define JNI_TRUE true
+//#define JNI_FALSE false
+//
+//typedef struct _Jv_JNIEnv JNIEnv;
+//typedef struct _Jv_JavaVM JavaVM;
+//
+//# else /* __cplusplus */
+//
+///* For C, simply define the class types as generic pointers.  */
+//typedef void *jobject;
+//typedef jobject jclass;
+//typedef jobject jstring;
+//typedef jobject jthrowable;
+//typedef jobject jweak;
+//typedef jobject jarray;
+//typedef jobject jobjectArray;
+//typedef jobject jbyteArray;
+//typedef jobject jshortArray;
+//typedef jobject jintArray;
+//typedef jobject jlongArray;
+//typedef jobject jbooleanArray;
+//typedef jobject jcharArray;
+//typedef jobject jfloatArray;
+//typedef jobject jdoubleArray;
+//
+//#define JNI_TRUE  1
+//#define JNI_FALSE 0
+//
+//typedef const struct JNINativeInterface_ *JNIEnv;
+//typedef const struct JNIInvokeInterface_ *JavaVM;
 
 # endif /* __cplusplus */
 
 #endif /* _CLASSPATH_VM_JNI_TYPES_DEFINED */
+
+#include "cherijni.h"
 
 /* 
  * Before jni.h is #included within a typical JVM, the source code should 
@@ -136,35 +138,35 @@ typedef const struct JNIInvokeInterface_ *JavaVM;
 #ifndef _CLASSPATH_VM_INTERNAL_TYPES_DEFINED
 struct _jfieldID;
 struct _jmethodID;
-typedef struct _jfieldID *jfieldID;
-typedef struct _jmethodID *jmethodID;
+//typedef struct _jfieldID *jfieldID;
+//typedef struct _jmethodID *jmethodID;
 #endif 
 
-/* Version numbers.  */
-#define JNI_VERSION_1_1 0x00010001
-#define JNI_VERSION_1_2 0x00010002
-#define JNI_VERSION_1_4 0x00010004
-#define JNI_VERSION_1_6 0x00010006
-
-/* Used when releasing array elements.  */
-#define JNI_COMMIT 1
-#define JNI_ABORT  2
-
-/* Error codes */
-#define JNI_OK            0
-#define JNI_ERR          (-1)
-#define JNI_EDETACHED    (-2)
-#define JNI_EVERSION     (-3)
-
-enum _jobjectRefType
-{
-  JNIInvalidRefType    = 0,
-  JNILocalRefType      = 1,
-  JNIGlobalRefType     = 2,
-  JNIWeakGlobalRefType = 3 
-};
-
-typedef enum _jobjectRefType jobjectRefType;
+///* Version numbers.  */
+//#define JNI_VERSION_1_1 0x00010001
+//#define JNI_VERSION_1_2 0x00010002
+//#define JNI_VERSION_1_4 0x00010004
+//#define JNI_VERSION_1_6 0x00010006
+//
+///* Used when releasing array elements.  */
+//#define JNI_COMMIT 1
+//#define JNI_ABORT  2
+//
+///* Error codes */
+//#define JNI_OK            0
+//#define JNI_ERR          (-1)
+//#define JNI_EDETACHED    (-2)
+//#define JNI_EVERSION     (-3)
+//
+//enum _jobjectRefType
+//{
+//  JNIInvalidRefType    = 0,
+//  JNILocalRefType      = 1,
+//  JNIGlobalRefType     = 2,
+//  JNIWeakGlobalRefType = 3
+//};
+//
+//typedef enum _jobjectRefType jobjectRefType;
 
 #ifdef __cplusplus
 extern "C"
@@ -197,464 +199,464 @@ JNI_GetCreatedJavaVMs (JavaVM **, jsize, jsize *);
 }
 #endif /* __cplusplus */
 
-typedef union jvalue
-{
-  jboolean z;
-  jbyte    b;
-  jchar    c;
-  jshort   s;
-  jint     i;
-  jlong    j;
-  jfloat   f;
-  jdouble  d;
-  jobject  l;
-} jvalue;
+//typedef union jvalue
+//{
+//  jboolean z;
+//  jbyte    b;
+//  jchar    c;
+//  jshort   s;
+//  jint     i;
+//  jlong    j;
+//  jfloat   f;
+//  jdouble  d;
+//  jobject  l;
+//} jvalue;
 
-/* This structure is used when registering native methods.  */
-typedef struct
-{
-  char *name;
-  char *signature;
-  void *fnPtr;			/* Sigh.  */
-} JNINativeMethod;
-
-struct JNINativeInterface_
-{
-  void *reserved0;
-  void *reserved1;
-  void *reserved2;
-  void *reserved3;
-
-  jint     (JNICALL *GetVersion)                   (JNIEnv *);
-  jclass   (JNICALL *DefineClass)                  (JNIEnv *, const char *,
-						    jobject, const jbyte *,
-						    jsize);
-  jclass   (JNICALL *FindClass)                    (JNIEnv *, const char *);
-
-  jmethodID (JNICALL *FromReflectedMethod)	   (JNIEnv *, jobject);
-  jfieldID  (JNICALL *FromReflectedField)	   (JNIEnv *, jobject);
-  jobject   (JNICALL *ToReflectedMethod)	   (JNIEnv *, jclass,
-						    jmethodID, jboolean);
-
-  jclass   (JNICALL *GetSuperclass)                (JNIEnv *, jclass);
-  jboolean (JNICALL *IsAssignableFrom)             (JNIEnv *, jclass, jclass);
-
-  jobject  (JNICALL *ToReflectedField)		   (JNIEnv *, jclass, jfieldID,
-                                                    jboolean);
-
-  jint     (JNICALL *Throw)                        (JNIEnv *, jthrowable);
-  jint     (JNICALL *ThrowNew)                     (JNIEnv *, jclass, 
-                                                    const char *);
-  jthrowable (JNICALL *ExceptionOccurred)          (JNIEnv *);
-  void     (JNICALL *ExceptionDescribe)            (JNIEnv *);
-  void     (JNICALL *ExceptionClear)               (JNIEnv *);
-  void     (JNICALL *FatalError)                   (JNIEnv *, const char *);
-
-  jint     (JNICALL *PushLocalFrame)		   (JNIEnv *, jint);
-  jobject  (JNICALL *PopLocalFrame)		   (JNIEnv *, jobject);
-
-  jobject  (JNICALL *NewGlobalRef)                 (JNIEnv *, jobject);
-  void     (JNICALL *DeleteGlobalRef)              (JNIEnv *, jobject);
-  void     (JNICALL *DeleteLocalRef)               (JNIEnv *, jobject);
-  jboolean (JNICALL *IsSameObject)                 (JNIEnv *, jobject, 
-                                                    jobject);
-
-  jobject  (JNICALL *NewLocalRef)		   (JNIEnv *, jobject);
-  jint     (JNICALL *EnsureLocalCapacity)	   (JNIEnv *, jint);
-
-  jobject  (JNICALL *AllocObject)                  (JNIEnv *, jclass);
-  jobject (JNICALL *NewObject)			   (JNIEnv *, jclass, 
-                                                    jmethodID, ...);
-  jobject (JNICALL *NewObjectV)			   (JNIEnv *, jclass, 
-                                                    jmethodID, va_list);
-  jobject (JNICALL *NewObjectA)			   (JNIEnv *, jclass, 
-                                                    jmethodID, const jvalue *);
-
-  jclass   (JNICALL *GetObjectClass)               (JNIEnv *, jobject);
-  jboolean (JNICALL *IsInstanceOf)                 (JNIEnv *, jobject, jclass);
-  jmethodID (JNICALL *GetMethodID)                 (JNIEnv *, jclass, 
-                                                    const char *, const char *);
-
-  jobject (JNICALL *CallObjectMethod)	   (JNIEnv *, jobject, jmethodID, ...);
-  jobject (JNICALL *CallObjectMethodV)	   (JNIEnv *, jobject, jmethodID,
-                                            va_list);
-  jobject (JNICALL *CallObjectMethodA)	   (JNIEnv *, jobject, jmethodID,
-                                            const jvalue *);
-  jboolean (JNICALL *CallBooleanMethod)	   (JNIEnv *, jobject, jmethodID,
-                                            ...);
-  jboolean (JNICALL *CallBooleanMethodV)   (JNIEnv *, jobject, jmethodID,
-                                            va_list);
-  jboolean (JNICALL *CallBooleanMethodA)   (JNIEnv *, jobject, jmethodID,
-                                            const jvalue *);
-  jbyte (JNICALL *CallByteMethod)   (JNIEnv *, jobject, jmethodID, ...);
-  jbyte (JNICALL *CallByteMethodV)	   (JNIEnv *, jobject, jmethodID,
-                                            va_list);
-  jbyte (JNICALL *CallByteMethodA)	   (JNIEnv *, jobject, jmethodID,
-                                            const jvalue *);
-  jchar (JNICALL *CallCharMethod)	   (JNIEnv *, jobject, jmethodID, ...);
-  jchar (JNICALL *CallCharMethodV)	   (JNIEnv *, jobject, jmethodID,
-                                            va_list);
-  jchar (JNICALL *CallCharMethodA)	   (JNIEnv *, jobject, jmethodID,
-                                            const jvalue *);
-  jshort (JNICALL *CallShortMethod)	   (JNIEnv *, jobject, jmethodID, ...);
-  jshort (JNICALL *CallShortMethodV)	   (JNIEnv *, jobject, jmethodID,
-                                            va_list);
-  jshort (JNICALL *CallShortMethodA)	   (JNIEnv *, jobject, jmethodID,
-                                            const jvalue *);
-  jint 	(JNICALL *CallIntMethod)	   (JNIEnv *, jobject, jmethodID, ...);
-  jint 	(JNICALL *CallIntMethodV)	   (JNIEnv *, jobject, jmethodID,
-                                            va_list);
-  jint 	(JNICALL *CallIntMethodA)	   (JNIEnv *, jobject, jmethodID,
-                                            const jvalue *);
-  jlong (JNICALL *CallLongMethod)	   (JNIEnv *, jobject, jmethodID, ...);
-  jlong (JNICALL *CallLongMethodV)	   (JNIEnv *, jobject, jmethodID,
-                                            va_list);
-  jlong (JNICALL *CallLongMethodA)	   (JNIEnv *, jobject, jmethodID,
-                                            const jvalue *);
-  jfloat (JNICALL *CallFloatMethod)	   (JNIEnv *, jobject, jmethodID, ...);
-  jfloat (JNICALL *CallFloatMethodV)	   (JNIEnv *, jobject, jmethodID,
-                                            va_list);
-  jfloat (JNICALL *CallFloatMethodA)	   (JNIEnv *, jobject, jmethodID,
-                                            const jvalue *);
-  jdouble (JNICALL *CallDoubleMethod)	   (JNIEnv *, jobject, jmethodID, ...);
-  jdouble (JNICALL *CallDoubleMethodV)	   (JNIEnv *, jobject, jmethodID,
-                                            va_list);
-  jdouble (JNICALL *CallDoubleMethodA)	   (JNIEnv *, jobject, jmethodID,
-                                            const jvalue *);
-  void  (JNICALL *CallVoidMethod)	   (JNIEnv *, jobject, jmethodID, ...);
-  void  (JNICALL *CallVoidMethodV)	   (JNIEnv *, jobject, jmethodID,
-                                            va_list);
-  void  (JNICALL *CallVoidMethodA)	   (JNIEnv *, jobject, jmethodID,
-                                            const jvalue *);
-
-  jobject   (JNICALL *CallNonvirtualObjectMethod)  (JNIEnv *, jobject, jclass,
-                                                    jmethodID, ...);
-  jobject   (JNICALL *CallNonvirtualObjectMethodV) (JNIEnv *, jobject, jclass,
-					            jmethodID, va_list);
-  jobject   (JNICALL *CallNonvirtualObjectMethodA) (JNIEnv *, jobject, jclass,
-					            jmethodID, const jvalue *);
-  jboolean  (JNICALL *CallNonvirtualBooleanMethod) (JNIEnv *, jobject, jclass,
-					            jmethodID, ...);
-  jboolean  (JNICALL *CallNonvirtualBooleanMethodV) (JNIEnv *, jobject, jclass,
-					             jmethodID, va_list);
-  jboolean  (JNICALL *CallNonvirtualBooleanMethodA) (JNIEnv *, jobject, jclass,
-					             jmethodID, const jvalue *);
-  jbyte     (JNICALL *CallNonvirtualByteMethod)	   (JNIEnv *, jobject, jclass,
-					            jmethodID, ...);
-  jbyte     (JNICALL *CallNonvirtualByteMethodV)   (JNIEnv *, jobject, jclass,
-					            jmethodID, va_list);
-  jbyte     (JNICALL *CallNonvirtualByteMethodA)   (JNIEnv *, jobject, jclass,
-					            jmethodID, const jvalue *);
-  jchar     (JNICALL *CallNonvirtualCharMethod)	   (JNIEnv *, jobject, jclass,
-					            jmethodID, ...);
-  jchar     (JNICALL *CallNonvirtualCharMethodV)   (JNIEnv *, jobject, jclass,
-					            jmethodID, va_list);
-  jchar     (JNICALL *CallNonvirtualCharMethodA)   (JNIEnv *, jobject, jclass,
-					            jmethodID, const jvalue *);
-  jshort    (JNICALL *CallNonvirtualShortMethod)   (JNIEnv *, jobject, jclass,
-					            jmethodID, ...);
-  jshort    (JNICALL *CallNonvirtualShortMethodV)  (JNIEnv *, jobject, jclass,
-					            jmethodID, va_list);
-  jshort    (JNICALL *CallNonvirtualShortMethodA)  (JNIEnv *, jobject, jclass,
-					            jmethodID, const jvalue *);
-  jint 	    (JNICALL *CallNonvirtualIntMethod)	   (JNIEnv *, jobject, jclass,
-					            jmethodID, ...);
-  jint 	    (JNICALL *CallNonvirtualIntMethodV)	   (JNIEnv *, jobject, jclass,
-					            jmethodID, va_list);
-  jint 	    (JNICALL *CallNonvirtualIntMethodA)	   (JNIEnv *, jobject, jclass,
-					            jmethodID, const jvalue *);
-  jlong     (JNICALL *CallNonvirtualLongMethod)	   (JNIEnv *, jobject, jclass,
-					            jmethodID, ...);
-  jlong     (JNICALL *CallNonvirtualLongMethodV)   (JNIEnv *, jobject, jclass,
-					            jmethodID, va_list);
-  jlong     (JNICALL *CallNonvirtualLongMethodA)   (JNIEnv *, jobject, jclass,
-					            jmethodID, const jvalue *);
-  jfloat    (JNICALL *CallNonvirtualFloatMethod)   (JNIEnv *, jobject, jclass,
-					            jmethodID, ...);
-  jfloat    (JNICALL *CallNonvirtualFloatMethodV)  (JNIEnv *, jobject, jclass,
-					            jmethodID, va_list);
-  jfloat    (JNICALL *CallNonvirtualFloatMethodA)  (JNIEnv *, jobject, jclass,
-					            jmethodID, const jvalue *);
-  jdouble   (JNICALL *CallNonvirtualDoubleMethod)  (JNIEnv *, jobject, jclass,
-					            jmethodID, ...);
-  jdouble   (JNICALL *CallNonvirtualDoubleMethodV) (JNIEnv *, jobject, jclass,
-					            jmethodID, va_list);
-  jdouble   (JNICALL *CallNonvirtualDoubleMethodA) (JNIEnv *, jobject, jclass,
-					            jmethodID, const jvalue *);
-  void      (JNICALL *CallNonvirtualVoidMethod)	   (JNIEnv *, jobject, jclass,
-					            jmethodID, ...);
-  void      (JNICALL *CallNonvirtualVoidMethodV)   (JNIEnv *, jobject, jclass,
-					            jmethodID, va_list);
-  void      (JNICALL *CallNonvirtualVoidMethodA)   (JNIEnv *, jobject, jclass,
-					            jmethodID, const jvalue *);
-
-  jfieldID  (JNICALL *GetFieldID)          (JNIEnv *, jclass, const char *,
-					    const char *);
-
-  jobject  (JNICALL *GetObjectField)       (JNIEnv *, jobject, jfieldID);
-  jboolean (JNICALL *GetBooleanField)      (JNIEnv *, jobject, jfieldID);
-  jbyte    (JNICALL *GetByteField)         (JNIEnv *, jobject, jfieldID);
-  jchar    (JNICALL *GetCharField)         (JNIEnv *, jobject, jfieldID);
-  jshort   (JNICALL *GetShortField)        (JNIEnv *, jobject, jfieldID);
-  jint     (JNICALL *GetIntField)          (JNIEnv *, jobject, jfieldID);
-  jlong    (JNICALL *GetLongField)         (JNIEnv *, jobject, jfieldID);
-  jfloat   (JNICALL *GetFloatField)        (JNIEnv *, jobject, jfieldID);
-  jdouble  (JNICALL *GetDoubleField)       (JNIEnv *, jobject, jfieldID);
-
-  void	(JNICALL *SetObjectField)	   (JNIEnv *, jobject,
-					    jfieldID, jobject);
-  void	(JNICALL *SetBooleanField)	   (JNIEnv *, jobject,
-					    jfieldID, jboolean);
-  void	(JNICALL *SetByteField)		   (JNIEnv *, jobject,
-					    jfieldID, jbyte);
-  void	(JNICALL *SetCharField)		   (JNIEnv *, jobject,
-					    jfieldID, jchar);
-  void	(JNICALL *SetShortField)	   (JNIEnv *, jobject,
-					    jfieldID, jshort);
-  void	(JNICALL *SetIntField)		   (JNIEnv *, jobject,
-					    jfieldID, jint);
-  void	(JNICALL *SetLongField)		   (JNIEnv *, jobject,
-					    jfieldID, jlong);
-  void	(JNICALL *SetFloatField)	   (JNIEnv *, jobject,
-					    jfieldID, jfloat);
-  void	(JNICALL *SetDoubleField)	   (JNIEnv *, jobject,
-					    jfieldID, jdouble);
-
-  jmethodID (JNICALL *GetStaticMethodID)   (JNIEnv *, jclass, const char *,
-					    const char *);
-
-  jobject  (JNICALL *CallStaticObjectMethod)  (JNIEnv *, jclass, jmethodID,
-					       ...);
-  jobject  (JNICALL *CallStaticObjectMethodV) (JNIEnv *, jclass, jmethodID,
-					       va_list);
-  jobject  (JNICALL *CallStaticObjectMethodA) (JNIEnv *, jclass, jmethodID,
-					       const jvalue *);
-  jboolean (JNICALL *CallStaticBooleanMethod) (JNIEnv *, jclass, jmethodID,
-					       ...);
-  jboolean (JNICALL *CallStaticBooleanMethodV) (JNIEnv *, jclass, jmethodID,
-					        va_list);
-  jboolean (JNICALL *CallStaticBooleanMethodA) (JNIEnv *, jclass, jmethodID,
-					        const jvalue *);
-  jbyte	   (JNICALL *CallStaticByteMethod)    (JNIEnv *, jclass, jmethodID,
-					       ...);
-  jbyte    (JNICALL *CallStaticByteMethodV)   (JNIEnv *, jclass, jmethodID,
-					       va_list);
-  jbyte    (JNICALL *CallStaticByteMethodA)   (JNIEnv *, jclass, jmethodID,
-					       const jvalue *);
-  jchar    (JNICALL *CallStaticCharMethod)    (JNIEnv *, jclass, jmethodID,
-					       ...);
-  jchar    (JNICALL *CallStaticCharMethodV)   (JNIEnv *, jclass, jmethodID,
-					       va_list);
-  jchar    (JNICALL *CallStaticCharMethodA)   (JNIEnv *, jclass, jmethodID,
-					       const jvalue *);
-  jshort   (JNICALL *CallStaticShortMethod)   (JNIEnv *, jclass, jmethodID,
-					       ...);
-  jshort   (JNICALL *CallStaticShortMethodV)  (JNIEnv *, jclass, jmethodID,
-					       va_list);
-  jshort   (JNICALL *CallStaticShortMethodA)  (JNIEnv *, jclass, jmethodID,
-					       const jvalue *);
-  jint 	   (JNICALL *CallStaticIntMethod)     (JNIEnv *, jclass, jmethodID,
-					       ...);
-  jint 	   (JNICALL *CallStaticIntMethodV)    (JNIEnv *, jclass, jmethodID,
-					       va_list);
-  jint 	   (JNICALL *CallStaticIntMethodA)    (JNIEnv *, jclass, jmethodID,
-					       const jvalue *);
-  jlong    (JNICALL *CallStaticLongMethod)    (JNIEnv *, jclass, jmethodID,
-					       ...);
-  jlong    (JNICALL *CallStaticLongMethodV)   (JNIEnv *, jclass, jmethodID,
-					       va_list);
-  jlong    (JNICALL *CallStaticLongMethodA)   (JNIEnv *, jclass, jmethodID,
-					       const jvalue *);
-  jfloat   (JNICALL *CallStaticFloatMethod)   (JNIEnv *, jclass, jmethodID,
-					       ...);
-  jfloat   (JNICALL *CallStaticFloatMethodV)  (JNIEnv *, jclass, jmethodID,
-					       va_list);
-  jfloat   (JNICALL *CallStaticFloatMethodA)  (JNIEnv *, jclass, jmethodID,
-					       const jvalue *);
-  jdouble  (JNICALL *CallStaticDoubleMethod)  (JNIEnv *, jclass, jmethodID,
-					       ...);
-  jdouble  (JNICALL *CallStaticDoubleMethodV) (JNIEnv *, jclass, jmethodID,
-					       va_list);
-  jdouble  (JNICALL *CallStaticDoubleMethodA) (JNIEnv *, jclass, jmethodID,
-					       const jvalue *);
-  void     (JNICALL *CallStaticVoidMethod)    (JNIEnv *, jclass, jmethodID,
-					       ...);
-  void     (JNICALL *CallStaticVoidMethodV)   (JNIEnv *, jclass, jmethodID,
-					       va_list);
-  void     (JNICALL *CallStaticVoidMethodA)   (JNIEnv *, jclass, jmethodID,
-					       const jvalue *);
-
-  jfieldID (JNICALL *GetStaticFieldID)        (JNIEnv *, jclass, const char *,
-					       const char *);
-
-  jobject  (JNICALL *GetStaticObjectField)    (JNIEnv *, jclass, jfieldID);
-  jboolean (JNICALL *GetStaticBooleanField)   (JNIEnv *, jclass, jfieldID);
-  jbyte	   (JNICALL *GetStaticByteField)      (JNIEnv *, jclass, jfieldID);
-  jchar	   (JNICALL *GetStaticCharField)      (JNIEnv *, jclass, jfieldID);
-  jshort   (JNICALL *GetStaticShortField)     (JNIEnv *, jclass, jfieldID);
-  jint	   (JNICALL *GetStaticIntField)	      (JNIEnv *, jclass, jfieldID);
-  jlong	   (JNICALL *GetStaticLongField)      (JNIEnv *, jclass, jfieldID);
-  jfloat   (JNICALL *GetStaticFloatField)     (JNIEnv *, jclass, jfieldID);
-  jdouble  (JNICALL *GetStaticDoubleField)    (JNIEnv *, jclass, jfieldID);
-
-  void 	(JNICALL *SetStaticObjectField)	   (JNIEnv *, jclass,
-					    jfieldID, jobject);
-  void 	(JNICALL *SetStaticBooleanField)   (JNIEnv *, jclass,
-					    jfieldID, jboolean);
-  void 	(JNICALL *SetStaticByteField)	   (JNIEnv *, jclass,
-					    jfieldID, jbyte);
-  void 	(JNICALL *SetStaticCharField)	   (JNIEnv *, jclass,
-					    jfieldID, jchar);
-  void 	(JNICALL *SetStaticShortField)	   (JNIEnv *, jclass,
-					    jfieldID, jshort);
-  void 	(JNICALL *SetStaticIntField)	   (JNIEnv *, jclass,
-					    jfieldID, jint);
-  void 	(JNICALL *SetStaticLongField)	   (JNIEnv *, jclass,
-					    jfieldID, jlong);
-  void 	(JNICALL *SetStaticFloatField)	   (JNIEnv *, jclass,
-					    jfieldID, jfloat);
-  void 	(JNICALL *SetStaticDoubleField)	   (JNIEnv *, jclass,
-					    jfieldID, jdouble);
-
-  jstring  (JNICALL *NewString)            (JNIEnv *, const jchar *, jsize);
-  jsize    (JNICALL *GetStringLength)      (JNIEnv *, jstring);
-  const jchar * (JNICALL *GetStringChars)  (JNIEnv *, jstring, jboolean *);
-  void     (JNICALL *ReleaseStringChars)   (JNIEnv *, jstring, const jchar *);
-  jstring  (JNICALL *NewStringUTF)         (JNIEnv *, const char *);
-  jsize    (JNICALL *GetStringUTFLength)   (JNIEnv *, jstring);
-  const char * (JNICALL *GetStringUTFChars) (JNIEnv *, jstring, jboolean *);
-  void     (JNICALL *ReleaseStringUTFChars) (JNIEnv *, jstring, const char *);
-  jsize    (JNICALL *GetArrayLength)       (JNIEnv *, jarray);
-  jobjectArray (JNICALL *NewObjectArray)    (JNIEnv *, jsize, jclass, jobject);
-  jobject  (JNICALL *GetObjectArrayElement) (JNIEnv *, jobjectArray, jsize);
-  void     (JNICALL *SetObjectArrayElement) (JNIEnv *, jobjectArray, jsize,
-					     jobject);
-
-  jbooleanArray (JNICALL *NewBooleanArray)	   (JNIEnv *, jsize);
-  jbyteArray    (JNICALL *NewByteArray)		   (JNIEnv *, jsize);
-  jcharArray    (JNICALL *NewCharArray)		   (JNIEnv *, jsize);
-  jshortArray   (JNICALL *NewShortArray)	   (JNIEnv *, jsize);
-  jintArray     (JNICALL *NewIntArray)		   (JNIEnv *, jsize);
-  jlongArray    (JNICALL *NewLongArray)		   (JNIEnv *, jsize);
-  jfloatArray   (JNICALL *NewFloatArray)	   (JNIEnv *, jsize);
-  jdoubleArray  (JNICALL *NewDoubleArray)	   (JNIEnv *, jsize);
-
-  jboolean *	(JNICALL *GetBooleanArrayElements) (JNIEnv *, jbooleanArray,
-					            jboolean *);
-  jbyte *	(JNICALL *GetByteArrayElements)	   (JNIEnv *, jbyteArray,
-					            jboolean *);
-  jchar *	(JNICALL *GetCharArrayElements)	   (JNIEnv *, jcharArray,
-					            jboolean *);
-  jshort *	(JNICALL *GetShortArrayElements)   (JNIEnv *, jshortArray,
-					            jboolean *);
-  jint *	(JNICALL *GetIntArrayElements)	   (JNIEnv *, jintArray,
-					            jboolean *);
-  jlong *	(JNICALL *GetLongArrayElements)	   (JNIEnv *, jlongArray,
-					            jboolean *);
-  jfloat *	(JNICALL *GetFloatArrayElements)   (JNIEnv *, jfloatArray,
-					            jboolean *);
-  jdouble *	(JNICALL *GetDoubleArrayElements)  (JNIEnv *, jdoubleArray,
-					            jboolean *);
-
-  void		(JNICALL *ReleaseBooleanArrayElements) (JNIEnv *, jbooleanArray,
-						        jboolean *, jint);
-  void		(JNICALL *ReleaseByteArrayElements)    (JNIEnv *, jbyteArray,
-					                jbyte *, jint);
-  void		(JNICALL *ReleaseCharArrayElements)    (JNIEnv *, jcharArray,
-						        jchar *, jint);
-  void		(JNICALL *ReleaseShortArrayElements)   (JNIEnv *, jshortArray,
-						        jshort *, jint);
-  void		(JNICALL *ReleaseIntArrayElements)     (JNIEnv *, jintArray,
-						        jint *, jint);
-  void		(JNICALL *ReleaseLongArrayElements)    (JNIEnv *, jlongArray,
-						        jlong *, jint);
-  void		(JNICALL *ReleaseFloatArrayElements)   (JNIEnv *, jfloatArray,
-						        jfloat *, jint);
-  void		(JNICALL *ReleaseDoubleArrayElements)  (JNIEnv *, jdoubleArray,
-						        jdouble *, jint);
-
-  void 		(JNICALL *GetBooleanArrayRegion)   (JNIEnv *, jbooleanArray,
-					            jsize, jsize, jboolean *);
-  void 		(JNICALL *GetByteArrayRegion)	   (JNIEnv *, jbyteArray,
-					            jsize, jsize, jbyte *);
-  void 		(JNICALL *GetCharArrayRegion)	   (JNIEnv *, jcharArray,
-					            jsize, jsize, jchar *);
-  void 		(JNICALL *GetShortArrayRegion)	   (JNIEnv *, jshortArray,
-					            jsize, jsize, jshort *);
-  void 		(JNICALL *GetIntArrayRegion)	   (JNIEnv *, jintArray,
-					            jsize, jsize, jint *);
-  void 		(JNICALL *GetLongArrayRegion)	   (JNIEnv *, jlongArray,
-					            jsize, jsize, jlong *);
-  void 		(JNICALL *GetFloatArrayRegion)	   (JNIEnv *, jfloatArray,
-					            jsize, jsize, jfloat *);
-  void 		(JNICALL *GetDoubleArrayRegion)	   (JNIEnv *, jdoubleArray,
-					            jsize, jsize, jdouble *);
-
-  void 		(JNICALL *SetBooleanArrayRegion)   (JNIEnv *, jbooleanArray,
-					            jsize, jsize,
-                                                    const jboolean *);
-  void 		(JNICALL *SetByteArrayRegion)	   (JNIEnv *, jbyteArray,
-					            jsize, jsize,
-                                                    const jbyte *);
-  void 		(JNICALL *SetCharArrayRegion)	   (JNIEnv *, jcharArray,
-					            jsize, jsize,
-                                                    const jchar *);
-  void 		(JNICALL *SetShortArrayRegion)	   (JNIEnv *, jshortArray,
-					            jsize, jsize,
-                                                    const jshort *);
-  void 		(JNICALL *SetIntArrayRegion)	   (JNIEnv *, jintArray,
-					            jsize, jsize,
-                                                    const jint *);
-  void 		(JNICALL *SetLongArrayRegion)	   (JNIEnv *, jlongArray,
-					            jsize, jsize,
-                                                    const jlong *);
-  void 		(JNICALL *SetFloatArrayRegion)	   (JNIEnv *, jfloatArray,
-					            jsize, jsize,
-                                                    const jfloat *);
-  void 		(JNICALL *SetDoubleArrayRegion)	   (JNIEnv *, jdoubleArray,
-					            jsize, jsize,
-                                                    const jdouble *);
-
-  jint     (JNICALL *RegisterNatives)              (JNIEnv *, jclass,
-					            const JNINativeMethod *, 
-						    jint);
-  jint     (JNICALL *UnregisterNatives)            (JNIEnv *, jclass);
-  jint     (JNICALL *MonitorEnter)                 (JNIEnv *, jobject);
-  jint     (JNICALL *MonitorExit)                  (JNIEnv *, jobject);
-  jint     (JNICALL *GetJavaVM)                    (JNIEnv *, JavaVM **);
-
-  /* ---- JNI 1.2 functions ---- */
-
-  void	   (JNICALL *GetStringRegion)	           (JNIEnv *, jstring, jsize,
-					            jsize, jchar *);
-  void     (JNICALL *GetStringUTFRegion)	   (JNIEnv *, jstring, jsize,
-					            jsize, char *);
-
-  void * (JNICALL *GetPrimitiveArrayCritical)      (JNIEnv *, jarray, 
-                                                    jboolean *);
-  void   (JNICALL *ReleasePrimitiveArrayCritical)  (JNIEnv *, jarray, void *, 
-                                                    jint);
-
-  const jchar * (JNICALL *GetStringCritical)       (JNIEnv *, jstring, 
-                                                    jboolean *);
-  void          (JNICALL *ReleaseStringCritical)   (JNIEnv *, jstring, 
-                                                    const jchar *);
-
-  jweak  (JNICALL *NewWeakGlobalRef)               (JNIEnv *, jobject);
-  void   (JNICALL *DeleteWeakGlobalRef)            (JNIEnv *, jweak);
-
-  jboolean	(JNICALL *ExceptionCheck)	   (JNIEnv *);
-
-  /* ---- JNI 1.4 functions ---- */
-
-  jobject (JNICALL *NewDirectByteBuffer)           (JNIEnv *, void *, jlong);
-  void *  (JNICALL *GetDirectBufferAddress)        (JNIEnv *, jobject);
-  jlong   (JNICALL *GetDirectBufferCapacity)       (JNIEnv *, jobject);
-
-  /* ---- JNI 1.6 functions ---- */
-
-  jobjectRefType (JNICALL *GetObjectRefType)       (JNIEnv *, jobject);
-};
+///* This structure is used when registering native methods.  */
+//typedef struct
+//{
+//  char *name;
+//  char *signature;
+//  void *fnPtr;			/* Sigh.  */
+//} JNINativeMethod;
+//
+//struct JNINativeInterface_
+//{
+//  void *reserved0;
+//  void *reserved1;
+//  void *reserved2;
+//  void *reserved3;
+//
+//  jint     (JNICALL *GetVersion)                   (JNIEnv *);
+//  jclass   (JNICALL *DefineClass)                  (JNIEnv *, const char *,
+//						    jobject, const jbyte *,
+//						    jsize);
+//  jclass   (JNICALL *FindClass)                    (JNIEnv *, const char *);
+//
+//  jmethodID (JNICALL *FromReflectedMethod)	   (JNIEnv *, jobject);
+//  jfieldID  (JNICALL *FromReflectedField)	   (JNIEnv *, jobject);
+//  jobject   (JNICALL *ToReflectedMethod)	   (JNIEnv *, jclass,
+//						    jmethodID, jboolean);
+//
+//  jclass   (JNICALL *GetSuperclass)                (JNIEnv *, jclass);
+//  jboolean (JNICALL *IsAssignableFrom)             (JNIEnv *, jclass, jclass);
+//
+//  jobject  (JNICALL *ToReflectedField)		   (JNIEnv *, jclass, jfieldID,
+//                                                    jboolean);
+//
+//  jint     (JNICALL *Throw)                        (JNIEnv *, jthrowable);
+//  jint     (JNICALL *ThrowNew)                     (JNIEnv *, jclass,
+//                                                    const char *);
+//  jthrowable (JNICALL *ExceptionOccurred)          (JNIEnv *);
+//  void     (JNICALL *ExceptionDescribe)            (JNIEnv *);
+//  void     (JNICALL *ExceptionClear)               (JNIEnv *);
+//  void     (JNICALL *FatalError)                   (JNIEnv *, const char *);
+//
+//  jint     (JNICALL *PushLocalFrame)		   (JNIEnv *, jint);
+//  jobject  (JNICALL *PopLocalFrame)		   (JNIEnv *, jobject);
+//
+//  jobject  (JNICALL *NewGlobalRef)                 (JNIEnv *, jobject);
+//  void     (JNICALL *DeleteGlobalRef)              (JNIEnv *, jobject);
+//  void     (JNICALL *DeleteLocalRef)               (JNIEnv *, jobject);
+//  jboolean (JNICALL *IsSameObject)                 (JNIEnv *, jobject,
+//                                                    jobject);
+//
+//  jobject  (JNICALL *NewLocalRef)		   (JNIEnv *, jobject);
+//  jint     (JNICALL *EnsureLocalCapacity)	   (JNIEnv *, jint);
+//
+//  jobject  (JNICALL *AllocObject)                  (JNIEnv *, jclass);
+//  jobject (JNICALL *NewObject)			   (JNIEnv *, jclass,
+//                                                    jmethodID, ...);
+//  jobject (JNICALL *NewObjectV)			   (JNIEnv *, jclass,
+//                                                    jmethodID, va_list);
+//  jobject (JNICALL *NewObjectA)			   (JNIEnv *, jclass,
+//                                                    jmethodID, const jvalue *);
+//
+//  jclass   (JNICALL *GetObjectClass)               (JNIEnv *, jobject);
+//  jboolean (JNICALL *IsInstanceOf)                 (JNIEnv *, jobject, jclass);
+//  jmethodID (JNICALL *GetMethodID)                 (JNIEnv *, jclass,
+//                                                    const char *, const char *);
+//
+//  jobject (JNICALL *CallObjectMethod)	   (JNIEnv *, jobject, jmethodID, ...);
+//  jobject (JNICALL *CallObjectMethodV)	   (JNIEnv *, jobject, jmethodID,
+//                                            va_list);
+//  jobject (JNICALL *CallObjectMethodA)	   (JNIEnv *, jobject, jmethodID,
+//                                            const jvalue *);
+//  jboolean (JNICALL *CallBooleanMethod)	   (JNIEnv *, jobject, jmethodID,
+//                                            ...);
+//  jboolean (JNICALL *CallBooleanMethodV)   (JNIEnv *, jobject, jmethodID,
+//                                            va_list);
+//  jboolean (JNICALL *CallBooleanMethodA)   (JNIEnv *, jobject, jmethodID,
+//                                            const jvalue *);
+//  jbyte (JNICALL *CallByteMethod)   (JNIEnv *, jobject, jmethodID, ...);
+//  jbyte (JNICALL *CallByteMethodV)	   (JNIEnv *, jobject, jmethodID,
+//                                            va_list);
+//  jbyte (JNICALL *CallByteMethodA)	   (JNIEnv *, jobject, jmethodID,
+//                                            const jvalue *);
+//  jchar (JNICALL *CallCharMethod)	   (JNIEnv *, jobject, jmethodID, ...);
+//  jchar (JNICALL *CallCharMethodV)	   (JNIEnv *, jobject, jmethodID,
+//                                            va_list);
+//  jchar (JNICALL *CallCharMethodA)	   (JNIEnv *, jobject, jmethodID,
+//                                            const jvalue *);
+//  jshort (JNICALL *CallShortMethod)	   (JNIEnv *, jobject, jmethodID, ...);
+//  jshort (JNICALL *CallShortMethodV)	   (JNIEnv *, jobject, jmethodID,
+//                                            va_list);
+//  jshort (JNICALL *CallShortMethodA)	   (JNIEnv *, jobject, jmethodID,
+//                                            const jvalue *);
+//  jint 	(JNICALL *CallIntMethod)	   (JNIEnv *, jobject, jmethodID, ...);
+//  jint 	(JNICALL *CallIntMethodV)	   (JNIEnv *, jobject, jmethodID,
+//                                            va_list);
+//  jint 	(JNICALL *CallIntMethodA)	   (JNIEnv *, jobject, jmethodID,
+//                                            const jvalue *);
+//  jlong (JNICALL *CallLongMethod)	   (JNIEnv *, jobject, jmethodID, ...);
+//  jlong (JNICALL *CallLongMethodV)	   (JNIEnv *, jobject, jmethodID,
+//                                            va_list);
+//  jlong (JNICALL *CallLongMethodA)	   (JNIEnv *, jobject, jmethodID,
+//                                            const jvalue *);
+//  jfloat (JNICALL *CallFloatMethod)	   (JNIEnv *, jobject, jmethodID, ...);
+//  jfloat (JNICALL *CallFloatMethodV)	   (JNIEnv *, jobject, jmethodID,
+//                                            va_list);
+//  jfloat (JNICALL *CallFloatMethodA)	   (JNIEnv *, jobject, jmethodID,
+//                                            const jvalue *);
+//  jdouble (JNICALL *CallDoubleMethod)	   (JNIEnv *, jobject, jmethodID, ...);
+//  jdouble (JNICALL *CallDoubleMethodV)	   (JNIEnv *, jobject, jmethodID,
+//                                            va_list);
+//  jdouble (JNICALL *CallDoubleMethodA)	   (JNIEnv *, jobject, jmethodID,
+//                                            const jvalue *);
+//  void  (JNICALL *CallVoidMethod)	   (JNIEnv *, jobject, jmethodID, ...);
+//  void  (JNICALL *CallVoidMethodV)	   (JNIEnv *, jobject, jmethodID,
+//                                            va_list);
+//  void  (JNICALL *CallVoidMethodA)	   (JNIEnv *, jobject, jmethodID,
+//                                            const jvalue *);
+//
+//  jobject   (JNICALL *CallNonvirtualObjectMethod)  (JNIEnv *, jobject, jclass,
+//                                                    jmethodID, ...);
+//  jobject   (JNICALL *CallNonvirtualObjectMethodV) (JNIEnv *, jobject, jclass,
+//					            jmethodID, va_list);
+//  jobject   (JNICALL *CallNonvirtualObjectMethodA) (JNIEnv *, jobject, jclass,
+//					            jmethodID, const jvalue *);
+//  jboolean  (JNICALL *CallNonvirtualBooleanMethod) (JNIEnv *, jobject, jclass,
+//					            jmethodID, ...);
+//  jboolean  (JNICALL *CallNonvirtualBooleanMethodV) (JNIEnv *, jobject, jclass,
+//					             jmethodID, va_list);
+//  jboolean  (JNICALL *CallNonvirtualBooleanMethodA) (JNIEnv *, jobject, jclass,
+//					             jmethodID, const jvalue *);
+//  jbyte     (JNICALL *CallNonvirtualByteMethod)	   (JNIEnv *, jobject, jclass,
+//					            jmethodID, ...);
+//  jbyte     (JNICALL *CallNonvirtualByteMethodV)   (JNIEnv *, jobject, jclass,
+//					            jmethodID, va_list);
+//  jbyte     (JNICALL *CallNonvirtualByteMethodA)   (JNIEnv *, jobject, jclass,
+//					            jmethodID, const jvalue *);
+//  jchar     (JNICALL *CallNonvirtualCharMethod)	   (JNIEnv *, jobject, jclass,
+//					            jmethodID, ...);
+//  jchar     (JNICALL *CallNonvirtualCharMethodV)   (JNIEnv *, jobject, jclass,
+//					            jmethodID, va_list);
+//  jchar     (JNICALL *CallNonvirtualCharMethodA)   (JNIEnv *, jobject, jclass,
+//					            jmethodID, const jvalue *);
+//  jshort    (JNICALL *CallNonvirtualShortMethod)   (JNIEnv *, jobject, jclass,
+//					            jmethodID, ...);
+//  jshort    (JNICALL *CallNonvirtualShortMethodV)  (JNIEnv *, jobject, jclass,
+//					            jmethodID, va_list);
+//  jshort    (JNICALL *CallNonvirtualShortMethodA)  (JNIEnv *, jobject, jclass,
+//					            jmethodID, const jvalue *);
+//  jint 	    (JNICALL *CallNonvirtualIntMethod)	   (JNIEnv *, jobject, jclass,
+//					            jmethodID, ...);
+//  jint 	    (JNICALL *CallNonvirtualIntMethodV)	   (JNIEnv *, jobject, jclass,
+//					            jmethodID, va_list);
+//  jint 	    (JNICALL *CallNonvirtualIntMethodA)	   (JNIEnv *, jobject, jclass,
+//					            jmethodID, const jvalue *);
+//  jlong     (JNICALL *CallNonvirtualLongMethod)	   (JNIEnv *, jobject, jclass,
+//					            jmethodID, ...);
+//  jlong     (JNICALL *CallNonvirtualLongMethodV)   (JNIEnv *, jobject, jclass,
+//					            jmethodID, va_list);
+//  jlong     (JNICALL *CallNonvirtualLongMethodA)   (JNIEnv *, jobject, jclass,
+//					            jmethodID, const jvalue *);
+//  jfloat    (JNICALL *CallNonvirtualFloatMethod)   (JNIEnv *, jobject, jclass,
+//					            jmethodID, ...);
+//  jfloat    (JNICALL *CallNonvirtualFloatMethodV)  (JNIEnv *, jobject, jclass,
+//					            jmethodID, va_list);
+//  jfloat    (JNICALL *CallNonvirtualFloatMethodA)  (JNIEnv *, jobject, jclass,
+//					            jmethodID, const jvalue *);
+//  jdouble   (JNICALL *CallNonvirtualDoubleMethod)  (JNIEnv *, jobject, jclass,
+//					            jmethodID, ...);
+//  jdouble   (JNICALL *CallNonvirtualDoubleMethodV) (JNIEnv *, jobject, jclass,
+//					            jmethodID, va_list);
+//  jdouble   (JNICALL *CallNonvirtualDoubleMethodA) (JNIEnv *, jobject, jclass,
+//					            jmethodID, const jvalue *);
+//  void      (JNICALL *CallNonvirtualVoidMethod)	   (JNIEnv *, jobject, jclass,
+//					            jmethodID, ...);
+//  void      (JNICALL *CallNonvirtualVoidMethodV)   (JNIEnv *, jobject, jclass,
+//					            jmethodID, va_list);
+//  void      (JNICALL *CallNonvirtualVoidMethodA)   (JNIEnv *, jobject, jclass,
+//					            jmethodID, const jvalue *);
+//
+//  jfieldID  (JNICALL *GetFieldID)          (JNIEnv *, jclass, const char *,
+//					    const char *);
+//
+//  jobject  (JNICALL *GetObjectField)       (JNIEnv *, jobject, jfieldID);
+//  jboolean (JNICALL *GetBooleanField)      (JNIEnv *, jobject, jfieldID);
+//  jbyte    (JNICALL *GetByteField)         (JNIEnv *, jobject, jfieldID);
+//  jchar    (JNICALL *GetCharField)         (JNIEnv *, jobject, jfieldID);
+//  jshort   (JNICALL *GetShortField)        (JNIEnv *, jobject, jfieldID);
+//  jint     (JNICALL *GetIntField)          (JNIEnv *, jobject, jfieldID);
+//  jlong    (JNICALL *GetLongField)         (JNIEnv *, jobject, jfieldID);
+//  jfloat   (JNICALL *GetFloatField)        (JNIEnv *, jobject, jfieldID);
+//  jdouble  (JNICALL *GetDoubleField)       (JNIEnv *, jobject, jfieldID);
+//
+//  void	(JNICALL *SetObjectField)	   (JNIEnv *, jobject,
+//					    jfieldID, jobject);
+//  void	(JNICALL *SetBooleanField)	   (JNIEnv *, jobject,
+//					    jfieldID, jboolean);
+//  void	(JNICALL *SetByteField)		   (JNIEnv *, jobject,
+//					    jfieldID, jbyte);
+//  void	(JNICALL *SetCharField)		   (JNIEnv *, jobject,
+//					    jfieldID, jchar);
+//  void	(JNICALL *SetShortField)	   (JNIEnv *, jobject,
+//					    jfieldID, jshort);
+//  void	(JNICALL *SetIntField)		   (JNIEnv *, jobject,
+//					    jfieldID, jint);
+//  void	(JNICALL *SetLongField)		   (JNIEnv *, jobject,
+//					    jfieldID, jlong);
+//  void	(JNICALL *SetFloatField)	   (JNIEnv *, jobject,
+//					    jfieldID, jfloat);
+//  void	(JNICALL *SetDoubleField)	   (JNIEnv *, jobject,
+//					    jfieldID, jdouble);
+//
+//  jmethodID (JNICALL *GetStaticMethodID)   (JNIEnv *, jclass, const char *,
+//					    const char *);
+//
+//  jobject  (JNICALL *CallStaticObjectMethod)  (JNIEnv *, jclass, jmethodID,
+//					       ...);
+//  jobject  (JNICALL *CallStaticObjectMethodV) (JNIEnv *, jclass, jmethodID,
+//					       va_list);
+//  jobject  (JNICALL *CallStaticObjectMethodA) (JNIEnv *, jclass, jmethodID,
+//					       const jvalue *);
+//  jboolean (JNICALL *CallStaticBooleanMethod) (JNIEnv *, jclass, jmethodID,
+//					       ...);
+//  jboolean (JNICALL *CallStaticBooleanMethodV) (JNIEnv *, jclass, jmethodID,
+//					        va_list);
+//  jboolean (JNICALL *CallStaticBooleanMethodA) (JNIEnv *, jclass, jmethodID,
+//					        const jvalue *);
+//  jbyte	   (JNICALL *CallStaticByteMethod)    (JNIEnv *, jclass, jmethodID,
+//					       ...);
+//  jbyte    (JNICALL *CallStaticByteMethodV)   (JNIEnv *, jclass, jmethodID,
+//					       va_list);
+//  jbyte    (JNICALL *CallStaticByteMethodA)   (JNIEnv *, jclass, jmethodID,
+//					       const jvalue *);
+//  jchar    (JNICALL *CallStaticCharMethod)    (JNIEnv *, jclass, jmethodID,
+//					       ...);
+//  jchar    (JNICALL *CallStaticCharMethodV)   (JNIEnv *, jclass, jmethodID,
+//					       va_list);
+//  jchar    (JNICALL *CallStaticCharMethodA)   (JNIEnv *, jclass, jmethodID,
+//					       const jvalue *);
+//  jshort   (JNICALL *CallStaticShortMethod)   (JNIEnv *, jclass, jmethodID,
+//					       ...);
+//  jshort   (JNICALL *CallStaticShortMethodV)  (JNIEnv *, jclass, jmethodID,
+//					       va_list);
+//  jshort   (JNICALL *CallStaticShortMethodA)  (JNIEnv *, jclass, jmethodID,
+//					       const jvalue *);
+//  jint 	   (JNICALL *CallStaticIntMethod)     (JNIEnv *, jclass, jmethodID,
+//					       ...);
+//  jint 	   (JNICALL *CallStaticIntMethodV)    (JNIEnv *, jclass, jmethodID,
+//					       va_list);
+//  jint 	   (JNICALL *CallStaticIntMethodA)    (JNIEnv *, jclass, jmethodID,
+//					       const jvalue *);
+//  jlong    (JNICALL *CallStaticLongMethod)    (JNIEnv *, jclass, jmethodID,
+//					       ...);
+//  jlong    (JNICALL *CallStaticLongMethodV)   (JNIEnv *, jclass, jmethodID,
+//					       va_list);
+//  jlong    (JNICALL *CallStaticLongMethodA)   (JNIEnv *, jclass, jmethodID,
+//					       const jvalue *);
+//  jfloat   (JNICALL *CallStaticFloatMethod)   (JNIEnv *, jclass, jmethodID,
+//					       ...);
+//  jfloat   (JNICALL *CallStaticFloatMethodV)  (JNIEnv *, jclass, jmethodID,
+//					       va_list);
+//  jfloat   (JNICALL *CallStaticFloatMethodA)  (JNIEnv *, jclass, jmethodID,
+//					       const jvalue *);
+//  jdouble  (JNICALL *CallStaticDoubleMethod)  (JNIEnv *, jclass, jmethodID,
+//					       ...);
+//  jdouble  (JNICALL *CallStaticDoubleMethodV) (JNIEnv *, jclass, jmethodID,
+//					       va_list);
+//  jdouble  (JNICALL *CallStaticDoubleMethodA) (JNIEnv *, jclass, jmethodID,
+//					       const jvalue *);
+//  void     (JNICALL *CallStaticVoidMethod)    (JNIEnv *, jclass, jmethodID,
+//					       ...);
+//  void     (JNICALL *CallStaticVoidMethodV)   (JNIEnv *, jclass, jmethodID,
+//					       va_list);
+//  void     (JNICALL *CallStaticVoidMethodA)   (JNIEnv *, jclass, jmethodID,
+//					       const jvalue *);
+//
+//  jfieldID (JNICALL *GetStaticFieldID)        (JNIEnv *, jclass, const char *,
+//					       const char *);
+//
+//  jobject  (JNICALL *GetStaticObjectField)    (JNIEnv *, jclass, jfieldID);
+//  jboolean (JNICALL *GetStaticBooleanField)   (JNIEnv *, jclass, jfieldID);
+//  jbyte	   (JNICALL *GetStaticByteField)      (JNIEnv *, jclass, jfieldID);
+//  jchar	   (JNICALL *GetStaticCharField)      (JNIEnv *, jclass, jfieldID);
+//  jshort   (JNICALL *GetStaticShortField)     (JNIEnv *, jclass, jfieldID);
+//  jint	   (JNICALL *GetStaticIntField)	      (JNIEnv *, jclass, jfieldID);
+//  jlong	   (JNICALL *GetStaticLongField)      (JNIEnv *, jclass, jfieldID);
+//  jfloat   (JNICALL *GetStaticFloatField)     (JNIEnv *, jclass, jfieldID);
+//  jdouble  (JNICALL *GetStaticDoubleField)    (JNIEnv *, jclass, jfieldID);
+//
+//  void 	(JNICALL *SetStaticObjectField)	   (JNIEnv *, jclass,
+//					    jfieldID, jobject);
+//  void 	(JNICALL *SetStaticBooleanField)   (JNIEnv *, jclass,
+//					    jfieldID, jboolean);
+//  void 	(JNICALL *SetStaticByteField)	   (JNIEnv *, jclass,
+//					    jfieldID, jbyte);
+//  void 	(JNICALL *SetStaticCharField)	   (JNIEnv *, jclass,
+//					    jfieldID, jchar);
+//  void 	(JNICALL *SetStaticShortField)	   (JNIEnv *, jclass,
+//					    jfieldID, jshort);
+//  void 	(JNICALL *SetStaticIntField)	   (JNIEnv *, jclass,
+//					    jfieldID, jint);
+//  void 	(JNICALL *SetStaticLongField)	   (JNIEnv *, jclass,
+//					    jfieldID, jlong);
+//  void 	(JNICALL *SetStaticFloatField)	   (JNIEnv *, jclass,
+//					    jfieldID, jfloat);
+//  void 	(JNICALL *SetStaticDoubleField)	   (JNIEnv *, jclass,
+//					    jfieldID, jdouble);
+//
+//  jstring  (JNICALL *NewString)            (JNIEnv *, const jchar *, jsize);
+//  jsize    (JNICALL *GetStringLength)      (JNIEnv *, jstring);
+//  const jchar * (JNICALL *GetStringChars)  (JNIEnv *, jstring, jboolean *);
+//  void     (JNICALL *ReleaseStringChars)   (JNIEnv *, jstring, const jchar *);
+//  jstring  (JNICALL *NewStringUTF)         (JNIEnv *, const char *);
+//  jsize    (JNICALL *GetStringUTFLength)   (JNIEnv *, jstring);
+//  const char * (JNICALL *GetStringUTFChars) (JNIEnv *, jstring, jboolean *);
+//  void     (JNICALL *ReleaseStringUTFChars) (JNIEnv *, jstring, const char *);
+//  jsize    (JNICALL *GetArrayLength)       (JNIEnv *, jarray);
+//  jobjectArray (JNICALL *NewObjectArray)    (JNIEnv *, jsize, jclass, jobject);
+//  jobject  (JNICALL *GetObjectArrayElement) (JNIEnv *, jobjectArray, jsize);
+//  void     (JNICALL *SetObjectArrayElement) (JNIEnv *, jobjectArray, jsize,
+//					     jobject);
+//
+//  jbooleanArray (JNICALL *NewBooleanArray)	   (JNIEnv *, jsize);
+//  jbyteArray    (JNICALL *NewByteArray)		   (JNIEnv *, jsize);
+//  jcharArray    (JNICALL *NewCharArray)		   (JNIEnv *, jsize);
+//  jshortArray   (JNICALL *NewShortArray)	   (JNIEnv *, jsize);
+//  jintArray     (JNICALL *NewIntArray)		   (JNIEnv *, jsize);
+//  jlongArray    (JNICALL *NewLongArray)		   (JNIEnv *, jsize);
+//  jfloatArray   (JNICALL *NewFloatArray)	   (JNIEnv *, jsize);
+//  jdoubleArray  (JNICALL *NewDoubleArray)	   (JNIEnv *, jsize);
+//
+//  jboolean *	(JNICALL *GetBooleanArrayElements) (JNIEnv *, jbooleanArray,
+//					            jboolean *);
+//  jbyte *	(JNICALL *GetByteArrayElements)	   (JNIEnv *, jbyteArray,
+//					            jboolean *);
+//  jchar *	(JNICALL *GetCharArrayElements)	   (JNIEnv *, jcharArray,
+//					            jboolean *);
+//  jshort *	(JNICALL *GetShortArrayElements)   (JNIEnv *, jshortArray,
+//					            jboolean *);
+//  jint *	(JNICALL *GetIntArrayElements)	   (JNIEnv *, jintArray,
+//					            jboolean *);
+//  jlong *	(JNICALL *GetLongArrayElements)	   (JNIEnv *, jlongArray,
+//					            jboolean *);
+//  jfloat *	(JNICALL *GetFloatArrayElements)   (JNIEnv *, jfloatArray,
+//					            jboolean *);
+//  jdouble *	(JNICALL *GetDoubleArrayElements)  (JNIEnv *, jdoubleArray,
+//					            jboolean *);
+//
+//  void		(JNICALL *ReleaseBooleanArrayElements) (JNIEnv *, jbooleanArray,
+//						        jboolean *, jint);
+//  void		(JNICALL *ReleaseByteArrayElements)    (JNIEnv *, jbyteArray,
+//					                jbyte *, jint);
+//  void		(JNICALL *ReleaseCharArrayElements)    (JNIEnv *, jcharArray,
+//						        jchar *, jint);
+//  void		(JNICALL *ReleaseShortArrayElements)   (JNIEnv *, jshortArray,
+//						        jshort *, jint);
+//  void		(JNICALL *ReleaseIntArrayElements)     (JNIEnv *, jintArray,
+//						        jint *, jint);
+//  void		(JNICALL *ReleaseLongArrayElements)    (JNIEnv *, jlongArray,
+//						        jlong *, jint);
+//  void		(JNICALL *ReleaseFloatArrayElements)   (JNIEnv *, jfloatArray,
+//						        jfloat *, jint);
+//  void		(JNICALL *ReleaseDoubleArrayElements)  (JNIEnv *, jdoubleArray,
+//						        jdouble *, jint);
+//
+//  void 		(JNICALL *GetBooleanArrayRegion)   (JNIEnv *, jbooleanArray,
+//					            jsize, jsize, jboolean *);
+//  void 		(JNICALL *GetByteArrayRegion)	   (JNIEnv *, jbyteArray,
+//					            jsize, jsize, jbyte *);
+//  void 		(JNICALL *GetCharArrayRegion)	   (JNIEnv *, jcharArray,
+//					            jsize, jsize, jchar *);
+//  void 		(JNICALL *GetShortArrayRegion)	   (JNIEnv *, jshortArray,
+//					            jsize, jsize, jshort *);
+//  void 		(JNICALL *GetIntArrayRegion)	   (JNIEnv *, jintArray,
+//					            jsize, jsize, jint *);
+//  void 		(JNICALL *GetLongArrayRegion)	   (JNIEnv *, jlongArray,
+//					            jsize, jsize, jlong *);
+//  void 		(JNICALL *GetFloatArrayRegion)	   (JNIEnv *, jfloatArray,
+//					            jsize, jsize, jfloat *);
+//  void 		(JNICALL *GetDoubleArrayRegion)	   (JNIEnv *, jdoubleArray,
+//					            jsize, jsize, jdouble *);
+//
+//  void 		(JNICALL *SetBooleanArrayRegion)   (JNIEnv *, jbooleanArray,
+//					            jsize, jsize,
+//                                                    const jboolean *);
+//  void 		(JNICALL *SetByteArrayRegion)	   (JNIEnv *, jbyteArray,
+//					            jsize, jsize,
+//                                                    const jbyte *);
+//  void 		(JNICALL *SetCharArrayRegion)	   (JNIEnv *, jcharArray,
+//					            jsize, jsize,
+//                                                    const jchar *);
+//  void 		(JNICALL *SetShortArrayRegion)	   (JNIEnv *, jshortArray,
+//					            jsize, jsize,
+//                                                    const jshort *);
+//  void 		(JNICALL *SetIntArrayRegion)	   (JNIEnv *, jintArray,
+//					            jsize, jsize,
+//                                                    const jint *);
+//  void 		(JNICALL *SetLongArrayRegion)	   (JNIEnv *, jlongArray,
+//					            jsize, jsize,
+//                                                    const jlong *);
+//  void 		(JNICALL *SetFloatArrayRegion)	   (JNIEnv *, jfloatArray,
+//					            jsize, jsize,
+//                                                    const jfloat *);
+//  void 		(JNICALL *SetDoubleArrayRegion)	   (JNIEnv *, jdoubleArray,
+//					            jsize, jsize,
+//                                                    const jdouble *);
+//
+//  jint     (JNICALL *RegisterNatives)              (JNIEnv *, jclass,
+//					            const JNINativeMethod *,
+//						    jint);
+//  jint     (JNICALL *UnregisterNatives)            (JNIEnv *, jclass);
+//  jint     (JNICALL *MonitorEnter)                 (JNIEnv *, jobject);
+//  jint     (JNICALL *MonitorExit)                  (JNIEnv *, jobject);
+//  jint     (JNICALL *GetJavaVM)                    (JNIEnv *, JavaVM **);
+//
+//  /* ---- JNI 1.2 functions ---- */
+//
+//  void	   (JNICALL *GetStringRegion)	           (JNIEnv *, jstring, jsize,
+//					            jsize, jchar *);
+//  void     (JNICALL *GetStringUTFRegion)	   (JNIEnv *, jstring, jsize,
+//					            jsize, char *);
+//
+//  void * (JNICALL *GetPrimitiveArrayCritical)      (JNIEnv *, jarray,
+//                                                    jboolean *);
+//  void   (JNICALL *ReleasePrimitiveArrayCritical)  (JNIEnv *, jarray, void *,
+//                                                    jint);
+//
+//  const jchar * (JNICALL *GetStringCritical)       (JNIEnv *, jstring,
+//                                                    jboolean *);
+//  void          (JNICALL *ReleaseStringCritical)   (JNIEnv *, jstring,
+//                                                    const jchar *);
+//
+//  jweak  (JNICALL *NewWeakGlobalRef)               (JNIEnv *, jobject);
+//  void   (JNICALL *DeleteWeakGlobalRef)            (JNIEnv *, jweak);
+//
+//  jboolean	(JNICALL *ExceptionCheck)	   (JNIEnv *);
+//
+//  /* ---- JNI 1.4 functions ---- */
+//
+//  jobject (JNICALL *NewDirectByteBuffer)           (JNIEnv *, void *, jlong);
+//  void *  (JNICALL *GetDirectBufferAddress)        (JNIEnv *, jobject);
+//  jlong   (JNICALL *GetDirectBufferCapacity)       (JNIEnv *, jobject);
+//
+//  /* ---- JNI 1.6 functions ---- */
+//
+//  jobjectRefType (JNICALL *GetObjectRefType)       (JNIEnv *, jobject);
+//};
 
 #ifdef __cplusplus
 
@@ -1558,18 +1560,18 @@ public:
  * Invocation API.
  */
 
-struct JNIInvokeInterface_
-{
-  void *reserved0;
-  void *reserved1;
-  void *reserved2;
-
-  jint (JNICALL *DestroyJavaVM)         (JavaVM *);
-  jint (JNICALL *AttachCurrentThread)   (JavaVM *, void **, void *);
-  jint (JNICALL *DetachCurrentThread)   (JavaVM *);
-  jint (JNICALL *GetEnv)                (JavaVM *, void **, jint);
-  jint (JNICALL *AttachCurrentThreadAsDaemon) (JavaVM *, void **, void *);
-};
+//struct JNIInvokeInterface_
+//{
+//  void *reserved0;
+//  void *reserved1;
+//  void *reserved2;
+//
+//  jint (JNICALL *DestroyJavaVM)         (JavaVM *);
+//  jint (JNICALL *AttachCurrentThread)   (JavaVM *, void **, void *);
+//  jint (JNICALL *DetachCurrentThread)   (JavaVM *);
+//  jint (JNICALL *GetEnv)                (JavaVM *, void **, jint);
+//  jint (JNICALL *AttachCurrentThreadAsDaemon) (JavaVM *, void **, void *);
+//};
 
 #ifdef __cplusplus
 
@@ -1596,34 +1598,34 @@ public:
 
 #endif /* __cplusplus */
 
-typedef struct JavaVMAttachArgs
-{
-  jint version;			/* Must be JNI_VERSION_1_2.  */
-  char *name;			/* The name of the thread (or NULL).  */
-  jobject group;		/* Global ref of a ThreadGroup object
-				   (or NULL).  */
-} JavaVMAttachArgs;
-
-typedef struct JavaVMOption
-{
-  char *optionString;
-  void *extraInfo;
-} JavaVMOption;
-
-typedef struct JavaVMInitArgs
-{
-  /* Must be JNI_VERSION_1_2.  */
-  jint version;
-
-  /* Number of options.  */
-  jint nOptions;
-
-  /* Options to the VM.  */
-  JavaVMOption *options;
-
-  /* Whether we should ignore unrecognized options.  */
-  jboolean ignoreUnrecognized;
-} JavaVMInitArgs;
+//typedef struct JavaVMAttachArgs
+//{
+//  jint version;			/* Must be JNI_VERSION_1_2.  */
+//  char *name;			/* The name of the thread (or NULL).  */
+//  jobject group;		/* Global ref of a ThreadGroup object
+//				   (or NULL).  */
+//} JavaVMAttachArgs;
+//
+//typedef struct JavaVMOption
+//{
+//  char *optionString;
+//  void *extraInfo;
+//} JavaVMOption;
+//
+//typedef struct JavaVMInitArgs
+//{
+//  /* Must be JNI_VERSION_1_2.  */
+//  jint version;
+//
+//  /* Number of options.  */
+//  jint nOptions;
+//
+//  /* Options to the VM.  */
+//  JavaVMOption *options;
+//
+//  /* Whether we should ignore unrecognized options.  */
+//  jboolean ignoreUnrecognized;
+//} JavaVMInitArgs;
 
 typedef struct JDK1_1InitArgs
 {

@@ -19,8 +19,8 @@
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef __JNI_H__
-#define __JNI_H__
+#ifndef __CHERIJNI_H__
+#define __CHERIJNI_H__
 #include <stdio.h>
 #include <stdarg.h>
 
@@ -42,6 +42,7 @@
 
 #define JNIEXPORT
 #define JNICALL
+#define JNIIMPORT
 
 typedef int             jint;
 typedef long long       jlong;
@@ -145,17 +146,17 @@ void (*CallStaticVoidMethod)(JNIEnv *env, jclass clazz, jmethodID methodID, ...)
 void (*CallStaticVoidMethodV)(JNIEnv *env, jclass clazz, jmethodID methodID, va_list jargs);\
 void (*CallStaticVoidMethodA)(JNIEnv *env, jclass clazz, jmethodID methodID, jvalue *jargs);
 
-#define CALL_METHOD(access)         \
-access##_METHOD(Object, jobject);   \
-access##_METHOD(Boolean, jboolean); \
-access##_METHOD(Byte, jbyte);       \
-access##_METHOD(Char, jchar);       \
-access##_METHOD(Short, jshort);     \
-access##_METHOD(Int, jint);         \
-access##_METHOD(Long, jlong);       \
-access##_METHOD(Float, jfloat);     \
-access##_METHOD(Double, jdouble);   \
-VOID_##access##_METHOD;
+#define CALL_METHOD(access)        \
+access##_METHOD(Object, jobject)   \
+access##_METHOD(Boolean, jboolean) \
+access##_METHOD(Byte, jbyte)       \
+access##_METHOD(Char, jchar)       \
+access##_METHOD(Short, jshort)     \
+access##_METHOD(Int, jint)         \
+access##_METHOD(Long, jlong)       \
+access##_METHOD(Float, jfloat)     \
+access##_METHOD(Double, jdouble)   \
+VOID_##access##_METHOD
 
 
 #define NEW_PRIM_ARRAY(type, native_type, array_type) \
@@ -173,15 +174,15 @@ void (*Get##type##ArrayRegion)(JNIEnv *env, native_type##Array array, jsize star
 #define SET_REGION_PRIM_ARRAY(type, native_type, array_type) \
 void (*Set##type##ArrayRegion)(JNIEnv *env, native_type##Array array, jsize start, jsize len, native_type *buf);
 
-#define PRIM_ARRAY_OP(op)                      \
-op##_PRIM_ARRAY(Boolean, jboolean, T_BOOLEAN); \
-op##_PRIM_ARRAY(Byte, jbyte, T_BYTE);          \
-op##_PRIM_ARRAY(Char, jchar, T_CHAR);          \
-op##_PRIM_ARRAY(Short, jshort, T_SHORT);       \
-op##_PRIM_ARRAY(Int, jint, T_INT);             \
-op##_PRIM_ARRAY(Long, jlong, T_LONG);          \
-op##_PRIM_ARRAY(Float, jfloat, T_FLOAT);       \
-op##_PRIM_ARRAY(Double, jdouble, T_DOUBLE);
+#define PRIM_ARRAY_OP(op)                     \
+op##_PRIM_ARRAY(Boolean, jboolean, T_BOOLEAN) \
+op##_PRIM_ARRAY(Byte, jbyte, T_BYTE)          \
+op##_PRIM_ARRAY(Char, jchar, T_CHAR)          \
+op##_PRIM_ARRAY(Short, jshort, T_SHORT)       \
+op##_PRIM_ARRAY(Int, jint, T_INT)             \
+op##_PRIM_ARRAY(Long, jlong, T_LONG)          \
+op##_PRIM_ARRAY(Float, jfloat, T_FLOAT)       \
+op##_PRIM_ARRAY(Double, jdouble, T_DOUBLE)
 
 
 #define GET_FIELD(type, native_type) \
@@ -196,20 +197,20 @@ native_type (*GetStatic##type##Field)(JNIEnv *env, jclass clazz, jfieldID fieldI
 #define SET_STATIC_FIELD(type, native_type) \
 void (*SetStatic##type##Field)(JNIEnv *env, jclass clazz, jfieldID fieldID, native_type value);
 
-#define FIELD_OP(op)           \
-op##_FIELD(Object, jobject);   \
-op##_FIELD(Boolean, jboolean); \
-op##_FIELD(Byte, jbyte);       \
-op##_FIELD(Char, jchar);       \
-op##_FIELD(Short, jshort);     \
-op##_FIELD(Int, jint);         \
-op##_FIELD(Long, jlong);       \
-op##_FIELD(Float, jfloat);     \
-op##_FIELD(Double, jdouble);
+#define FIELD_OP(op)          \
+op##_FIELD(Object, jobject)   \
+op##_FIELD(Boolean, jboolean) \
+op##_FIELD(Byte, jbyte)       \
+op##_FIELD(Char, jchar)       \
+op##_FIELD(Short, jshort)     \
+op##_FIELD(Int, jint)         \
+op##_FIELD(Long, jlong)       \
+op##_FIELD(Float, jfloat)     \
+op##_FIELD(Double, jdouble)
 
 
 struct _JNINativeInterface {
-    void *reserved0;
+    __capability void *reserved0;
     void *reserved1;
     void *reserved2;
     void *reserved3;
@@ -257,22 +258,22 @@ struct _JNINativeInterface {
 
     jmethodID (*GetMethodID)(JNIEnv *env, jclass clazz, const char *name, const char *sig);
 
-    CALL_METHOD(VIRTUAL);
-    CALL_METHOD(NONVIRTUAL);
+    CALL_METHOD(VIRTUAL)
+    CALL_METHOD(NONVIRTUAL)
 
     jfieldID (*GetFieldID)(JNIEnv *env, jclass clazz, const char *name, const char *sig);
 
-    FIELD_OP(GET);
-    FIELD_OP(SET);
+    FIELD_OP(GET)
+    FIELD_OP(SET)
 
     jmethodID (*GetStaticMethodID)(JNIEnv *env, jclass clazz, const char *name, const char *sig);
 
-    CALL_METHOD(STATIC);
+    CALL_METHOD(STATIC)
 
     jfieldID (*GetStaticFieldID)(JNIEnv *env, jclass clazz, const char *name, const char *sig);
 
-    FIELD_OP(GET_STATIC);
-    FIELD_OP(SET_STATIC);
+    FIELD_OP(GET_STATIC)
+    FIELD_OP(SET_STATIC)
 
     jstring (*NewString)(JNIEnv *env, const jchar *unicode, jsize len);
     jsize (*GetStringLength)(JNIEnv *env, jstring str);
@@ -290,11 +291,11 @@ struct _JNINativeInterface {
     jobject (*GetObjectArrayElement)(JNIEnv *env, jobjectArray array, jsize index);
     void (*SetObjectArrayElement)(JNIEnv *env, jobjectArray array, jsize index, jobject val);
 
-    PRIM_ARRAY_OP(NEW);
-    PRIM_ARRAY_OP(GET_ELEMENTS);
-    PRIM_ARRAY_OP(RELEASE_ELEMENTS);
-    PRIM_ARRAY_OP(GET_REGION);
-    PRIM_ARRAY_OP(SET_REGION);
+    PRIM_ARRAY_OP(NEW)
+    PRIM_ARRAY_OP(GET_ELEMENTS)
+    PRIM_ARRAY_OP(RELEASE_ELEMENTS)
+    PRIM_ARRAY_OP(GET_REGION)
+    PRIM_ARRAY_OP(SET_REGION)
 
     jint (*RegisterNatives)(JNIEnv *env, jclass clazz, const JNINativeMethod *methods, jint nMethods);
     jint (*UnregisterNatives)(JNIEnv *env, jclass clazz);
