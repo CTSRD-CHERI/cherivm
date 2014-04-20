@@ -78,7 +78,7 @@ jint cheriJNI_callOnLoadUnload(void *handle, void *ptr, JavaVM *jvm, void *reser
 	return (jint) CInvoke_1_0(handle, CHERIJNI_METHOD_ONLOAD_ONUNLOAD, ptr);
 }
 
-#define SCAN_SIGNATURE(sig)               \
+#define forEachArgument(sig, SCAN_PRIM_SINGLE, SCAN_PRIM_DOUBLE, SCAN_OBJECT) \
 {                                         \
 	char *s = sig;                        \
 	char c = s[1];                        \
@@ -101,14 +101,16 @@ jint cheriJNI_callOnLoadUnload(void *handle, void *ptr, JavaVM *jvm, void *reser
 	}                                     \
 }
 
-#define SCAN_RETURNTYPE(sig)              \
+#define forReturnType(sig, SCAN_VOID, SCAN_PRIM_SINGLE, SCAN_PRIM_DOUBLE, SCAN_OBJECT) \
 {                                         \
 	char *s = sig;                        \
 	char c = s[1];                        \
 	while (c != ')')                      \
 		c = (++s)[1];                     \
 	c = (++s)[1];                         \
-	if (c == 'D' || c == 'J')             \
+	if (c == 'V')                         \
+        SCAN_VOID                         \
+	else if (c == 'D' || c == 'J')        \
 		SCAN_PRIM_DOUBLE                  \
 	else if (c == 'L' || c == '[')        \
 		SCAN_OBJECT                       \
@@ -134,13 +136,10 @@ uintptr_t *cheriJNI_callMethod(void* handle, void *native_func, JNIEnv *env, pCl
 	size_t cPrimitiveArgs = 0;
 	size_t cObjectArgs = 0;
 
-	#define SCAN_PRIM_SINGLE    { (cPrimitiveArgs++); }
-	#define SCAN_PRIM_DOUBLE    { (cPrimitiveArgs++); }
-	#define SCAN_OBJECT         { (cObjectArgs++); }
-	SCAN_SIGNATURE(sig);
-	#undef SCAN_PRIM_SINGLE
-	#undef SCAN_PRIM_DOUBLE
-	#undef SCAN_OBJECT
+	forEachArgument(sig,
+		/* single primitives */ { (cPrimitiveArgs++); },
+		/* double primitives */ { (cPrimitiveArgs++); },
+		/* objects           */ { (cObjectArgs++); });
 
 	// TODO: check number of arguments
 
@@ -156,14 +155,10 @@ uintptr_t *cheriJNI_callMethod(void* handle, void *native_func, JNIEnv *env, pCl
 	else
 		*(_pPrimitiveArgs++) = class;
 
-	#define SCAN_PRIM_SINGLE    { *(_pPrimitiveArgs++) = *(_ostack++); }
-	#define SCAN_PRIM_DOUBLE    { *(_pPrimitiveArgs++) = *(_ostack++); _ostack++; }
-//	#define SCAN_OBJECT         { *(_pObjectArgs++) = CObject(*(_ostack++)); }
-	#define SCAN_OBJECT         { *(_pPrimitiveArgs++) = *(_ostack++); }
-	SCAN_SIGNATURE(sig);
-	#undef SCAN_PRIM_SINGLE
-	#undef SCAN_PRIM_DOUBLE
-	#undef SCAN_OBJECT
+	forEachArgument(sig,
+		/* single primitives */ { *(_pPrimitiveArgs++) = *(_ostack++); },
+		/* double primitives */ { *(_pPrimitiveArgs++) = *(_ostack++); _ostack++; },
+		/* objects           */ { *(_pPrimitiveArgs++) = *(_ostack++); }); // *(_pObjectArgs++) = CObject(*(_ostack++));
 
 	register_t a0 = pPrimitiveArgs[0];
 	register_t a1 = pPrimitiveArgs[1];
@@ -182,20 +177,18 @@ uintptr_t *cheriJNI_callMethod(void* handle, void *native_func, JNIEnv *env, pCl
 
 	register_t result = CInvoke_7_6(handle, CHERIJNI_METHOD_RUN, native_func, a0, a1, a2, a3, a4, a5, cThis, c0, c1, c2, c3, c4);
 
-	// TODO: put return value on the stack
-
 	// TODO: if it returns (-1), it *might* have failed executing!
 	// TODO: ask rwatson: how much would it take to return the error code in $v1?
 
 	jam_printf("Sandbox returned %p\n", (void*) result);
 
-	#define SCAN_PRIM_SINGLE    { *(ostack++) = result; }
-	#define SCAN_PRIM_DOUBLE    { *(ostack++) = result; ostack++; }
-	#define SCAN_OBJECT         { *(ostack++) = result; }
-	SCAN_RETURNTYPE(sig);
-	#undef SCAN_PRIM_SINGLE
-	#undef SCAN_PRIM_DOUBLE
-	#undef SCAN_OBJECT
+	/* Put the return value back on stack */
+
+	forReturnType(sig,
+		/* void             */ { },
+		/* single primitive */ { *(ostack++) = result; },
+		/* double primitive */ { *(ostack++) = result; ostack++; },
+		/* objects          */ { *(ostack++) = result; });
 
 	return ostack;
 }
