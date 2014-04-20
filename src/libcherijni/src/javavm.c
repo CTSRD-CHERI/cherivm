@@ -1,11 +1,4 @@
-#include <sys/types.h>
-#include <sys/stat.h>
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include <jni.h>
+#include "guest.h"
 
 static jint cherijni_JavaVM_DestroyJavaVM(JavaVM *vm) {
 	return JNI_ERR;

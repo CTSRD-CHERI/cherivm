@@ -14,15 +14,26 @@
 #include "sandbox_internal.h"
 #include "sandbox_shared.h"
 
+extern const JNIEnv globalJNIEnv;
+
 register_t cherijni_trampoline(register_t methodnum,
                                register_t a1, register_t a2, register_t a3, register_t a4,
                                register_t a5, register_t a6, register_t a7,
-                               struct cheri_object system_object, __capability void *c3,
+                               struct cheri_object system_object, __capability void *cContext,
                                __capability void *c4, __capability void *c5,
                                __capability void *c6, __capability void *c7)
                                __attribute__((cheri_ccall)) {
+
 	jam_printf("[CHERIJNI: trampoline op = %d]\n", methodnum);
-	return (-1);
+
+	JNIEnv *env = &globalJNIEnv;
+
+	switch(methodnum) {
+	case CHERIJNI_JNIEnv_GetVersion:
+		return (*env)->GetVersion(env);
+	default:
+		return (-1);
+	}
 }
 
 #endif

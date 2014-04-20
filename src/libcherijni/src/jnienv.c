@@ -1,7 +1,7 @@
 #include "guest.h"
 
 static jint GetVersion(JNIEnv *env) {
-	return (cheri_invoke(cherijni_SystemObject,
+	return (jint) (cheri_invoke(cherijni_SystemObject,
 	    CHERIJNI_JNIEnv_GetVersion, 0, 0, 0, 0, 0, 0, 0,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),

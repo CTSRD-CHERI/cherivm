@@ -2,6 +2,18 @@
 #define __SANDBOX_SHARED_H__
 
 #include <cheri/cheri_enter.h>
+#include <machine/cheric.h>
+
+#define	CHERI_CAP_PRINT(cap) do {					\
+	printf("tag %ju u %ju perms %08jx type %016jx\n",		\
+	    (uintptr_t)cheri_gettag(cap),				\
+	    (uintptr_t)cheri_getunsealed(cap),				\
+	    (uintptr_t)cheri_getperm(cap),				\
+	    (uintptr_t)cheri_gettype(cap));				\
+	printf("\tbase %016jx length %016jx\n",				\
+	    (uintptr_t)cheri_getbase(cap),				\
+	    (uintptr_t)cheri_getlen(cap));				\
+} while (0)
 
 #define CHERIJNI_METHOD_LOOKUP               0
 #define CHERIJNI_METHOD_ONLOAD_ONUNLOAD      1

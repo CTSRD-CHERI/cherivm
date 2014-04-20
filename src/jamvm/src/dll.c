@@ -60,7 +60,7 @@ void *lookupLoadedDlls(pMethodBlock mb);
 #define TRACE(fmt, ...)
 #endif
 
-static JNIEnv env = &Jam_JNINativeInterface;
+const JNIEnv globalJNIEnv = &Jam_JNINativeInterface;
 
 char *mangleString(char *utf8) {
     int len = utf8Len(utf8);
@@ -332,7 +332,7 @@ int resolveDll(char *name, pObject loader) {
         dll->loader = loader;
 #ifdef JNI_CHERI
         dll->sandboxed = loadSandboxed;
-        if (loadSandboxed) cherijni_runTests(dll->handle, &env);
+        if (loadSandboxed) { cherijni_runTests(dll->handle, NULL); exitVM(1); }
 #endif
 
 #undef HASH
@@ -491,11 +491,11 @@ uintptr_t *callJNIWrapper(pClass class, pMethodBlock mb, uintptr_t *ostack) {
 
 #ifdef JNI_CHERI
     if (mb->sandbox_handle != NULL)
-    	new_ostack = cherijni_callMethod(mb->sandbox_handle, mb->code, &env,
+    	new_ostack = cherijni_callMethod(mb->sandbox_handle, mb->code,
     	                                 call_class, mb->type, ostack);
     else
 #endif
-    new_ostack = callJNIMethod(&env, call_class, mb->type, mb->native_extra_arg,
+    new_ostack = callJNIMethod(&globalJNIEnv, call_class, mb->type, mb->native_extra_arg,
                                ostack, mb->code, mb->args_count);
 
     return new_ostack;
