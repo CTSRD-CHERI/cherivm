@@ -37,6 +37,10 @@ char *cherijni_libName(char *name) {
 #define CString(str)                     (cheri_ptrperm(str, strlen(str) + 1, CHERI_PERM_LOAD))
 #define CObject(ptr)                     (cheri_ptr((void*) ptr, sizeof(Object)))
 
+void cherijni_init() {
+	cheri_system_user_register_fn(&cherijni_trampoline);
+}
+
 void *cherijni_open(char *path) {
 	cherijniSandbox *sandbox = sysMalloc(sizeof(cherijniSandbox));
 
@@ -51,7 +55,7 @@ void *cherijni_open(char *path) {
 		return NULL;
 	}
 
-	cheri_system_user_register_fn(&cherijni_trampoline);
+	sandbox->env_cache = NULL;
 	return sandbox;
 }
 

@@ -19,6 +19,7 @@
 typedef struct cherijni_sandbox {
 	struct sandbox_class    *classp;
 	struct sandbox_object   *objectp;
+	JNIEnv                  *env_cache;
 	__capability void       *code_env;
 } cherijniSandbox;
 

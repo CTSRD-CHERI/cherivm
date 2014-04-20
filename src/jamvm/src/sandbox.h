@@ -5,6 +5,7 @@
 
 #include "jni.h"
 
+extern void cherijni_init();
 extern char *cherijni_libName(char *name);
 extern void *cherijni_lookup(void *handle, char *methodName);
 extern void *cherijni_open(char *path);
