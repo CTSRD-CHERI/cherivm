@@ -15,7 +15,7 @@ void cherijni_runTests(JNIEnv *env) {
 	printf("[SANDBOX: Running tests...]\n");
 
 	TEST_START("GetVersion");
-	if ((*env)->GetVersion && (*env)->GetVersion(env) == 0x00010006)
+	if ((*env)->GetVersion && (*env)->GetVersion(env) == JNI_VERSION_1_6)
 		TEST_PASSED;
 	else
 		TEST_FAILED;

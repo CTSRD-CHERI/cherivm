@@ -10,16 +10,9 @@
 
 #ifdef JNI_CHERI
 
-#include <machine/cheri.h>
-#include <machine/cheric.h>
-#include <machine/cpuregs.h>
-
-#include <cheri/sandbox.h>
-
 #include "sandbox.h"
+#include "sandbox_internal.h"
 #include "sandbox_shared.h"
-
-extern void cherijni_initTrampoline(cherijniSandbox *sandbox);
 
 char *cherijni_libName(char *name) {
    char *buff = sysMalloc(strlen(name) + sizeof(".cheri") + 1);
@@ -58,7 +51,8 @@ void *cherijni_open(char *path) {
 		return NULL;
 	}
 
-	return NULL;
+	cheri_system_user_register_fn(&cherijni_trampoline);
+	return sandbox;
 }
 
 void cherijni_runTests(void *handle, JNIEnv *env) {

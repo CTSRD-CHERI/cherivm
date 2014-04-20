@@ -1,11 +1,12 @@
-#include <sys/types.h>
-#include <sys/stat.h>
+#include "guest.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include <jni.h>
+static jint GetVersion(JNIEnv *env) {
+	return (cheri_invoke(cherijni_SystemObject,
+	    CHERIJNI_JNIEnv_GetVersion, 0, 0, 0, 0, 0, 0, 0,
+	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
+	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
+	    cheri_zerocap(), cheri_zerocap()));
+}
 
 static jclass FindClass(JNIEnv *env, const char *className) {
 	printf("[JNIEnv %s stub]\n", __func__);
@@ -32,6 +33,7 @@ JNIEnv *cherijni_getJNIEnv() {
 	memset(ppEnv, 0, total_size);
 	struct _JNINativeInterface * pEnv = (struct _JNINativeInterface *) (ppEnv + 1);
 
+	pEnv->GetVersion = &GetVersion;
 	pEnv->ExceptionClear = &ExceptionClear;
 	pEnv->ExceptionOccurred = &ExceptionOccured;
 	pEnv->FindClass = &FindClass;
