@@ -27,8 +27,8 @@ extern JNIEnv *cherijni_getJNIEnv();
 extern void cherijni_destroyJNIEnv(JNIEnv *ppEnv);
 extern void cherijni_runTests(JNIEnv *env);
 
-extern void cherijni_obj_init();
-extern jobject cherijni_obj_storecap(__capability void *cobj);
-extern __capability void *cherijni_obj_loadcap(jobject obj);
+extern void cherijni_obj_init(struct _JNINativeInterface *env);
+extern jobject cherijni_obj_storecap(JNIEnv *env, __capability void *cobj);
+extern __capability void *cherijni_obj_loadcap(JNIEnv *env, jobject obj);
 
 #endif //__GUEST_H__

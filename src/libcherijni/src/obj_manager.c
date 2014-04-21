@@ -2,19 +2,16 @@
 
 #define DEFAULT_OBJ_COUNT    128
 
-static size_t obj_storage_length;
-static size_t obj_storage_storeAt;
-static __capability void **obj_storage = NULL;
+typedef struct cherijni_obj_storage {
+	__capability void *caps[DEFAULT_OBJ_COUNT];
+	size_t used_slots;
+} ObjectStorage;
 
-void cherijni_obj_init() {
-	if (obj_storage == NULL) {
-		obj_storage_length = DEFAULT_OBJ_COUNT;
-		obj_storage_storeAt = 0;
-		obj_storage = malloc(obj_storage_length * sizeof(__capability void*));
-		if (obj_storage == NULL) {
-			printf("Error: cannot allocate object capability storage");
-			abort();
-		}
+void cherijni_obj_init(struct _JNINativeInterface *env) {
+	if (env->object_storage == NULL) {
+		ObjectStorage *store = malloc(sizeof(ObjectStorage));
+		memset(store, 0, sizeof(ObjectStorage));
+		env->object_storage = store;
 	}
 }
 
@@ -24,43 +21,24 @@ void cherijni_obj_init() {
                               (CAP_BYTE(c1, 2) == CAP_BYTE(c2, 2)) && \
                               (CAP_BYTE(c1, 3) == CAP_BYTE(c2, 3)) )
 
-jobject cherijni_obj_storecap(__capability void *cobj) {
+jobject cherijni_obj_storecap(JNIEnv *env, __capability void *cobj) {
 	size_t i, j;
 
 	// don't store NULLs
 	if (!cheri_gettag(cobj))
 		return NULL;
 
-//	printf("Finding the same cap\n");
-//	// try to lookup the same capability
-//	for (i = 0; i < obj_storage_length; i++) {
-//		__capability void *cstored = obj_storage[i];
-//		if (CAP_EQUALS(cobj, cstored))
-//			return &obj_storage[i];
-//	}
-
-	// try to find a place to store it in
-	for (i = 0; i < obj_storage_length; i++) {
-		j = obj_storage_storeAt;
-
-		obj_storage_storeAt++;
-		if (obj_storage_length == obj_storage_storeAt)
-			obj_storage_storeAt = 0;
-
-		if (!cheri_gettag(obj_storage[j])) {
-			obj_storage[j] = cobj;
-			return &obj_storage[j];
-		}
-	}
-
-	// TODO: resize storage
-
-	return NULL;
+	ObjectStorage *store = (ObjectStorage*) (*env)->object_storage;
+	__capability void **slot = store->caps + (store->used_slots++);
+	(*slot) = cobj;
+	return (jobject) slot;
 }
 
-__capability void *cherijni_obj_loadcap(jobject obj) {
+__capability void *cherijni_obj_loadcap(JNIEnv *env, jobject obj) {
 	if (obj == NULL)
 		return cheri_zerocap();
-	else
-		return *((__capability void**) obj);
+	else {
+		__capability void *cap = *obj;
+		return cap;
+	}
 }

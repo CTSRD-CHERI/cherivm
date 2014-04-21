@@ -47,7 +47,6 @@ register_t cherijni_invoke(u_int op,
 
 	cheri_system_setup(system_object);
 	cherijni_SystemObject = system_object;
-	cherijni_obj_init();
 
 	if (op == CHERIJNI_METHOD_LOOKUP) {
 

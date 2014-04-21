@@ -16,14 +16,41 @@
 
 extern const JNIEnv globalJNIEnv;
 
+#define unseal_obj(ptr)    cherijni_unsealObject(capAt(convPtr(ptr, cap_default)))
 #define return_obj(obj)    { *mem_output = cherijni_sealObject(obj); }
+
+static inline void *convPtr(register_t guest_ptr, __capability void *cap_default) {
+	// NULL pointer will be zero
+	if (guest_ptr == 0)
+		return NULL;
+
+	// check it is within bounds
+	if (guest_ptr < 0 || guest_ptr >= cheri_getlen(cap_default)) {
+		jam_printf("Warning: sandbox gave a pointer outside of its bounds\n");
+		return NULL;
+	}
+
+	// translate
+	return (void*) cheri_incbase(cap_default, guest_ptr);
+}
+
+static inline __capability void *capAt(void *ptr) {
+	if (((uintptr_t) ptr) & (sizeof(__capability void*) - 1)) {
+		jam_printf("Warning: sandbox gave a misaligned capability pointer\n");
+		return cheri_zerocap();
+	}
+
+	return *((__capability void**) ptr);
+}
 
 register_t cherijni_trampoline(register_t methodnum,
                                register_t a1, register_t a2, register_t a3, register_t a4,
                                register_t a5, register_t a6, register_t a7,
                                struct cheri_object system_object,
-                               __capability void *cap_context, __capability void *cap_output,
-                               __capability void *c5, __capability void *c6, __capability void *c7)
+                               __capability void *cap_default,
+                               __capability void *cap_context,
+                               __capability void *cap_output,
+                               __capability void *c2, __capability void *c3)
                                __attribute__((cheri_ccall)) {
 
 	JNIEnv *env = &globalJNIEnv;
@@ -35,7 +62,8 @@ register_t cherijni_trampoline(register_t methodnum,
 	case CHERIJNI_JNIEnv_DefineClass:
 		break;
 	case CHERIJNI_JNIEnv_FindClass:	{
-			jclass clazz = (*env)->FindClass(env, (const char*) c5);
+			const char *className = (const char*) convPtr(a1, cap_default);
+			jclass clazz = (*env)->FindClass(env, className);
 			return_obj(clazz);
 			return 0;
 		} break;
@@ -89,8 +117,12 @@ register_t cherijni_trampoline(register_t methodnum,
 		break;
 	case CHERIJNI_JNIEnv_GetObjectClass:
 		break;
-	case CHERIJNI_JNIEnv_IsInstanceOf:
-		break;
+	case CHERIJNI_JNIEnv_IsInstanceOf: {
+		jobject obj = unseal_obj(a1);
+		jclass clazz = unseal_obj(a2);
+		jboolean result = (*env)->IsInstanceOf(env, obj, clazz);
+		return (register_t) result;
+		} break;
 	case CHERIJNI_JNIEnv_GetMethodID:
 		break;
 	case CHERIJNI_JNIEnv_CallObjectMethod:

@@ -54,7 +54,7 @@ typedef float           jfloat;
 typedef double          jdouble;
 typedef jint            jsize;
 
-typedef void *jobject;
+typedef __capability void **jobject;
 typedef jobject jclass;
 typedef jobject jthrowable;
 typedef jobject jstring;
@@ -210,7 +210,7 @@ op##_FIELD(Double, jdouble)
 
 
 struct _JNINativeInterface {
-    void *reserved0;
+    void *object_storage;
     void *reserved1;
     void *reserved2;
     void *reserved3;

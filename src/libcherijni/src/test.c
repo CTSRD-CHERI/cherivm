@@ -26,5 +26,14 @@ void cherijni_runTests(JNIEnv *env) {
 	else
 		TEST_FAILED;
 
+	TEST_START("IsInstanceOf");
+	if ((*env)->FindClass && (*env)->IsInstanceOf &&
+		(*env)->IsInstanceOf(env,
+			(*env)->FindClass(env, "java/lang/VMThrowable"),
+			(*env)->FindClass(env, "java/lang/Class")))
+		TEST_PASSED;
+	else
+		TEST_FAILED;
+
 	printf("[SANDBOX: Finished running tests...]\n");
 }

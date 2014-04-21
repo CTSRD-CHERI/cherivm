@@ -32,6 +32,7 @@ extern register_t cherijni_trampoline(register_t methodnum,
 extern void cherijni_initCapabilities();
 extern __capability void *cherijni_sealJNIContext(pClass context);
 extern __capability void *cherijni_sealObject(pObject object);
+extern pObject cherijni_unsealObject(__capability void *cap);
 
 #endif
 
