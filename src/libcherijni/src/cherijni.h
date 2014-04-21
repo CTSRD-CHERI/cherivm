@@ -210,8 +210,8 @@ op##_FIELD(Double, jdouble)
 
 
 struct _JNINativeInterface {
-    __capability void *cherijni_context;
-    __capability void *cherijni_output_cap;
+    void *reserved0;
+    void *reserved1;
     void *reserved2;
     void *reserved3;
 

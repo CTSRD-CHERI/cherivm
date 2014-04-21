@@ -1,10 +1,17 @@
 #include "guest.h"
 
+#define CNULL		(cheri_zerocap())
+
+static __capability void *cherijni_output;
+
+
+#define COutput (cheri_ptrperm(&cherijni_output, sizeof(__capability void*), CHERI_PERM_STORE | CHERI_PERM_STORE_CAP))
+
 #define hostInvoke_1_1(name, env, a1, c1)    \
 	(cheri_invoke(cherijni_SystemObject, \
 	    CHERIJNI_JNIEnv_ ## name, \
 	    a1, 0, 0, 0, 0, 0, 0, \
-	    (*env)->cherijni_context, (*env)->cherijni_output_cap, \
+	    cheri_zerocap(), COutput, \
 	    c1,              cheri_zerocap(), cheri_zerocap(), \
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap()))
 #define hostInvoke_0_0(name, env)          hostInvoke_1_1(name, env, 0, cheri_zerocap())
@@ -16,14 +23,13 @@ static jint GetVersion(JNIEnv *env) {
 }
 
 static jclass FindClass(JNIEnv *env, const char *className) {
-	/*
-	 * ITERESTING:
-	 * even though className is passed as a read-only capability,
-	 * the host can actually modify the memory
-	 * (must be trusted)
-	 */
-	hostInvoke_0_1(FindClass, env, CString(className));
-	return NULL;
+	if (hostInvoke_0_1(FindClass, env, CString(className)) == 0) {
+		jclass result = (jclass) cherijni_obj_storecap(cherijni_output);
+		return result;
+	} else {
+		printf("[SANDBOX ERROR: call to FindClass failed]\n");
+		return NULL;
+	}
 }
 
 static jthrowable ExceptionOccured(JNIEnv *env) {
@@ -277,11 +283,8 @@ static struct _JNINativeInterface cherijni_JNIEnv_struct = {
 		NULL  // GetObjectRefType,
 };
 static JNIEnv cherijni_JNIEnv = &cherijni_JNIEnv_struct;
-static __capability void *cherijni_output;
 
 JNIEnv *cherijni_getJNIEnv() {
-	cherijni_JNIEnv_struct.cherijni_output_cap =
-		cheri_ptrperm(&cherijni_output, sizeof(__capability void*), CHERI_PERM_STORE | CHERI_PERM_STORE_CAP);
 	return &cherijni_JNIEnv;
 }
 

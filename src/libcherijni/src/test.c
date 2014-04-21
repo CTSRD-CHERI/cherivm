@@ -20,7 +20,8 @@ void cherijni_runTests(JNIEnv *env) {
 		TEST_FAILED;
 
 	TEST_START("FindClass (correct)");
-	if ((*env)->FindClass && ((*env)->FindClass(env, "java/lang/Integer") != NULL))
+	// lookup a class that will be loaded by now (not even Integer will)
+	if ((*env)->FindClass && ((*env)->FindClass(env, "java/lang/VMThrowable") != NULL))
 		TEST_PASSED;
 	else
 		TEST_FAILED;

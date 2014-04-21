@@ -16,21 +16,18 @@
 
 extern const JNIEnv globalJNIEnv;
 
+#define return_obj(obj)    { *mem_output = cherijni_sealObject(obj); }
+
 register_t cherijni_trampoline(register_t methodnum,
                                register_t a1, register_t a2, register_t a3, register_t a4,
                                register_t a5, register_t a6, register_t a7,
                                struct cheri_object system_object,
-                               __capability void *cContext, __capability void *cOutput,
+                               __capability void *cap_context, __capability void *cap_output,
                                __capability void *c5, __capability void *c6, __capability void *c7)
                                __attribute__((cheri_ccall)) {
 
 	JNIEnv *env = &globalJNIEnv;
-
-	printf("\n");
-	printf("Trampoline cContext:\n");
-	CHERI_CAP_PRINT(cContext);
-	printf("Trampoline cOutput:\n");
-	CHERI_CAP_PRINT(cOutput);
+	__capability void **mem_output = (__capability void **) cap_output;
 
 	switch(methodnum) {
 	case CHERIJNI_JNIEnv_GetVersion:
@@ -39,6 +36,8 @@ register_t cherijni_trampoline(register_t methodnum,
 		break;
 	case CHERIJNI_JNIEnv_FindClass:	{
 			jclass clazz = (*env)->FindClass(env, (const char*) c5);
+			return_obj(clazz);
+			return 0;
 		} break;
 	case CHERIJNI_JNIEnv_FromReflectedMethod:
 		break;
