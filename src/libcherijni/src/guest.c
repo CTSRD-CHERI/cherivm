@@ -103,13 +103,13 @@ register_t cherijni_invoke(u_int op,
 		cherijni_destroyJNIEnv(env);
 		return result;
 
-	} else if (op == CHERIJNI_METHOD_TEST) {
-
-		JNIEnv *env = cherijni_getJNIEnv();
-		cherijni_runTests(env);
-		cherijni_destroyJNIEnv(env);
-
-		return 0;
+//	} else if (op == CHERIJNI_METHOD_TEST) {
+//
+//		JNIEnv *env = cherijni_getJNIEnv();
+//		cherijni_runTests(env);
+//		cherijni_destroyJNIEnv(env);
+//
+//		return 0;
 
 	} else
 		return (-1);

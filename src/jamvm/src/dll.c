@@ -332,7 +332,6 @@ int resolveDll(char *name, pObject loader) {
         dll->loader = loader;
 #ifdef JNI_CHERI
         dll->sandboxed = loadSandboxed;
-        if (loadSandboxed) { cherijni_runTests(dll->handle, NULL); exitVM(1); }
 #endif
 
 #undef HASH

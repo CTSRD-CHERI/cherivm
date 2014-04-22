@@ -29,6 +29,7 @@ jobject cherijni_obj_storecap(JNIEnv *env, __capability void *cobj) {
 		return NULL;
 
 	ObjectStorage *store = (ObjectStorage*) (*env)->object_storage;
+
 	__capability void **slot = store->caps + (store->used_slots++);
 	(*slot) = cobj;
 	return (jobject) slot;

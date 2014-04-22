@@ -34,7 +34,6 @@ char *cherijni_libName(char *name) {
 #define CInvoke_1_0(handle, op, a1)      CInvoke_1_1(handle, op, a1, cNULL)
 #define CInvoke_0_1(handle, op, c5)      CInvoke_1_1(handle, op, 0, c5)
 #define CInvoke_0_0(handle, op)          CInvoke_1_1(handle, op, 0, cNULL)
-#define CObject(ptr)                     (cheri_ptr((void*) ptr, sizeof(Object)))
 
 void cherijni_init() {
 	cheri_system_user_register_fn(&cherijni_trampoline);
@@ -122,10 +121,10 @@ uintptr_t *cherijni_callMethod(void* handle, void *native_func, pClass class, ch
 
 	/* Is it an instance call? */
 
-//	if (class == NULL)
-//		cThis = CObject(*(_ostack++));
-//	else
-//		cThis = CObject(class);
+	if (class == NULL)
+		cThis = cherijni_sealObject(*(_ostack++));
+	else
+		cThis = cherijni_sealObject(class);
 
 	/* Count the arguments */
 
@@ -145,16 +144,10 @@ uintptr_t *cherijni_callMethod(void* handle, void *native_func, pClass class, ch
 	register_t *_pPrimitiveArgs = pPrimitiveArgs;
 	__capability void **_pObjectArgs = pObjectArgs;
 
-	// TODO: remove this and use the above
-	if (class == NULL)
-		*(_pPrimitiveArgs++) = *(_ostack++);
-	else
-		*(_pPrimitiveArgs++) = class;
-
 	forEachArgument(sig,
 		/* single primitives */ { *(_pPrimitiveArgs++) = *(_ostack++); },
 		/* double primitives */ { *(_pPrimitiveArgs++) = *(_ostack++); _ostack++; },
-		/* objects           */ { *(_pPrimitiveArgs++) = *(_ostack++); }); // *(_pObjectArgs++) = CObject(*(_ostack++));
+		/* objects           */ { *(_pObjectArgs++) = cherijni_sealObject(*(_ostack++)); });
 
 	register_t a0 = pPrimitiveArgs[0];
 	register_t a1 = pPrimitiveArgs[1];

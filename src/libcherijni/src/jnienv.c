@@ -41,8 +41,7 @@ static jclass FindClass(JNIEnv *env, const char *className) {
 	 * pass it as a pointer with the default capability
 	 */
 	if (hostInvoke_1(FindClass, env, (register_t) className) == 0) {
-		jclass result = (jclass) cherijni_obj_storecap(env, cherijni_output);
-		return result;
+		return (jclass) cherijni_obj_storecap(env, cherijni_output);
 	} else {
 		printf("[SANDBOX ERROR: call to FindClass failed]\n");
 		return NULL;
@@ -78,9 +77,9 @@ static struct _JNINativeInterface cherijni_JNIEnv_struct = {
 		NULL,
 		NULL,
 
-		&GetVersion,
+		GetVersion,
 		NULL, // DefineClass,
-		&FindClass,
+		FindClass,
 		NULL, // FromReflectedMethod,
 		NULL, // FromReflectedField,
 		NULL, // ToReflectedMethod,
@@ -106,7 +105,7 @@ static struct _JNINativeInterface cherijni_JNIEnv_struct = {
 		NULL, // NewObjectV,
 		NULL, // NewObjectA,
 		NULL, // GetObjectClass,
-		&IsInstanceOf,
+		IsInstanceOf,
 		NULL, // GetMethodID,
 		NULL, // CallObjectMethod,
 		NULL, // CallObjectMethodV,
@@ -308,11 +307,18 @@ static struct _JNINativeInterface cherijni_JNIEnv_struct = {
 		NULL, // GetDirectBufferCapacity,
 		NULL  // GetObjectRefType,
 };
-static JNIEnv cherijni_JNIEnv = &cherijni_JNIEnv_struct;
 
 JNIEnv *cherijni_getJNIEnv() {
-	cherijni_obj_init(&cherijni_JNIEnv_struct);
-	return &cherijni_JNIEnv;
+	void *mem = malloc(sizeof(JNIEnv) + sizeof(struct _JNINativeInterface));
+
+	JNIEnv *ppEnv = (JNIEnv*) mem;
+	struct _JNINativeInterface *pEnv = (struct _JNINativeInterface*) (ppEnv + 1);
+
+	memcpy(pEnv, &cherijni_JNIEnv_struct, sizeof(struct _JNINativeInterface));
+	cherijni_obj_init(pEnv);
+
+	*ppEnv = pEnv;
+	return ppEnv;
 }
 
 void cherijni_destroyJNIEnv(JNIEnv *ppEnv) {

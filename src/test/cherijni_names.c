@@ -6,6 +6,9 @@ typedef struct method_entry {
 	int type;
 } methodEntry;
 
+extern void cherijni_runTests(JNIEnv *env);
+
 methodEntry cherijni_MethodList[] = {
-	{NULL, NULL}
+	{"Java_gnu_java_nio_VMChannel_initIDs__", &cherijni_runTests, 1},
+	{NULL, NULL, 0}
 };
