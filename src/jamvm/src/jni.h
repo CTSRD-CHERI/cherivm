@@ -53,7 +53,7 @@ typedef float           jfloat;
 typedef double          jdouble;
 typedef jint            jsize;
 
-typedef pObject jobject;
+typedef void *jobject;
 typedef jobject jclass;
 typedef jobject jthrowable;
 typedef jobject jstring;
@@ -88,8 +88,8 @@ typedef struct {
     void *fnPtr;
 } JNINativeMethod;
 
-typedef pFieldBlock jfieldID;
-typedef pMethodBlock jmethodID;
+typedef void *jfieldID;
+typedef void *jmethodID;
 
 struct _JNINativeInterface;
 typedef const struct _JNINativeInterface *JNIEnv;
