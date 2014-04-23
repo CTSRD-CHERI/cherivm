@@ -30,10 +30,13 @@ extern register_t cherijni_trampoline(register_t methodnum,
                                __attribute__((cheri_ccall));
 
 extern void cherijni_initCapabilities();
-extern __capability void *cherijni_sealObject(pObject object);
-extern pObject cherijni_unsealObject(__capability void *cap);
-extern __capability void *cherijni_sealContext(pClass context);
-extern pClass cherijni_unsealContext(__capability void *cap);
+
+#define DECLARE_SEAL(TYPE, NAME)                                          \
+        extern __capability void *cherijni_seal##NAME (TYPE data);        \
+        extern TYPE cherijni_unseal##NAME (__capability void *datacap);
+
+DECLARE_SEAL(pObject, JavaObject)
+DECLARE_SEAL(pClass, Context)
 
 #endif
 

@@ -16,10 +16,12 @@
 
 extern const JNIEnv globalJNIEnv;
 
-#define unseal_obj(ptr)    cherijni_unsealObject(capAt(convPtr(ptr, cap_default)))
-#define return_obj(obj)    { *mem_output = cherijni_sealObject(obj); }
+#define arg_obj(ptr)    cherijni_unsealJavaObject(getCapabilityAt(convertSandboxPointer(ptr, cap_default)))
+#define arg_class(ptr)  checkIsClass(arg_obj(ptr))
+#define arg_str(ptr)    ((const char*) convertSandboxPointer(ptr, cap_default))
+#define return_obj(obj)    { *mem_output = cherijni_sealJavaObject(obj); }
 
-static inline void *convPtr(register_t guest_ptr, __capability void *cap_default) {
+static inline void *convertSandboxPointer(register_t guest_ptr, __capability void *cap_default) {
 	// NULL pointer will be zero
 	if (guest_ptr == 0)
 		return NULL;
@@ -34,13 +36,24 @@ static inline void *convPtr(register_t guest_ptr, __capability void *cap_default
 	return (void*) cheri_incbase(cap_default, guest_ptr);
 }
 
-static inline __capability void *capAt(void *ptr) {
+static inline __capability void *getCapabilityAt(void *ptr) {
 	if (((uintptr_t) ptr) & (sizeof(__capability void*) - 1)) {
 		jam_printf("Warning: sandbox gave a misaligned capability pointer\n");
 		return cheri_zerocap();
 	}
 
 	return *((__capability void**) ptr);
+}
+
+static inline pClass checkIsClass(pObject obj) {
+	if (obj == NULL)
+		return NULL;
+	else if (IS_CLASS(obj))
+		return (pClass) obj;
+	else {
+		jam_printf("Warning: expected a class object from sandbox\n");
+		return NULL;
+	}
 }
 
 register_t cherijni_trampoline(register_t methodnum,
@@ -76,10 +89,10 @@ register_t cherijni_trampoline(register_t methodnum,
 	case CHERIJNI_JNIEnv_DefineClass:
 		break;
 	case CHERIJNI_JNIEnv_FindClass:	{
-			const char *className = (const char*) convPtr(a1, cap_default);
+			const char *className = arg_str(a1);
 			jclass clazz = (*env)->FindClass(env, className);
 			return_obj(clazz);
-			return 0;
+			return CHERI_SUCCESS;
 		} break;
 	case CHERIJNI_JNIEnv_FromReflectedMethod:
 		break;
@@ -132,8 +145,8 @@ register_t cherijni_trampoline(register_t methodnum,
 	case CHERIJNI_JNIEnv_GetObjectClass:
 		break;
 	case CHERIJNI_JNIEnv_IsInstanceOf: {
-		jobject obj = unseal_obj(a1);
-		jclass clazz = unseal_obj(a2);
+		pObject obj = arg_obj(a1);
+		pClass clazz = arg_class(a2);
 		jboolean result = (*env)->IsInstanceOf(env, obj, clazz);
 		return (register_t) result;
 		} break;

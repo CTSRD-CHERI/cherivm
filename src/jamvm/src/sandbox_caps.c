@@ -20,50 +20,45 @@
  * of different type to the trampoline.
  */
 
-static __capability void *cherijni_seal   (pObject object, __capability void *sealcap);
-static pObject            cherijni_unseal (__capability void *objcap, __capability void *sealcap);
+static __capability void *cherijni_seal   (void *data, __capability void *sealcap);
+static void              *cherijni_unseal (__capability void *datacap, __capability void *sealcap);
 
-static uintptr_t          type_Object;
-static __capability void *sealcap_Object;
+#define DEFINE_SEAL(TYPE, NAME)                                     \
+        static uintptr_t          type_##NAME;                      \
+        static __capability void *sealcap_##NAME;                   \
+                                                                    \
+        __capability void *cherijni_seal##NAME (TYPE data) {        \
+        	return cherijni_seal(data, sealcap_##NAME);             \
+        }                                                           \
+                                                                    \
+        TYPE cherijni_unseal##NAME (__capability void *datacap) {   \
+        	return (TYPE) cherijni_unseal(datacap, sealcap_##NAME); \
+        }
+#define INIT_SEAL(NAME)         \
+        sealcap_##NAME = cheri_ptrtype(&type_##NAME, sizeof(uintptr_t), 0); // sets PERMIT_SEAL
 
-__capability void *cherijni_sealObject(pObject object) {
-	return cherijni_seal(object, sealcap_Object);
-}
-
-pObject cherijni_unsealObject(__capability void *objcap) {
-	return cherijni_unseal(objcap, sealcap_Object);
-}
-
-static uintptr_t          type_Context;
-static __capability void *sealcap_Context;
-
-__capability void *cherijni_sealContext(pClass context) {
-	return cherijni_seal(context, sealcap_Context);
-}
-
-pClass cherijni_unsealContext(__capability void *objcap) {
-	return (pClass) cherijni_unseal(objcap, sealcap_Context);
-}
+DEFINE_SEAL(pObject, JavaObject)
+DEFINE_SEAL(pClass, Context)
 
 void cherijni_initCapabilities() {
-	sealcap_Context = cheri_ptrtype(&type_Context, sizeof(uintptr_t), 0); // sets PERMIT_SEAL
-	sealcap_Object = cheri_ptrtype(&type_Object, sizeof(uintptr_t), 0); // sets PERMIT_SEAL
+	INIT_SEAL(JavaObject);
+	INIT_SEAL(Context);
 }
 
-static __capability void *cherijni_seal(pObject object, __capability void *sealcap) {
+static __capability void *cherijni_seal(void *object, __capability void *sealcap) {
 	if (object == NULL)
 		return cheri_zerocap();
 
-	__capability void *datacap_Object;
-	datacap_Object = cheri_ptrperm(object, sizeof(Object),
+	__capability void *datacap;
+	datacap = cheri_ptrperm(object, sizeof(uintptr_t),
 	                                   CHERI_PERM_LOAD | CHERI_PERM_STORE |
 	                                   CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE_CAP);
-	datacap_Object = cheri_sealdata(datacap_Object, sealcap);
+	datacap = cheri_sealdata(datacap, sealcap);
 
-	return datacap_Object;
+	return datacap;
 }
 
-static pObject cherijni_unseal(__capability void *objcap, __capability void *sealcap) {
+static void *cherijni_unseal(__capability void *objcap, __capability void *sealcap) {
 	// is it a valid capability?
 	if (!cheri_gettag(objcap))
 		return NULL;
@@ -81,7 +76,7 @@ static pObject cherijni_unseal(__capability void *objcap, __capability void *sea
 	}
 
 	// unseal, convert to a pointer, return
-	return (pObject) cheri_unseal(objcap, sealcap);
+	return (void*) cheri_unseal(objcap, sealcap);
 }
 
 #endif

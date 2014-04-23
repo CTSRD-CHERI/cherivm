@@ -37,8 +37,8 @@ void cherijni_runTests(JNIEnv *env) {
 
 	TEST_START("Objects are cached");
 	if ((*env)->FindClass) {
-		jobject obj1 = (*env)->FindClass(env, "java/lang/VMThrowable");
-		jobject obj2 = (*env)->FindClass(env, "java/lang/VMThrowable");
+		jclass obj1 = (*env)->FindClass(env, "java/lang/VMThrowable");
+		jclass obj2 = (*env)->FindClass(env, "java/lang/VMThrowable");
 		if (obj1 != NULL && obj1 == obj2)
 			TEST_PASSED;
 		else
