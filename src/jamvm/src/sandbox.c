@@ -122,9 +122,9 @@ uintptr_t *cherijni_callMethod(void* handle, void *native_func, pClass class, ch
 	/* Is it an instance call? */
 
 	if (class == NULL)
-		cThis = cherijni_sealObject(*(_ostack++));
+		cThis = cherijni_sealJavaObject((pObject) *(_ostack++));
 	else
-		cThis = cherijni_sealObject(class);
+		cThis = cherijni_sealJavaObject(class);
 
 	/* Count the arguments */
 
@@ -147,7 +147,7 @@ uintptr_t *cherijni_callMethod(void* handle, void *native_func, pClass class, ch
 	forEachArgument(sig,
 		/* single primitives */ { *(_pPrimitiveArgs++) = *(_ostack++); },
 		/* double primitives */ { *(_pPrimitiveArgs++) = *(_ostack++); _ostack++; },
-		/* objects           */ { *(_pObjectArgs++) = cherijni_sealObject((pObject) *(_ostack++)); });
+		/* objects           */ { *(_pObjectArgs++) = cherijni_sealJavaObject((pObject) *(_ostack++)); });
 
 	register_t a0 = pPrimitiveArgs[0];
 	register_t a1 = pPrimitiveArgs[1];
