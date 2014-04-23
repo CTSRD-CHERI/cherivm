@@ -68,7 +68,7 @@ register_t cherijni_trampoline(register_t methodnum,
 	 */
 	const pClass context = cherijni_unsealContext(cap_context);
 	if (!context)
-		return (-1);
+		return CHERI_FAIL;
 
 	switch(methodnum) {
 	case CHERIJNI_JNIEnv_GetVersion:
@@ -539,7 +539,7 @@ register_t cherijni_trampoline(register_t methodnum,
 		break;
 	}
 
-	return (-1);
+	return CHERI_FAIL;
 }
 
 #endif

@@ -94,10 +94,10 @@ register_t cherijni_invoke(u_int op,
 		} else if (entry->type == FNTYPE_OBJECT) {
 
 			printf("[SANDBOX: invoke method (obj) %s]\n", entry->name);
-			result = (-1);
+			result = CHERI_FAIL;
 
 		} else
-			result = (-1);
+			result = CHERI_FAIL;
 
 		printf("[SANDBOX: returning %p]\n", (void*) result);
 		cherijni_destroyJNIEnv(env);

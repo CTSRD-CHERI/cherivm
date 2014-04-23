@@ -59,7 +59,7 @@ static void ExceptionClear(JNIEnv *env) {
 
 static jboolean IsInstanceOf(JNIEnv *env, jobject obj, jclass clazz) {
 	register_t result = hostInvoke_2(IsInstanceOf, env, obj, clazz);
-	if (result < 0) {
+	if (result == CHERI_FAIL) {
 		printf("[SANDBOX ERROR: call to IsInstanceOf failed]\n");
 		return JNI_FALSE;
 	} else

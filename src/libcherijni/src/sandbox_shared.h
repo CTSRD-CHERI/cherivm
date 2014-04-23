@@ -17,6 +17,8 @@
 
 #define CString(str)                     (cheri_ptrperm(str, strlen(str) + 1, CHERI_PERM_LOAD))
 
+#define CHERI_FAIL                           (-1)
+
 #define CHERIJNI_METHOD_LOOKUP               0
 #define CHERIJNI_METHOD_ONLOAD_ONUNLOAD      1
 #define CHERIJNI_METHOD_RUN                  2
