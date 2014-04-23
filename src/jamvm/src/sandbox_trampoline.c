@@ -20,6 +20,7 @@ extern const JNIEnv globalJNIEnv;
 #define arg_class(ptr)  checkIsClass(arg_obj(ptr))
 #define arg_str(ptr)    ((const char*) convertSandboxPointer(ptr, cap_default))
 #define return_obj(obj)    { *mem_output = cherijni_sealJavaObject(obj); }
+#define return_fid(field)  { *mem_output = cherijni_sealFieldID(field); }
 
 static inline void *convertSandboxPointer(register_t guest_ptr, __capability void *cap_default) {
 	// NULL pointer will be zero
@@ -272,8 +273,14 @@ register_t cherijni_trampoline(register_t methodnum,
 		break;
 	case CHERIJNI_JNIEnv_CallNonvirtualVoidMethodA:
 		break;
-	case CHERIJNI_JNIEnv_GetFieldID:
-		break;
+	case CHERIJNI_JNIEnv_GetFieldID: {
+		pClass clazz = arg_class(a1);
+		const char *name = arg_str(a2);
+		const char *sig = arg_str(a3);
+		jfieldID result = (*env)->GetFieldID(env, clazz, name, sig);
+		return_fid(result);
+		return CHERI_SUCCESS;
+		} break;
 	case CHERIJNI_JNIEnv_GetObjectField:
 		break;
 	case CHERIJNI_JNIEnv_GetBooleanField:

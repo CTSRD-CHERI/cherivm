@@ -158,7 +158,7 @@ static struct _JNINativeInterface cherijni_JNIEnv_struct = {
 		NULL, // CallNonvirtualVoidMethod,
 		NULL, // CallNonvirtualVoidMethodV,
 		NULL, // CallNonvirtualVoidMethodA,
-		NULL, // GetFieldID,
+		GetFieldID,
 		NULL, // GetObjectField,
 		NULL, // GetBooleanField,
 		NULL, // GetByteField,

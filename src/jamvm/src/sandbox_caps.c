@@ -39,10 +39,12 @@ static void              *cherijni_unseal (__capability void *datacap, __capabil
 
 DEFINE_SEAL(pObject, JavaObject)
 DEFINE_SEAL(pClass, Context)
+DEFINE_SEAL(pFieldBlock, FieldID)
 
 void cherijni_initCapabilities() {
 	INIT_SEAL(JavaObject);
 	INIT_SEAL(Context);
+	INIT_SEAL(FieldID);
 }
 
 static __capability void *cherijni_seal(void *object, __capability void *sealcap) {

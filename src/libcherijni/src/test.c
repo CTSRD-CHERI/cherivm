@@ -46,5 +46,20 @@ void cherijni_runTests(JNIEnv *env) {
 	} else
 		TEST_FAILED;
 
+	TEST_START("GetFieldID (legitimate)");
+	if ((*env)->FindClass && (*env)->GetFieldID) {
+		jclass clazz = (*env)->FindClass(env, "gnu/java/nio/VMChannel");
+		if (clazz == NULL)
+			TEST_FAILED;
+		else {
+			jfieldID field = (*env)->GetFieldID(env, clazz, "kind", "Lgnu/java/nio/VMChannel$Kind;");
+			if (field != NULL)
+				TEST_PASSED;
+			else
+				TEST_FAILED;
+		}
+	} else
+		TEST_FAILED;
+
 	printf("[SANDBOX: Finished running tests...]\n");
 }
