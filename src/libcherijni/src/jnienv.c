@@ -25,9 +25,9 @@ static __capability void *cherijni_output;
 	    CHERIJNI_JNIEnv_ ## name, \
 	    a1, a2, 0, 0, 0, 0, 0, \
 	    cheri_getdefault(), \
-	    cheri_zerocap(), \
+	    *((__capability void**) ((*env)->cherijni_context)), \
 		COutput, \
-	    cheri_zerocap, cheri_zerocap(), cheri_zerocap(), cheri_zerocap(), cheri_zerocap()))
+	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(), cheri_zerocap(), cheri_zerocap()))
 #define hostInvoke_1(name, env, a1)     hostInvoke_2(name, env, a1, 0)
 #define hostInvoke_0(name, env)         hostInvoke_1(name, env, 0)
 
@@ -308,13 +308,14 @@ static struct _JNINativeInterface cherijni_JNIEnv_struct = {
 		NULL  // GetObjectRefType,
 };
 
-JNIEnv *cherijni_getJNIEnv() {
+JNIEnv *cherijni_getJNIEnv(__capability void **context) {
 	void *mem = malloc(sizeof(JNIEnv) + sizeof(struct _JNINativeInterface));
 
 	JNIEnv *ppEnv = (JNIEnv*) mem;
 	struct _JNINativeInterface *pEnv = (struct _JNINativeInterface*) (ppEnv + 1);
 
 	memcpy(pEnv, &cherijni_JNIEnv_struct, sizeof(struct _JNINativeInterface));
+	pEnv->cherijni_context = context;
 	cherijni_obj_init(pEnv);
 
 	*ppEnv = pEnv;

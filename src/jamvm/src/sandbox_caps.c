@@ -37,8 +37,12 @@ pObject cherijni_unsealObject(__capability void *objcap) {
 static uintptr_t          type_Context;
 static __capability void *sealcap_Context;
 
-__capability void *cherijni_sealJNIContext(pClass context) {
+__capability void *cherijni_sealContext(pClass context) {
 	return cherijni_seal(context, sealcap_Context);
+}
+
+pClass cherijni_unsealContext(__capability void *objcap) {
+	return (pClass) cherijni_unseal(objcap, sealcap_Context);
 }
 
 void cherijni_initCapabilities() {
@@ -54,7 +58,7 @@ static __capability void *cherijni_seal(pObject object, __capability void *sealc
 	datacap_Object = cheri_ptrperm(object, sizeof(Object),
 	                                   CHERI_PERM_LOAD | CHERI_PERM_STORE |
 	                                   CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE_CAP);
-	datacap_Object = cheri_sealdata(datacap_Object, sealcap_Object);
+	datacap_Object = cheri_sealdata(datacap_Object, sealcap);
 
 	return datacap_Object;
 }
@@ -77,7 +81,7 @@ static pObject cherijni_unseal(__capability void *objcap, __capability void *sea
 	}
 
 	// unseal, convert to a pointer, return
-	return (pObject) cheri_unseal(objcap, sealcap_Object);
+	return (pObject) cheri_unseal(objcap, sealcap);
 }
 
 #endif

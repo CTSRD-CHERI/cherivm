@@ -210,8 +210,8 @@ op##_FIELD(Double, jdouble)
 
 
 struct _JNINativeInterface {
-    void *object_storage;
-    void *reserved1;
+    void *cherijni_context;
+    void *cherijni_objStorage;
     void *reserved2;
     void *reserved3;
 

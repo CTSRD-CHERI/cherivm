@@ -30,9 +30,10 @@ extern register_t cherijni_trampoline(register_t methodnum,
                                __attribute__((cheri_ccall));
 
 extern void cherijni_initCapabilities();
-extern __capability void *cherijni_sealJNIContext(pClass context);
 extern __capability void *cherijni_sealObject(pObject object);
 extern pObject cherijni_unsealObject(__capability void *cap);
+extern __capability void *cherijni_sealContext(pClass context);
+extern pClass cherijni_unsealContext(__capability void *cap);
 
 #endif
 

@@ -8,10 +8,10 @@ typedef struct cherijni_obj_storage {
 } ObjectStorage;
 
 void cherijni_obj_init(struct _JNINativeInterface *env) {
-	if (env->object_storage == NULL) {
+	if (env->cherijni_objStorage == NULL) {
 		ObjectStorage *store = malloc(sizeof(ObjectStorage));
 		memset(store, 0, sizeof(ObjectStorage));
-		env->object_storage = store;
+		env->cherijni_objStorage = store;
 	}
 }
 
@@ -28,7 +28,7 @@ jobject cherijni_obj_storecap(JNIEnv *env, __capability void *cobj) {
 	if (!cheri_gettag(cobj))
 		return NULL;
 
-	ObjectStorage *store = (ObjectStorage*) (*env)->object_storage;
+	ObjectStorage *store = (ObjectStorage*) (*env)->cherijni_objStorage;
 
 	__capability void **slot = store->caps + (store->used_slots++);
 	(*slot) = cobj;

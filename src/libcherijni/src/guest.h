@@ -23,7 +23,7 @@
 extern struct cheri_object cherijni_SystemObject;
 
 extern JavaVM *cherijni_getJavaVM();
-extern JNIEnv *cherijni_getJNIEnv();
+extern JNIEnv *cherijni_getJNIEnv(__capability void **context);
 extern void cherijni_destroyJNIEnv(JNIEnv *ppEnv);
 extern void cherijni_runTests(JNIEnv *env);
 

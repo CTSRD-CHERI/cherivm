@@ -58,7 +58,7 @@ void *cherijni_open(char *path) {
 }
 
 void cherijni_runTests(void *handle, pClass context) {
-	__capability void *cJNIContext = cherijni_sealJNIContext(context);
+	__capability void *cJNIContext = cherijni_sealContext(context);
 	CInvoke_0_1(handle, CHERIJNI_METHOD_TEST, cJNIContext);
 }
 
@@ -115,7 +115,7 @@ jint cherijni_callOnLoadUnload(void *handle, void *ptr, JavaVM *jvm, void *reser
 }
 
 uintptr_t *cherijni_callMethod(void* handle, void *native_func, pClass class, char *sig, uintptr_t *ostack) {
-	__capability void *cJNIContext = cherijni_sealJNIContext(class);
+	__capability void *cContext = cherijni_sealContext(class);
 	__capability void *cThis;
 	uintptr_t *_ostack = ostack;
 
@@ -147,7 +147,7 @@ uintptr_t *cherijni_callMethod(void* handle, void *native_func, pClass class, ch
 	forEachArgument(sig,
 		/* single primitives */ { *(_pPrimitiveArgs++) = *(_ostack++); },
 		/* double primitives */ { *(_pPrimitiveArgs++) = *(_ostack++); _ostack++; },
-		/* objects           */ { *(_pObjectArgs++) = cherijni_sealObject(*(_ostack++)); });
+		/* objects           */ { *(_pObjectArgs++) = cherijni_sealObject((pObject) *(_ostack++)); });
 
 	register_t a0 = pPrimitiveArgs[0];
 	register_t a1 = pPrimitiveArgs[1];
@@ -163,7 +163,7 @@ uintptr_t *cherijni_callMethod(void* handle, void *native_func, pClass class, ch
 
 	jam_printf("Calling cherijni function %p with handle %p and %d args\n", native_func, handle, cPrimitiveArgs + cObjectArgs);
 
-	register_t result = CInvoke_7_6(handle, CHERIJNI_METHOD_RUN, native_func, a0, a1, a2, a3, a4, a5, cJNIContext, cThis, c0, c1, c2, c3);
+	register_t result = CInvoke_7_6(handle, CHERIJNI_METHOD_RUN, native_func, a0, a1, a2, a3, a4, a5, cContext, cThis, c0, c1, c2, c3);
 
 	// TODO: if it returns (-1), it *might* have failed executing!
 	// TODO: ask rwatson: how much would it take to return the error code in $v1?

@@ -41,9 +41,9 @@ register_t cherijni_invoke(u_int op,
                            register_t a1, register_t a2, register_t a3,
                            register_t a4, register_t a5, register_t a6,
                            register_t a7, struct cheri_object system_object,
-                           __capability void *c5, __capability void *c6,
-                           __capability void *c7, __capability void *c8,
-                           __capability void *c9, __capability void *c10) {
+                           __capability void *c1, __capability void *c2,
+                           __capability void *c3, __capability void *c4,
+                           __capability void *c5, __capability void *c6) {
 
 	cheri_system_setup(system_object);
 	cherijni_SystemObject = system_object;
@@ -54,7 +54,7 @@ register_t cherijni_invoke(u_int op,
 		 * Find method by its name stored in $c5
 		 */
 
-		char *method_name = cherijni_extractHostString(c5);
+		char *method_name = cherijni_extractHostString(c1);
 		void *method_ptr = cherijni_methodLookup(method_name);
 		return (register_t) method_ptr;
 
@@ -77,7 +77,7 @@ register_t cherijni_invoke(u_int op,
 		 */
 
 		methodEntry *entry = (methodEntry*) a1;
-		JNIEnv *env = cherijni_getJNIEnv();
+		JNIEnv *env = cherijni_getJNIEnv(&c1);
 		register_t result;
 
 		if (entry->type == FNTYPE_VOID) {

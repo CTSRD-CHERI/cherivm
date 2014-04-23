@@ -50,11 +50,25 @@ register_t cherijni_trampoline(register_t methodnum,
                                __capability void *cap_default,
                                __capability void *cap_context,
                                __capability void *cap_output,
-                               __capability void *c2, __capability void *c3)
+                               __capability void *c1, __capability void *c2)
                                __attribute__((cheri_ccall)) {
 
 	JNIEnv *env = &globalJNIEnv;
-	__capability void **mem_output = (__capability void **) cap_output;
+
+	/*
+	 * Convert the output capability to a pointer.
+	 * TODO: test it is not sealed, has the right size, etc...
+	 */
+	const __capability void **mem_output = (__capability void **) cap_output;
+
+	/*
+	 * The call must provide a context (sealed pClass).
+	 * unsealContext will check it is correct (and of correct type),
+	 * hence if it returns NULL, a correct context has not been provided
+	 */
+	const pClass context = cherijni_unsealContext(cap_context);
+	if (!context)
+		return (-1);
 
 	switch(methodnum) {
 	case CHERIJNI_JNIEnv_GetVersion:
