@@ -59,7 +59,7 @@ register_t cherijni_trampoline(register_t methodnum,
 	 * Convert the output capability to a pointer.
 	 * TODO: test it is not sealed, has the right size, etc...
 	 */
-	const __capability void **mem_output = (__capability void **) cap_output;
+	__capability void **mem_output = (__capability void **) cap_output;
 
 	/*
 	 * The call must provide a context (sealed pClass).
