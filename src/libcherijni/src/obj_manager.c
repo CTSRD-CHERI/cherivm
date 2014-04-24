@@ -25,7 +25,7 @@ jobject cherijni_obj_storecap(JNIEnv *env, __capability void *cobj) {
 	size_t i, j;
 
 	// don't store NULLs
-	if (!cheri_gettag(cobj))
+	if (!cheri_gettag(cobj) || (cobj == CNULL))
 		return NULL;
 
 	ObjectStorage *store = (ObjectStorage*) (*env)->cherijni_objStorage;

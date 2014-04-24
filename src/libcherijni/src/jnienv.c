@@ -54,9 +54,7 @@ static jboolean IsInstanceOf(JNIEnv *env, jobject obj, jclass clazz) {
 static jfieldID GetFieldID(JNIEnv *env, jclass clazz, const char *name, const char *sig) {
 	register_t res = hostInvoke_3(GetFieldID, clazz, name, sig);
 	checkCheriFail(res, NULL);
-	CHERI_CAP_PRINT(cherijni_output);
 	jfieldID f = (jfieldID) getOutput;
-	printf("GetFieldID => %p\n", f);
 	return f;
 }
 

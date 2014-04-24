@@ -4,6 +4,8 @@
 #include <cheri/cheri_enter.h>
 #include <machine/cheric.h>
 
+#define CNULL   ((__capability void*) 0)
+
 #define	CHERI_CAP_PRINT(cap) do {					\
 	printf("tag %ju u %ju perms %08jx type %016jx\n",		\
 	    (uintptr_t)cheri_gettag(cap),				\

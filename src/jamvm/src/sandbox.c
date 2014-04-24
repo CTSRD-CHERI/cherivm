@@ -43,19 +43,15 @@ DEFINE_SEAL_VARS(pObject, JavaObject)
 DEFINE_SEAL_VARS(pClass, Context)
 DEFINE_SEAL_VARS(pFieldBlock, FieldID)
 
-//static __capability void *cherijni_seal(void *object, __capability void *sealcap) {
-//	if (object == NULL)
-//		return cheri_zerocap();
-//	else
-//		return cheri_sealdata(
-//		        cheri_ptr(object, sizeof(uintptr_t)),
-//                sealcap);
-//}
-
-static void *cherijni_unseal(__capability void *objcap, __capability void *sealcap) {
-	// is it a valid capability?
-	if (!cheri_gettag(objcap))
+static inline void *cherijni_unseal(__capability void *objcap, __capability void *sealcap) {
+	if (objcap == CNULL)
 		return NULL;
+
+	// is it a valid capability?
+	if (!cheri_gettag(objcap)) {
+		jam_printf("Warning: provided cap cannot be unsealed (tag not set)\n");
+		return NULL;
+	}
 
 	// is it sealed?
 	if (cheri_getunsealed(objcap)) {
@@ -312,10 +308,7 @@ JNI_FUNCTION(GetFieldID)
 	pFieldBlock result = (*env)->GetFieldID(env, clazz, name, sig);
 	if (!checkFieldAccess(result, context))
 		result = NULL;
-	__capability void *out;
-	out = cap_seal(FieldID, result);
-	CHERI_CAP_PRINT(out);
-	(*mem_output) = out;
+	return_fid(result);
 	return CHERI_SUCCESS;
 }
 
