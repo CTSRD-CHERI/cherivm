@@ -30,9 +30,14 @@ jobject cherijni_obj_storecap(JNIEnv *env, __capability void *cobj) {
 
 	ObjectStorage *store = (ObjectStorage*) (*env)->cherijni_objStorage;
 
-	__capability void **slot = store->caps + (store->used_slots++);
-	(*slot) = cobj;
-	return (jobject) slot;
+	// check if already stored
+	for (i = 0; i < store->used_slots; i++)
+		if (store->caps[i] == cobj)
+			return &(store->caps[i]);
+
+	// create a new slot;
+	store->caps[store->used_slots] = cobj;
+	return (jobject) &(store->caps[store->used_slots++]);
 }
 
 __capability void *cherijni_obj_loadcap(JNIEnv *env, jobject obj) {
