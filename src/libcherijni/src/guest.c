@@ -15,8 +15,8 @@ extern methodEntry cherijni_MethodList[];
 struct cheri_object cherijni_SystemObject;
 
 typedef jint (*fn_init)(JavaVM*, void*);
-typedef void (*fn_void)(JNIEnv*, register_t, register_t, register_t, register_t, register_t, register_t);
-typedef register_t (*fn_prim)(JNIEnv*, register_t, register_t, register_t, register_t, register_t, register_t);
+typedef void (*fn_void)(JNIEnv*, register_t, register_t, register_t, register_t, register_t, register_t, register_t);
+typedef register_t (*fn_prim)(JNIEnv*, register_t, register_t, register_t, register_t, register_t, register_t, register_t);
 
 static char* cherijni_extractHostString(__capability char* str_cap) {
 	unsigned int i;
@@ -56,6 +56,7 @@ register_t cherijni_invoke(u_int op,
 
 		char *method_name = cherijni_extractHostString(c1);
 		void *method_ptr = cherijni_methodLookup(method_name);
+		free(method_name);
 		return (register_t) method_ptr;
 
 	} else if (op == CHERIJNI_METHOD_ONLOAD_ONUNLOAD) {
@@ -77,19 +78,32 @@ register_t cherijni_invoke(u_int op,
 		 */
 
 		methodEntry *entry = (methodEntry*) a1;
-		JNIEnv *env = cherijni_getJNIEnv(&c1);
+		__capability void *cap_context = CNULL;
+		char *signature = cherijni_extractHostString(c1);
+		JNIEnv *env = cherijni_getJNIEnv(&cap_context);
 		register_t result;
+
+		register_t args_prim[] = { a2, a3, a4, a5, a6, a7 };
+		__capability void *args_objs[] = { c3, c4, c5, c6 };
+		size_t args_prim_ready = 0, args_objs_ready = 0;
+
+		register_t args_this = (register_t) cherijni_obj_storecap(env, c2);
+		register_t args_ready[6];
+		forEachArgument(signature,
+			/* single primitives */ { args_ready[args_prim_ready + args_objs_ready] = args_prim[args_prim_ready]; args_prim_ready++; },
+			/* double primitives */ { args_ready[args_prim_ready + args_objs_ready] = args_prim[args_prim_ready]; args_prim_ready++; },
+			/* objects           */ { args_ready[args_prim_ready + args_objs_ready] = (register_t) cherijni_obj_storecap(env, args_objs[args_objs_ready]); args_objs_ready++; });
 
 		if (entry->type == FNTYPE_VOID) {
 
 			printf("[SANDBOX: invoke method (void) %s]\n", entry->name);
-			((fn_void) entry->func)(env, a2, a3, a4, a5, a6, a7);
+			((fn_void) entry->func)(env, args_this, args_ready[0], args_ready[1], args_ready[2], args_ready[3], args_ready[4], args_ready[5]);
 			result = 0;
 
 		} else if (entry->type == FNTYPE_PRIMITIVE) {
 
 			printf("[SANDBOX: invoke method (prim) %s]\n", entry->name);
-			result = ((fn_prim) entry->func)(env, a2, a3, a4, a5, a6, a7);
+			result = ((fn_prim) entry->func)(env, args_this, args_ready[0], args_ready[1], args_ready[2], args_ready[3], args_ready[4], args_ready[5]);
 
 		} else if (entry->type == FNTYPE_OBJECT) {
 
@@ -100,6 +114,8 @@ register_t cherijni_invoke(u_int op,
 			result = CHERI_FAIL;
 
 		printf("[SANDBOX: returning %p]\n", (void*) result);
+
+		free(signature);
 		cherijni_destroyJNIEnv(env);
 		return result;
 

@@ -19,6 +19,46 @@
 
 #define CString(str)                     (cheri_ptrperm(str, strlen(str) + 1, CHERI_PERM_LOAD))
 
+#define forEachArgument(sig, SCAN_PRIM_SINGLE, SCAN_PRIM_DOUBLE, SCAN_OBJECT) \
+{                                         \
+	char *s = sig;                        \
+	char c = s[1];                        \
+	while (c != ')') {                    \
+		if (c == 'D' || c == 'J')         \
+			SCAN_PRIM_DOUBLE              \
+		else {                            \
+			if (c == 'L' || c == '[')     \
+				SCAN_OBJECT               \
+			else                          \
+				SCAN_PRIM_SINGLE          \
+			                              \
+			while (c == '[')              \
+				c = (++s)[1];             \
+			if (c == 'L')                 \
+				while (c != ';')          \
+					c = (++s)[1];         \
+		}                                 \
+		c = (++s)[1];                     \
+	}                                     \
+}
+
+#define forReturnType(sig, SCAN_VOID, SCAN_PRIM_SINGLE, SCAN_PRIM_DOUBLE, SCAN_OBJECT) \
+{                                         \
+	char *s = sig;                        \
+	char c = s[1];                        \
+	while (c != ')')                      \
+		c = (++s)[1];                     \
+	c = (++s)[1];                         \
+	if (c == 'V')                         \
+        SCAN_VOID                         \
+	else if (c == 'D' || c == 'J')        \
+		SCAN_PRIM_DOUBLE                  \
+	else if (c == 'L' || c == '[')        \
+		SCAN_OBJECT                       \
+	else                                  \
+		SCAN_PRIM_SINGLE                  \
+}
+
 #define CHERI_FAIL                           (-1)
 #define CHERI_SUCCESS                        0
 

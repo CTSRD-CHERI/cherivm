@@ -8,6 +8,7 @@ static __capability void *cherijni_output;
 #define COutput (cheri_ptrperm(&cherijni_output, sizeof(__capability void*), CHERI_PERM_STORE | CHERI_PERM_STORE_CAP))
 
 #define checkCheriFail(errcode, func_result)   { if (errcode == CHERI_FAIL) { printf("[SANDBOX ERROR: call to %s failed]\n", __func__); return func_result; } }
+#define checkCheriFail_void(errcode)   { if (errcode == CHERI_FAIL) { printf("[SANDBOX ERROR: call to %s failed]\n", __func__); return; } }
 #define getOutput ( cherijni_obj_storecap(env, cherijni_output) )
 #define return_obj(TYPE) return (TYPE) getOutput
 
@@ -38,13 +39,24 @@ static jclass FindClass(JNIEnv *env, const char *className) {
 	return_obj(jclass);
 }
 
-static jthrowable ExceptionOccured(JNIEnv *env) {
-	printf("[JNIEnv %s stub]\n", __func__);
-	return NULL;
+static jint ThrowNew(JNIEnv *env, jclass clazz, const char *msg) {
+	register_t res = hostInvoke_2(GetStaticMethodID, clazz, msg);
+	checkCheriFail(res, -1);
+	return (jint) res;
+}
+
+static jthrowable ExceptionOccurred(JNIEnv *env) {
+	register res = hostInvoke_0(FindClass);
+	checkCheriFail(res, NULL);
+	return_obj(jthrowable);
+}
+
+static void ExceptionDescribe(JNIEnv *env) {
+	checkCheriFail_void(hostInvoke_0(ExceptionDescribe))
 }
 
 static void ExceptionClear(JNIEnv *env) {
-	printf("[JNIEnv %s stub]\n", __func__);
+	checkCheriFail_void(hostInvoke_0(ExceptionClear));
 }
 
 static jboolean IsInstanceOf(JNIEnv *env, jobject obj, jclass clazz) {
@@ -53,15 +65,22 @@ static jboolean IsInstanceOf(JNIEnv *env, jobject obj, jclass clazz) {
 	return res;
 }
 
+static jmethodID GetMethodID(JNIEnv *env, jclass clazz, const char *name, const char *sig) {
+	register_t res = hostInvoke_3(GetMethodID, clazz, name, sig);
+	checkCheriFail(res, NULL);
+	return_obj(jmethodID);
+}
+
 static jfieldID GetFieldID(JNIEnv *env, jclass clazz, const char *name, const char *sig) {
 	register_t res = hostInvoke_3(GetFieldID, clazz, name, sig);
 	checkCheriFail(res, NULL);
 	return_obj(jfieldID);
 }
 
-static jint ThrowNew(JNIEnv *env, jclass clazz, const char *msg) {
-	printf("[JNIEnv %s stub]\n", __func__);
-	return (-1);
+static jmethodID GetStaticMethodID(JNIEnv *env, jclass clazz, const char *name, const char *sig) {
+	register_t res = hostInvoke_3(GetStaticMethodID, clazz, name, sig);
+	checkCheriFail(res, NULL);
+	return_obj(jmethodID);
 }
 
 static struct _JNINativeInterface cherijni_JNIEnv_struct = {
@@ -80,10 +99,10 @@ static struct _JNINativeInterface cherijni_JNIEnv_struct = {
 		NULL, // IsAssignableFrom,
 		NULL, // ToReflectedField,
 		NULL, // Throw,
-		NULL, // ThrowNew,
-		NULL, // ExceptionOccurred,
-		NULL, // ExceptionDescribe,
-		NULL, // ExceptionClear,
+		ThrowNew,
+		ExceptionOccurred,
+		ExceptionDescribe,
+		ExceptionClear,
 		NULL, // FatalError,
 		NULL, // PushLocalFrame,
 		NULL, // PopLocalFrame,
@@ -99,7 +118,7 @@ static struct _JNINativeInterface cherijni_JNIEnv_struct = {
 		NULL, // NewObjectA,
 		NULL, // GetObjectClass,
 		IsInstanceOf,
-		NULL, // GetMethodID,
+		GetMethodID,
 		NULL, // CallObjectMethod,
 		NULL, // CallObjectMethodV,
 		NULL, // CallObjectMethodA,
@@ -179,7 +198,7 @@ static struct _JNINativeInterface cherijni_JNIEnv_struct = {
 		NULL, // SetLongField,
 		NULL, // SetFloatField,
 		NULL, // SetDoubleField,
-		NULL, // GetStaticMethodID,
+		GetStaticMethodID,
 		NULL, // CallStaticObjectMethod,
 		NULL, // CallStaticObjectMethodV,
 		NULL, // CallStaticObjectMethodA,

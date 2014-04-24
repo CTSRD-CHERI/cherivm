@@ -41,6 +41,7 @@ static void              *cherijni_unseal (__capability void *datacap, __capabil
 
 DEFINE_SEAL_VARS(pObject, JavaObject)
 DEFINE_SEAL_VARS(pClass, Context)
+DEFINE_SEAL_VARS(pMethodBlock, MethodID)
 DEFINE_SEAL_VARS(pFieldBlock, FieldID)
 
 static inline void *cherijni_unseal(__capability void *objcap, __capability void *sealcap) {
@@ -194,6 +195,7 @@ uintptr_t *cherijni_callMethod(void* handle, void *native_func, pClass class, ch
 #define arg_class(ptr)  checkIsClass(arg_obj(ptr))
 #define arg_str(ptr)    ((const char*) convertSandboxPointer(ptr, cap_default))
 #define return_obj(obj)    { *mem_output = cap_seal(JavaObject, obj); }
+#define return_mid(field)  { (*mem_output) = cap_seal(MethodID, field); }
 #define return_fid(field)  { (*mem_output) = cap_seal(FieldID, field); }
 
 static inline void *convertSandboxPointer(register_t guest_ptr, __capability void *cap_default) {
@@ -212,6 +214,9 @@ static inline void *convertSandboxPointer(register_t guest_ptr, __capability voi
 }
 
 static inline __capability void *getCapabilityAt(void *ptr) {
+	if (ptr == NULL)
+		return CNULL;
+
 	if (((uintptr_t) ptr) & (sizeof(__capability void*) - 1)) {
 		jam_printf("Warning: sandbox gave a misaligned capability pointer\n");
 		return cheri_zerocap();
@@ -255,11 +260,48 @@ JNI_FUNCTION(FindClass)
 	return CHERI_SUCCESS;
 }
 
+JNI_FUNCTION(ThrowNew)
+	pClass clazz = arg_class(a1);
+	const char *msg = arg_str(a2);
+	return (*env)->ThrowNew(env, clazz, msg);
+}
+
+JNI_FUNCTION(ExceptionOccurred)
+	jthrowable ex = (*env)->ExceptionOccurred(env);
+	return_obj(ex);
+	return CHERI_SUCCESS;
+}
+
+JNI_FUNCTION(ExceptionDescribe)
+	(*env)->ExceptionDescribe(env);
+	return CHERI_SUCCESS;
+}
+
+JNI_FUNCTION(ExceptionClear)
+	(*env)->ExceptionClear(env);
+	return CHERI_SUCCESS;
+}
+
 JNI_FUNCTION(IsInstanceOf)
 	pObject obj = arg_obj(a1);
 	pClass clazz = arg_class(a2);
 	jboolean result = (*env)->IsInstanceOf(env, obj, clazz);
 	return (register_t) result;
+}
+
+JNI_FUNCTION(GetMethodID)
+	pClass clazz = arg_class(a1);
+	const char *name = arg_str(a2);
+	const char *sig = arg_str(a3);
+	pMethodBlock result = (*env)->GetMethodID(env, clazz, name, sig);
+#ifdef JNI_CHERI_STRICT
+	if (!checkMethodAccess(result, context)) {
+		jam_printf("Warning: sandbox requested a method outside its execution context\n");
+		result = NULL;
+	}
+#endif
+	return_mid(result);
+	return CHERI_SUCCESS;
 }
 
 JNI_FUNCTION(GetFieldID)
@@ -276,6 +318,22 @@ JNI_FUNCTION(GetFieldID)
 	return_fid(result);
 	return CHERI_SUCCESS;
 }
+
+JNI_FUNCTION(GetStaticMethodID)
+	pClass clazz = arg_class(a1);
+	const char *name = arg_str(a2);
+	const char *sig = arg_str(a3);
+	pMethodBlock result = (*env)->GetStaticMethodID(env, clazz, name, sig);
+#ifdef JNI_CHERI_STRICT
+	if (!checkMethodAccess(result, context)) {
+		jam_printf("Warning: sandbox requested a static method outside its execution context\n");
+		result = NULL;
+	}
+#endif
+	return_mid(result);
+	return CHERI_SUCCESS;
+}
+
 
 register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a2, register_t a3, register_t a4, register_t a5, register_t a6, register_t a7, struct cheri_object system_object, __capability void *cap_default, __capability void *cap_context, __capability void *cap_output, __capability void *c1, __capability void *c2) __attribute__((cheri_ccall)) {
 	switch(methodnum) {
@@ -300,13 +358,13 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 	case CHERIJNI_JNIEnv_Throw:
 		break;
 	case CHERIJNI_JNIEnv_ThrowNew:
-		break;
+		return CALL_JNI(ThrowNew);
 	case CHERIJNI_JNIEnv_ExceptionOccurred:
-		break;
+		return CALL_JNI(ExceptionOccurred);
 	case CHERIJNI_JNIEnv_ExceptionDescribe:
-		break;
+		return CALL_JNI(ExceptionDescribe);
 	case CHERIJNI_JNIEnv_ExceptionClear:
-		break;
+		return CALL_JNI(ExceptionClear);
 	case CHERIJNI_JNIEnv_FatalError:
 		break;
 	case CHERIJNI_JNIEnv_PushLocalFrame:
@@ -338,7 +396,7 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 	case CHERIJNI_JNIEnv_IsInstanceOf:
 		return CALL_JNI(IsInstanceOf);
 	case CHERIJNI_JNIEnv_GetMethodID:
-		break;
+		return CALL_JNI(GetMethodID);
 	case CHERIJNI_JNIEnv_CallObjectMethod:
 		break;
 	case CHERIJNI_JNIEnv_CallObjectMethodV:
@@ -498,7 +556,7 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 	case CHERIJNI_JNIEnv_SetDoubleField:
 		break;
 	case CHERIJNI_JNIEnv_GetStaticMethodID:
-		break;
+		return CALL_JNI(GetStaticMethodID);
 	case CHERIJNI_JNIEnv_CallStaticObjectMethod:
 		break;
 	case CHERIJNI_JNIEnv_CallStaticObjectMethodV:
@@ -746,6 +804,7 @@ void cherijni_init() {
 	cheri_system_user_register_fn(&cherijni_trampoline);
 	INIT_SEAL(JavaObject);
 	INIT_SEAL(Context);
+	INIT_SEAL(MethodID);
 	INIT_SEAL(FieldID);
 }
 
