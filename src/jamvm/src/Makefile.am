@@ -32,8 +32,7 @@ jamvm_SOURCES = alloc.c alloc.h cast.c class.c dll.c excep.c execute.c \
                 dll_ffi.c access.c frame.c init.c hooks.c class.h \
                 symbol.c symbol.h excep.h shutdown.c time.c reflect.h \
                 jni-internal.h properties.h sig.c jam.c \
-                sandbox.h sandbox.c sandbox_shared.h sandbox_trampoline.c \
-                sandbox_caps.c
+                sandbox.h sandbox.c sandbox_shared.h
 
 jamvm_LDADD =  interp/engine/libengine.la interp/libinterp.la os/@os@/@arch@/libnative.la os/@os@/libos.la libcheri.a
 jamvm_LDFLAGS = -all-static

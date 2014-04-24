@@ -5,6 +5,8 @@
 
 #include "jni.h"
 
+ #define DEFAULT_SANDBOX_MEM 4*MB
+
 extern void cherijni_init();
 extern char *cherijni_libName(char *name);
 extern void *cherijni_lookup(void *handle, char *methodName);
