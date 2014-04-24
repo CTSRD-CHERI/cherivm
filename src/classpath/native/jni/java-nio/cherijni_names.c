@@ -150,5 +150,5 @@ methodEntry cherijni_MethodList[] = {
 	{ "Java_java_nio_VMDirectByteBuffer_put__Lgnu_classpath_Pointer_2IB", &Java_java_nio_VMDirectByteBuffer_put__Lgnu_classpath_Pointer_2IB, 1 },
 	{ "Java_java_nio_VMDirectByteBuffer_put__Lgnu_classpath_Pointer_2I_3BII", &Java_java_nio_VMDirectByteBuffer_put__Lgnu_classpath_Pointer_2I_3BII, 1 },
 	{ "Java_java_nio_VMDirectByteBuffer_shiftDown", &Java_java_nio_VMDirectByteBuffer_shiftDown, 1 },
-	{NULL, NULL}
+	{NULL, NULL, 0}
 };
