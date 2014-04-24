@@ -28,7 +28,11 @@ static void              *cherijni_unseal (__capability void *datacap, __capabil
         static __capability void *sealcap_##NAME;                   \
                                                                     \
         __capability void *cherijni_seal##NAME (TYPE data) {        \
-        	return cherijni_seal(data, sealcap_##NAME);             \
+        	__capability void *cap;                                 \
+        	if (data == NULL) {                                     \
+        		cap = cheri_zerocap(); /*CHERI_CAP_PRINT(cap);*/ return cap;                             \
+        	} else                                                    \
+        		return cheri_sealdata(cheri_ptrperm(data, sizeof(uintptr_t), CHERI_PERM_LOAD), sealcap_##NAME); \
         }                                                           \
                                                                     \
         TYPE cherijni_unseal##NAME (__capability void *datacap) {   \
@@ -47,18 +51,14 @@ void cherijni_initCapabilities() {
 	INIT_SEAL(FieldID);
 }
 
-static __capability void *cherijni_seal(void *object, __capability void *sealcap) {
-	if (object == NULL)
-		return cheri_zerocap();
-
-	__capability void *datacap;
-	datacap = cheri_ptrperm(object, sizeof(uintptr_t),
-	                                   CHERI_PERM_LOAD | CHERI_PERM_STORE |
-	                                   CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE_CAP);
-	datacap = cheri_sealdata(datacap, sealcap);
-
-	return datacap;
-}
+//static __capability void *cherijni_seal(void *object, __capability void *sealcap) {
+//	if (object == NULL)
+//		return cheri_zerocap();
+//	else
+//		return cheri_sealdata(
+//		        cheri_ptr(object, sizeof(uintptr_t)),
+//                sealcap);
+//}
 
 static void *cherijni_unseal(__capability void *objcap, __capability void *sealcap) {
 	// is it a valid capability?

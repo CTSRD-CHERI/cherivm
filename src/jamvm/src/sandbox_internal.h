@@ -26,8 +26,7 @@ extern register_t cherijni_trampoline(register_t methodnum,
                                register_t a5, register_t a6, register_t a7,
                                struct cheri_object system_object, __capability void *c3,
                                __capability void *c4, __capability void *c5,
-                               __capability void *c6, __capability void *c7)
-                               __attribute__((cheri_ccall));
+                               __capability void *c6, __capability void *c7) __attribute__((cheri_ccall));
 
 extern void cherijni_initCapabilities();
 

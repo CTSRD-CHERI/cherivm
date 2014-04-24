@@ -61,5 +61,24 @@ void cherijni_runTests(JNIEnv *env) {
 	} else
 		TEST_FAILED;
 
+	TEST_START("GetFieldID (illegitimate)");
+	if ((*env)->FindClass && (*env)->GetFieldID) {
+		jclass clazz = (*env)->FindClass(env, "java/lang/VMThrowable");
+		if (clazz == NULL)
+			TEST_FAILED;
+		else {
+			/*
+			 * Try to access a private field inside an unrelated class.
+			 * Context check should prevent this!
+			 */
+			jfieldID field = (*env)->GetFieldID(env, clazz, "backtrace", "Ljava/lang/Object;");
+			if (field == NULL)
+				TEST_PASSED;
+			else
+				TEST_FAILED;
+		}
+	} else
+		TEST_FAILED;
+
 	printf("[SANDBOX: Finished running tests...]\n");
 }

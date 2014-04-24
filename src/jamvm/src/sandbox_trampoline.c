@@ -20,7 +20,7 @@ extern const JNIEnv globalJNIEnv;
 #define arg_class(ptr)  checkIsClass(arg_obj(ptr))
 #define arg_str(ptr)    ((const char*) convertSandboxPointer(ptr, cap_default))
 #define return_obj(obj)    { *mem_output = cherijni_sealJavaObject(obj); }
-#define return_fid(field)  { *mem_output = cherijni_sealFieldID(field); }
+#define return_fid(field)  { (*mem_output) = cherijni_sealFieldID(field); }
 
 static inline void *convertSandboxPointer(register_t guest_ptr, __capability void *cap_default) {
 	// NULL pointer will be zero
@@ -57,44 +57,57 @@ static inline pClass checkIsClass(pObject obj) {
 	}
 }
 
-register_t cherijni_trampoline(register_t methodnum,
-                               register_t a1, register_t a2, register_t a3, register_t a4,
-                               register_t a5, register_t a6, register_t a7,
-                               struct cheri_object system_object,
-                               __capability void *cap_default,
-                               __capability void *cap_context,
-                               __capability void *cap_output,
-                               __capability void *c1, __capability void *c2)
-                               __attribute__((cheri_ccall)) {
-
-	JNIEnv *env = &globalJNIEnv;
-
-	/*
-	 * Convert the output capability to a pointer.
-	 * TODO: test it is not sealed, has the right size, etc...
-	 */
-	__capability void **mem_output = (__capability void **) cap_output;
-
-	/*
-	 * The call must provide a context (sealed pClass).
-	 * unsealContext will check it is correct (and of correct type),
-	 * hence if it returns NULL, a correct context has not been provided
-	 */
-	const pClass context = cherijni_unsealContext(cap_context);
-	if (!context)
+#define JNI_FUNCTION(NAME) \
+	static register_t NAME (register_t a1, register_t a2, register_t a3, register_t a4, register_t a5, register_t a6, register_t a7, __capability void *cap_default, __capability void *cap_context, __capability void *cap_output, __capability void *c1, __capability void *c2) { \
+	JNIEnv *env = &globalJNIEnv; \
+	__capability void **mem_output = (void*) cap_output; \
+	const pClass context = cherijni_unsealContext(cap_context); \
+	if (!context) \
 		return CHERI_FAIL;
 
+#define CALL_JNI(NAME) \
+	NAME (a1, a2, a3, a4, a5, a6, a7, cap_default, cap_context, cap_output, c1, c2)
+
+JNI_FUNCTION(GetVersion)
+	return (*env)->GetVersion(env);
+}
+
+JNI_FUNCTION(FindClass)
+	const char *className = arg_str(a1);
+	jclass clazz = (*env)->FindClass(env, className);
+	return_obj(clazz);
+	return CHERI_SUCCESS;
+}
+
+JNI_FUNCTION(IsInstanceOf)
+	pObject obj = arg_obj(a1);
+	pClass clazz = arg_class(a2);
+	jboolean result = (*env)->IsInstanceOf(env, obj, clazz);
+	return (register_t) result;
+}
+
+JNI_FUNCTION(GetFieldID)
+	pClass clazz = arg_class(a1);
+	const char *name = arg_str(a2);
+	const char *sig = arg_str(a3);
+	pFieldBlock result = (*env)->GetFieldID(env, clazz, name, sig);
+	if (!checkFieldAccess(result, context))
+		result = NULL;
+	__capability void *out;
+	out = cherijni_sealFieldID(result);
+	/* CHERI_CAP_PRINT(out); */
+	(*mem_output) = out;
+	return CHERI_SUCCESS;
+}
+
+register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a2, register_t a3, register_t a4, register_t a5, register_t a6, register_t a7, struct cheri_object system_object, __capability void *cap_default, __capability void *cap_context, __capability void *cap_output, __capability void *c1, __capability void *c2) __attribute__((cheri_ccall)) {
 	switch(methodnum) {
 	case CHERIJNI_JNIEnv_GetVersion:
-		return (*env)->GetVersion(env);
+		return CALL_JNI(GetVersion);
 	case CHERIJNI_JNIEnv_DefineClass:
 		break;
-	case CHERIJNI_JNIEnv_FindClass:	{
-			const char *className = arg_str(a1);
-			jclass clazz = (*env)->FindClass(env, className);
-			return_obj(clazz);
-			return CHERI_SUCCESS;
-		} break;
+	case CHERIJNI_JNIEnv_FindClass:
+		return CALL_JNI(FindClass);
 	case CHERIJNI_JNIEnv_FromReflectedMethod:
 		break;
 	case CHERIJNI_JNIEnv_FromReflectedField:
@@ -145,12 +158,8 @@ register_t cherijni_trampoline(register_t methodnum,
 		break;
 	case CHERIJNI_JNIEnv_GetObjectClass:
 		break;
-	case CHERIJNI_JNIEnv_IsInstanceOf: {
-		pObject obj = arg_obj(a1);
-		pClass clazz = arg_class(a2);
-		jboolean result = (*env)->IsInstanceOf(env, obj, clazz);
-		return (register_t) result;
-		} break;
+	case CHERIJNI_JNIEnv_IsInstanceOf:
+		return CALL_JNI(IsInstanceOf);
 	case CHERIJNI_JNIEnv_GetMethodID:
 		break;
 	case CHERIJNI_JNIEnv_CallObjectMethod:
@@ -273,14 +282,8 @@ register_t cherijni_trampoline(register_t methodnum,
 		break;
 	case CHERIJNI_JNIEnv_CallNonvirtualVoidMethodA:
 		break;
-	case CHERIJNI_JNIEnv_GetFieldID: {
-		pClass clazz = arg_class(a1);
-		const char *name = arg_str(a2);
-		const char *sig = arg_str(a3);
-		jfieldID result = (*env)->GetFieldID(env, clazz, name, sig);
-		return_fid(result);
-		return CHERI_SUCCESS;
-		} break;
+	case CHERIJNI_JNIEnv_GetFieldID:
+		return CALL_JNI(GetFieldID);
 	case CHERIJNI_JNIEnv_GetObjectField:
 		break;
 	case CHERIJNI_JNIEnv_GetBooleanField:
