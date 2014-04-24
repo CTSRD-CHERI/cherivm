@@ -9,6 +9,7 @@ static __capability void *cherijni_output;
 
 #define checkCheriFail(errcode, func_result)   { if (errcode == CHERI_FAIL) { printf("[SANDBOX ERROR: call to %s failed]\n", __func__); return func_result; } }
 #define getOutput ( cherijni_obj_storecap(env, cherijni_output) )
+#define return_obj(TYPE) return (TYPE) getOutput
 
 #define hostInvoke_3(name, a1, a2, a3) \
 	(cheri_invoke(cherijni_SystemObject, \
@@ -22,6 +23,7 @@ static __capability void *cherijni_output;
 #define hostInvoke_1(name, a1)     hostInvoke_2(name, a1, 0)
 #define hostInvoke_0(name)         hostInvoke_1(name, 0)
 
+
 static jint GetVersion(JNIEnv *env) {
 	return (jint) hostInvoke_0(GetVersion);
 }
@@ -33,7 +35,7 @@ static jclass FindClass(JNIEnv *env, const char *className) {
 	 */
 	register res = hostInvoke_1(FindClass, (register_t) className);
 	checkCheriFail(res, NULL);
-	return (jclass) getOutput;
+	return_obj(jclass);
 }
 
 static jthrowable ExceptionOccured(JNIEnv *env) {
@@ -54,8 +56,7 @@ static jboolean IsInstanceOf(JNIEnv *env, jobject obj, jclass clazz) {
 static jfieldID GetFieldID(JNIEnv *env, jclass clazz, const char *name, const char *sig) {
 	register_t res = hostInvoke_3(GetFieldID, clazz, name, sig);
 	checkCheriFail(res, NULL);
-	jfieldID f = (jfieldID) getOutput;
-	return f;
+	return_obj(jfieldID);
 }
 
 static jint ThrowNew(JNIEnv *env, jclass clazz, const char *msg) {
