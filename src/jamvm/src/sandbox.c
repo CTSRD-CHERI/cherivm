@@ -76,7 +76,6 @@ char *cherijni_libName(char *name) {
    return buff;
 }
 
-#define cNULL	(cheri_zerocap())
 #define CInvoke_7_6(handle, op, a1, a2, a3, a4, a5, a6, a7, c5, c6, c7, c8, c9, c10)                         \
 		sandbox_object_cinvoke(                                                                              \
 				((cherijniSandbox *) handle)->objectp, op,                                           \
@@ -85,10 +84,10 @@ char *cherijni_libName(char *name) {
 	            sandbox_object_getsystemobject(((cherijniSandbox *) handle)->objectp).co_codecap,    \
 	            sandbox_object_getsystemobject(((cherijniSandbox *) handle)->objectp).co_datacap,    \
 	            c5, c6, c7, c8, c9, c10)
-#define CInvoke_1_1(handle, op, a1, c5)  CInvoke_7_6(handle, op, a1, 0, 0, 0, 0, 0, 0, c5, cNULL, cNULL, cNULL, cNULL, cNULL)
-#define CInvoke_1_0(handle, op, a1)      CInvoke_1_1(handle, op, a1, cNULL)
+#define CInvoke_1_1(handle, op, a1, c5)  CInvoke_7_6(handle, op, a1, 0, 0, 0, 0, 0, 0, c5, CNULL, CNULL, CNULL, CNULL, CNULL)
+#define CInvoke_1_0(handle, op, a1)      CInvoke_1_1(handle, op, a1, CNULL)
 #define CInvoke_0_1(handle, op, c5)      CInvoke_1_1(handle, op, 0, c5)
-#define CInvoke_0_0(handle, op)          CInvoke_1_1(handle, op, 0, cNULL)
+#define CInvoke_0_0(handle, op)          CInvoke_1_1(handle, op, 0, CNULL)
 
 void *cherijni_open(char *path) {
 	cherijniSandbox *sandbox = sysMalloc(sizeof(cherijniSandbox));
@@ -189,7 +188,7 @@ uintptr_t *cherijni_callMethod(void* handle, void *native_func, pClass class, ch
 	// TODO: check number of arguments
 
 	register_t pPrimitiveArgs [6] = {0, 0, 0, 0, 0, 0};
-	__capability void *pObjectArgs [4] = {cNULL, cNULL, cNULL, cNULL};
+	__capability void *pObjectArgs [4] = {CNULL, CNULL, CNULL, CNULL};
 
 	register_t *_pPrimitiveArgs = pPrimitiveArgs;
 	__capability void **_pObjectArgs = pObjectArgs;
