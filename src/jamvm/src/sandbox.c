@@ -123,48 +123,8 @@ jint cherijni_callOnLoadUnload(void *handle, void *ptr, JavaVM *jvm, void *reser
 	return (jint) CInvoke_1_0(handle, CHERIJNI_METHOD_ONLOAD_ONUNLOAD, ptr);
 }
 
-#define forEachArgument(sig, SCAN_PRIM_SINGLE, SCAN_PRIM_DOUBLE, SCAN_OBJECT) \
-{                                         \
-	char *s = sig;                        \
-	char c = s[1];                        \
-	while (c != ')') {                    \
-		if (c == 'D' || c == 'J')         \
-			SCAN_PRIM_DOUBLE              \
-		else {                            \
-			if (c == 'L' || c == '[')     \
-				SCAN_OBJECT               \
-			else                          \
-				SCAN_PRIM_SINGLE          \
-			                              \
-			while (c == '[')              \
-				c = (++s)[1];             \
-			if (c == 'L')                 \
-				while (c != ';')          \
-					c = (++s)[1];         \
-		}                                 \
-		c = (++s)[1];                     \
-	}                                     \
-}
-
-#define forReturnType(sig, SCAN_VOID, SCAN_PRIM_SINGLE, SCAN_PRIM_DOUBLE, SCAN_OBJECT) \
-{                                         \
-	char *s = sig;                        \
-	char c = s[1];                        \
-	while (c != ')')                      \
-		c = (++s)[1];                     \
-	c = (++s)[1];                         \
-	if (c == 'V')                         \
-        SCAN_VOID                         \
-	else if (c == 'D' || c == 'J')        \
-		SCAN_PRIM_DOUBLE                  \
-	else if (c == 'L' || c == '[')        \
-		SCAN_OBJECT                       \
-	else                                  \
-		SCAN_PRIM_SINGLE                  \
-}
-
 uintptr_t *cherijni_callMethod(void* handle, void *native_func, pClass class, char *sig, uintptr_t *ostack) {
-	__capability void *cContext = cap_seal(Context, class);
+	__capability void *cContext = CString(sig); // cap_seal(Context, class);
 	__capability void *cThis;
 	uintptr_t *_ostack = ostack;
 
@@ -274,10 +234,12 @@ static inline pClass checkIsClass(pObject obj) {
 #define JNI_FUNCTION(NAME) \
 	static register_t NAME (register_t a1, register_t a2, register_t a3, register_t a4, register_t a5, register_t a6, register_t a7, __capability void *cap_default, __capability void *cap_context, __capability void *cap_output, __capability void *c1, __capability void *c2) { \
 	JNIEnv *env = &globalJNIEnv; \
-	__capability void **mem_output = (void*) cap_output; \
-	const pClass context = cap_unseal(pClass, Context, cap_context); \
-	if (!context) \
-		return CHERI_FAIL;
+	__capability void **mem_output = (void*) cap_output;
+/*	const pClass context = cap_unseal(pClass, Context, cap_context); \
+	if (!context) { \
+		printf("Warning: sandbox hasn't provided a valid context\n"); \
+		return CHERI_FAIL; \
+ 	} */
 
 #define CALL_JNI(NAME) \
 	NAME (a1, a2, a3, a4, a5, a6, a7, cap_default, cap_context, cap_output, c1, c2)
@@ -305,8 +267,12 @@ JNI_FUNCTION(GetFieldID)
 	const char *name = arg_str(a2);
 	const char *sig = arg_str(a3);
 	pFieldBlock result = (*env)->GetFieldID(env, clazz, name, sig);
-	if (!checkFieldAccess(result, context))
+#ifdef JNI_CHERI_STRICT
+	if (!checkFieldAccess(result, context)) {
+		jam_printf("Warning: sandbox requested a field outside its execution context\n");
 		result = NULL;
+	}
+#endif
 	return_fid(result);
 	return CHERI_SUCCESS;
 }
