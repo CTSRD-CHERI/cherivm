@@ -29,14 +29,12 @@ typedef struct cherijni_sandbox {
         struct sandbox_object   *objectp;
 } cherijniSandbox;
 
-static void              *cherijni_unseal (__capability void *datacap, __capability void *sealcap);
-
 #define DEFINE_SEAL_VARS(NAME)                                \
         static uintptr_t          type_##NAME;                      \
         static __capability void *sealcap_##NAME;                   \
 
-#define cap_seal(NAME, data) ((data == NULL) ? (__capability void*) NULL : cheri_sealdata(cheri_ptrperm(data, sizeof(uintptr_t), CHERI_PERM_LOAD), sealcap_##NAME))
-#define cap_unseal(TYPE, NAME, datacap) ((TYPE) cherijni_unseal(datacap, sealcap_##NAME))
+#define cap_seal(NAME, data)             cherijni_seal(data, sealcap_##NAME)
+#define cap_unseal(TYPE, NAME, datacap)  ((TYPE) cherijni_unseal(datacap, sealcap_##NAME))
 #define INIT_SEAL(NAME) sealcap_##NAME = cheri_ptrtype(&type_##NAME, sizeof(uintptr_t), 0); // sets PERMIT_SEAL
 
 DEFINE_SEAL_VARS(JavaObject)
@@ -44,6 +42,13 @@ DEFINE_SEAL_VARS(Context)
 DEFINE_SEAL_VARS(MethodID)
 DEFINE_SEAL_VARS(FieldID)
 DEFINE_SEAL_VARS(FILE)
+
+static inline __capability void *cherijni_seal(void *data, __capability void *sealcap) {
+	if (data == NULL)
+		return CNULL;
+	else
+		return cheri_sealdata(cheri_ptrperm(data, sizeof(uintptr_t), CHERI_PERM_LOAD), sealcap);
+}
 
 static inline void *cherijni_unseal(__capability void *objcap, __capability void *sealcap) {
 	if (objcap == CNULL)
