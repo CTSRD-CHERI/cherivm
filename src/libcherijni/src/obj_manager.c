@@ -1,18 +1,16 @@
 #include "guest.h"
 
-#define DEFAULT_OBJ_COUNT    128
+#define DEFAULT_OBJ_COUNT    256
 
 typedef struct cherijni_obj_storage {
 	__capability void *caps[DEFAULT_OBJ_COUNT];
 	size_t used_slots;
 } ObjectStorage;
 
-void cherijni_obj_init(struct _JNINativeInterface *env) {
-	if (env->cherijni_objStorage == NULL) {
-		ObjectStorage *store = malloc(sizeof(ObjectStorage));
-		memset(store, 0, sizeof(ObjectStorage));
-		env->cherijni_objStorage = store;
-	}
+static ObjectStorage store_data;
+static ObjectStorage *store = &store_data;
+
+void cherijni_obj_init() {
 }
 
 #define CAP_BYTE(cap, i)    ( ((unsigned char*)(&cap))[i] )
@@ -21,14 +19,12 @@ void cherijni_obj_init(struct _JNINativeInterface *env) {
                               (CAP_BYTE(c1, 2) == CAP_BYTE(c2, 2)) && \
                               (CAP_BYTE(c1, 3) == CAP_BYTE(c2, 3)) )
 
-jobject cherijni_obj_storecap(JNIEnv *env, __capability void *cobj) {
+jobject cherijni_obj_storecap(__capability void *cobj) {
 	size_t i, j;
 
 	// don't store NULLs
 	if (!cheri_gettag(cobj) || (cobj == CNULL))
 		return NULL;
-
-	ObjectStorage *store = (ObjectStorage*) (*env)->cherijni_objStorage;
 
 	// check if already stored
 	for (i = 0; i < store->used_slots; i++)
@@ -40,7 +36,7 @@ jobject cherijni_obj_storecap(JNIEnv *env, __capability void *cobj) {
 	return (jobject) &(store->caps[store->used_slots++]);
 }
 
-__capability void *cherijni_obj_loadcap(JNIEnv *env, jobject obj) {
+__capability void *cherijni_obj_loadcap(jobject obj) {
 	if (obj == NULL)
 		return cheri_zerocap();
 	else {

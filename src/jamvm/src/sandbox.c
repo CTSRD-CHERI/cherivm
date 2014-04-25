@@ -31,7 +31,7 @@ typedef struct cherijni_sandbox {
 
 static void              *cherijni_unseal (__capability void *datacap, __capability void *sealcap);
 
-#define DEFINE_SEAL_VARS(TYPE, NAME)                                \
+#define DEFINE_SEAL_VARS(NAME)                                \
         static uintptr_t          type_##NAME;                      \
         static __capability void *sealcap_##NAME;                   \
 
@@ -39,10 +39,11 @@ static void              *cherijni_unseal (__capability void *datacap, __capabil
 #define cap_unseal(TYPE, NAME, datacap) ((TYPE) cherijni_unseal(datacap, sealcap_##NAME))
 #define INIT_SEAL(NAME) sealcap_##NAME = cheri_ptrtype(&type_##NAME, sizeof(uintptr_t), 0); // sets PERMIT_SEAL
 
-DEFINE_SEAL_VARS(pObject, JavaObject)
-DEFINE_SEAL_VARS(pClass, Context)
-DEFINE_SEAL_VARS(pMethodBlock, MethodID)
-DEFINE_SEAL_VARS(pFieldBlock, FieldID)
+DEFINE_SEAL_VARS(JavaObject)
+DEFINE_SEAL_VARS(Context)
+DEFINE_SEAL_VARS(MethodID)
+DEFINE_SEAL_VARS(FieldID)
+DEFINE_SEAL_VARS(FILE)
 
 static inline void *cherijni_unseal(__capability void *objcap, __capability void *sealcap) {
 	if (objcap == CNULL)
@@ -191,12 +192,15 @@ uintptr_t *cherijni_callMethod(void* handle, void *native_func, pClass class, ch
 	return ostack;
 }
 
-#define arg_obj(ptr)    cap_unseal(pObject, JavaObject, getCapabilityAt(convertSandboxPointer(ptr, cap_default)))
+#define arg_ptr(ptr)    convertSandboxPointer(ptr, cap_default)
+#define arg_cap(ptr)    getCapabilityAt(arg_ptr(ptr))
+#define arg_obj(ptr)    cap_unseal(pObject, JavaObject, arg_cap(ptr))
 #define arg_class(ptr)  checkIsClass(arg_obj(ptr))
-#define arg_str(ptr)    ((const char*) convertSandboxPointer(ptr, cap_default))
+#define arg_str(ptr)    ((const char*) arg_ptr(ptr))
 #define return_obj(obj)    { *mem_output = cap_seal(JavaObject, obj); }
 #define return_mid(field)  { (*mem_output) = cap_seal(MethodID, field); }
 #define return_fid(field)  { (*mem_output) = cap_seal(FieldID, field); }
+#define return_file(file)  { (*mem_output) = cap_seal(FILE, file); }
 
 static inline void *convertSandboxPointer(register_t guest_ptr, __capability void *cap_default) {
 	// NULL pointer will be zero
@@ -237,7 +241,7 @@ static inline pClass checkIsClass(pObject obj) {
 }
 
 #define JNI_FUNCTION(NAME) \
-	static register_t NAME (register_t a1, register_t a2, register_t a3, register_t a4, register_t a5, register_t a6, register_t a7, __capability void *cap_default, __capability void *cap_context, __capability void *cap_output, __capability void *c1, __capability void *c2) { \
+	static register_t JNI_##NAME (register_t a1, register_t a2, register_t a3, register_t a4, register_t a5, register_t a6, register_t a7, __capability void *cap_default, __capability void *cap_context, __capability void *cap_output, __capability void *c1, __capability void *c2) { \
 	JNIEnv *env = &globalJNIEnv; \
 	__capability void **mem_output = (void*) cap_output;
 /*	const pClass context = cap_unseal(pClass, Context, cap_context); \
@@ -246,8 +250,15 @@ static inline pClass checkIsClass(pObject obj) {
 		return CHERI_FAIL; \
  	} */
 
+#define LIBC_FUNCTION(NAME) \
+	static register_t LIBC_##NAME (register_t a1, register_t a2, register_t a3, register_t a4, register_t a5, register_t a6, register_t a7, __capability void *cap_default, __capability void *cap_context, __capability void *cap_output, __capability void *c1, __capability void *c2) { \
+	__capability void **mem_output = (void*) cap_output;
+
 #define CALL_JNI(NAME) \
-	NAME (a1, a2, a3, a4, a5, a6, a7, cap_default, cap_context, cap_output, c1, c2)
+	JNI_##NAME (a1, a2, a3, a4, a5, a6, a7, cap_default, cap_context, cap_output, c1, c2)
+
+#define CALL_LIBC(NAME) \
+	LIBC_##NAME (a1, a2, a3, a4, a5, a6, a7, cap_default, cap_context, cap_output, c1, c2)
 
 JNI_FUNCTION(GetVersion)
 	return (*env)->GetVersion(env);
@@ -336,6 +347,20 @@ JNI_FUNCTION(GetStaticMethodID)
 	return CHERI_SUCCESS;
 }
 
+LIBC_FUNCTION(GetStdin)
+	return_file(stdin);
+	return CHERI_SUCCESS;
+}
+
+LIBC_FUNCTION(GetStdout)
+	return_file(stdout);
+	return CHERI_SUCCESS;
+}
+
+LIBC_FUNCTION(GetStderr)
+	return_file(stderr);
+	return CHERI_SUCCESS;
+}
 
 register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a2, register_t a3, register_t a4, register_t a5, register_t a6, register_t a7, struct cheri_object system_object, __capability void *cap_default, __capability void *cap_context, __capability void *cap_output, __capability void *c1, __capability void *c2) __attribute__((cheri_ccall)) {
 	switch(methodnum) {
@@ -797,6 +822,13 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 		break;
 	case CHERIJNI_JNIEnv_GetObjectRefType:
 		break;
+
+	case CHERIJNI_LIBC_GetStdin:
+		return CALL_LIBC(GetStdin);
+	case CHERIJNI_LIBC_GetStdout:
+		return CALL_LIBC(GetStdout);
+	case CHERIJNI_LIBC_GetStderr:
+		return CALL_LIBC(GetStderr);
 	}
 
 	return CHERI_FAIL;
@@ -808,6 +840,7 @@ void cherijni_init() {
 	INIT_SEAL(Context);
 	INIT_SEAL(MethodID);
 	INIT_SEAL(FieldID);
+	INIT_SEAL(FILE);
 }
 
 #endif

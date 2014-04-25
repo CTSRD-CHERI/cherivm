@@ -297,6 +297,8 @@
 #define CHERIJNI_JNIEnv_GetDirectBufferCapacity			(CHERI_SYSTEM_USER_BASE + 228)
 #define CHERIJNI_JNIEnv_GetObjectRefType			(CHERI_SYSTEM_USER_BASE + 229)
 
-#define CHERIJNI_LIBC_GetStandardStreams			(CHERI_SYSTEM_USER_BASE + 501)
+#define CHERIJNI_LIBC_GetStdin						(CHERI_SYSTEM_USER_BASE + 501)
+#define CHERIJNI_LIBC_GetStdout						(CHERI_SYSTEM_USER_BASE + 502)
+#define CHERIJNI_LIBC_GetStderr						(CHERI_SYSTEM_USER_BASE + 503)
 
 #endif //__SANDBOX_SHARED_H__

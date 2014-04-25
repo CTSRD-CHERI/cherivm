@@ -32,18 +32,18 @@ extern __capability void *cherijni_output;
 
 #define check_cheri_fail(errcode, func_result)   { if (errcode == CHERI_FAIL) { printf("[SANDBOX ERROR: call to %s failed]\n", __func__); return func_result; } }
 #define check_cheri_fail_void(errcode)   { if (errcode == CHERI_FAIL) { printf("[SANDBOX ERROR: call to %s failed]\n", __func__); return; } }
-#define get_output ( cherijni_obj_storecap(env, cherijni_output) )
+#define get_output ( cherijni_obj_storecap(cherijni_output) )
 #define return_obj(TYPE) return (TYPE) get_output
-#define send_capability(obj) (cherijni_obj_loadcap(env, obj))
+#define send_capability(obj) (cherijni_obj_loadcap(obj))
 
 extern JavaVM *cherijni_getJavaVM();
 extern JNIEnv *cherijni_getJNIEnv(__capability void **context);
 extern void cherijni_destroyJNIEnv(JNIEnv *ppEnv);
 extern void cherijni_runTests(JNIEnv *env);
 
-extern void cherijni_obj_init(struct _JNINativeInterface *env);
-extern jobject cherijni_obj_storecap(JNIEnv *env, __capability void *cobj);
-extern __capability void *cherijni_obj_loadcap(JNIEnv *env, jobject obj);
+extern void cherijni_obj_init();
+extern jobject cherijni_obj_storecap(__capability void *cobj);
+extern __capability void *cherijni_obj_loadcap(jobject obj);
 
 extern void cherijni_libc_init();
 

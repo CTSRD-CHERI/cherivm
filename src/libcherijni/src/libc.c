@@ -147,11 +147,26 @@ pid_t getpid() {
 	STUB_ERRNO
 }
 
+static FILE *get_stdin() {
+	register_t result = hostInvoke_0(GetStdin);
+	check_cheri_fail(result, NULL);
+	return_obj(FILE*);
+}
+
+static FILE *get_stdout() {
+	register_t result = hostInvoke_0(GetStdout);
+	check_cheri_fail(result, NULL);
+	return_obj(FILE*);
+}
+
+static FILE *get_stderr() {
+	register_t result = hostInvoke_0(GetStderr);
+	check_cheri_fail(result, NULL);
+	return_obj(FILE*);
+}
+
 void cherijni_libc_init() {
-	if ((__stdinp == NULL) || (__stdoutp == NULL) || (__stderrp == NULL)) {
-		register_t result = hostInvoke_3(GetStandardStreams, &__stdinp, &__stdoutp, &__stderrp);
-		if (result == CHERI_FAIL) {
-			printf("[SANDBOX error: could not initialize standard streams");
-		}
-	}
+	if (__stdinp == NULL) __stdinp = get_stdin();
+	if (__stdoutp == NULL) __stdoutp = get_stdout();
+	if (__stderrp == NULL) __stderrp = get_stderr();
 }

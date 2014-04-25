@@ -5,9 +5,10 @@
 	    CHERIJNI_JNIEnv_ ## name, \
 	    a1, a2, a3, 0, 0, 0, 0, \
 	    cheri_getdefault(), \
-	    *((__capability void**) ((*env)->cherijni_context)), \
+	    CNULL, \
 		cap_output, \
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(), cheri_zerocap(), cheri_zerocap()))
+		/* *((__capability void**) ((*env)->cherijni_context)), \ */
 
 static jint GetVersion(JNIEnv *env) {
 	return (jint) hostInvoke_0(GetVersion);
@@ -303,21 +304,22 @@ static struct _JNINativeInterface cherijni_JNIEnv_struct = {
 		NULL, // GetDirectBufferCapacity,
 		NULL  // GetObjectRefType,
 };
+static JNIEnv cherijni_JNIEnv = &cherijni_JNIEnv_struct;
 
 JNIEnv *cherijni_getJNIEnv(__capability void **context) {
-	void *mem = malloc(sizeof(JNIEnv) + sizeof(struct _JNINativeInterface));
-
-	JNIEnv *ppEnv = (JNIEnv*) mem;
-	struct _JNINativeInterface *pEnv = (struct _JNINativeInterface*) (ppEnv + 1);
-
-	memcpy(pEnv, &cherijni_JNIEnv_struct, sizeof(struct _JNINativeInterface));
-	pEnv->cherijni_context = context;
-	cherijni_obj_init(pEnv);
-
-	*ppEnv = pEnv;
-	return ppEnv;
+//	void *mem = malloc(sizeof(JNIEnv) + sizeof(struct _JNINativeInterface));
+//
+//	JNIEnv *ppEnv = (JNIEnv*) mem;
+//	struct _JNINativeInterface *pEnv = (struct _JNINativeInterface*) (ppEnv + 1);
+//
+//	memcpy(pEnv, &cherijni_JNIEnv_struct, sizeof(struct _JNINativeInterface));
+//	pEnv->cherijni_context = context;
+//
+//	*ppEnv = pEnv;
+//	return ppEnv;
+	return &cherijni_JNIEnv;
 }
 
 void cherijni_destroyJNIEnv(JNIEnv *ppEnv) {
-	free(ppEnv);
+//	free(ppEnv);
 }

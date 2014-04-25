@@ -50,6 +50,8 @@ register_t cherijni_invoke(u_int op,
 
 	cheri_system_setup(system_object);
 	cherijni_obj_system = system_object;
+	cherijni_obj_init();
+	cherijni_libc_init();
 
 	if (op == CHERIJNI_METHOD_LOOKUP) {
 
@@ -95,12 +97,12 @@ register_t cherijni_invoke(u_int op,
 		__capability void *args_objs[] = { c3, c4, c5, c6 };
 		size_t args_prim_ready = 0, args_objs_ready = 0;
 
-		register_t args_this = (register_t) cherijni_obj_storecap(env, c2);
+		register_t args_this = (register_t) cherijni_obj_storecap(c2);
 		register_t args_ready[6];
 		forEachArgument(signature,
 			/* single primitives */ { args_ready[args_prim_ready + args_objs_ready] = args_prim[args_prim_ready]; args_prim_ready++; },
 			/* double primitives */ { args_ready[args_prim_ready + args_objs_ready] = args_prim[args_prim_ready]; args_prim_ready++; },
-			/* objects           */ { args_ready[args_prim_ready + args_objs_ready] = (register_t) cherijni_obj_storecap(env, args_objs[args_objs_ready]); args_objs_ready++; });
+			/* objects           */ { args_ready[args_prim_ready + args_objs_ready] = (register_t) cherijni_obj_storecap(args_objs[args_objs_ready]); args_objs_ready++; });
 
 		if (entry->type == FNTYPE_VOID) {
 
