@@ -1,14 +1,30 @@
-nativeexeclib_LTLIBRARIES = libjavalang.la libjavalangreflect.la libjavalangmanagement.la
+nativeexeclib_LTLIBRARIES = libjavalangreflect.la libjavalangmanagement.la
+noinst_PROGRAMS = javalang
 
-libjavalang_la_SOURCES = java_lang_VMSystem.c \
+javalang_SOURCES = java_lang_VMSystem.c \
 			 java_lang_VMFloat.c \
 			 java_lang_VMDouble.c \
 			 java_lang_VMMath.c \
-			 java_lang_VMProcess.c
+			 java_lang_VMProcess.c \
+			 cherijni_names.c
 
-libjavalang_la_LIBADD = $(top_builddir)/native/fdlibm/libfdlibm.la \
+javalang_LDADD = $(top_builddir)/native/fdlibm/libfdlibm.la \
 			$(top_builddir)/native/jni/classpath/jcl.lo \
-			$(top_builddir)/native/jni/native-lib/libclasspathnative.la
+			$(top_builddir)/native/jni/native-lib/libclasspathnative.la \
+		       $(top_srcdir)/../libcherijni/src/libcherijni.a \
+		       $(top_srcdir)/../libcherijni/src/libc_cheri.a \
+		       chsbrt.o
+
+javalang_LDFLAGS = -all-static -nostdlib -Wl,--script=sandbox.ld
+
+chsbrt.o:
+	ln -s ../sandbox/chsbrt.o .
+
+libjavalang.so: javalang
+	${OBJCOPY} -S -O binary javalang libjavalang.so 
+
+install-exec-local: libjavalang.so
+	cp -v libjavalang.so ${libdir}/classpath/
 
 libjavalangreflect_la_SOURCES = java_lang_reflect_VMArray.c
 

@@ -9,6 +9,7 @@
 #include <sys/time.h>
 #include <sys/uio.h>
 #include <sys/event.h>
+#include <sys/wait.h>
 
 #include <dirent.h>
 #include <errno.h>
@@ -16,6 +17,7 @@
 #include <iconv.h>
 #include <unistd.h>
 #include <utime.h>
+#include <signal.h>
 
 #define hostInvoke_7(name, a1, a2, a3, a4, a5, a6, a7) \
 	(cheri_invoke(cherijni_obj_system, \
@@ -74,8 +76,10 @@ ssize_t readv(int fd, const struct iovec *iov, int iovcnt)   STUB_ERRNO
 ssize_t write(int fd, const void *buf, size_t nbytes)        STUB_ERRNO
 ssize_t writev(int fd, const struct iovec *iov, int iovcnt)  STUB_ERRNO
 
+int dup(int oldd)                                            STUB_ERRNO
+int dup2(int oldd, int newd)                                 STUB_ERRNO
+
 int	fcntl(int fd, int cmd, ...)                              STUB_ERRNO
-int fstat(int fd, struct stat *sb)                           STUB_ERRNO
 int fsync(int fd)                                            STUB_ERRNO
 int ftruncate(int fd, off_t length)                          STUB_ERRNO
 int fprintf(FILE * restrict stream, \
@@ -85,11 +89,15 @@ int ioctl(int fd, unsigned long request, ...)                STUB_ERRNO
 off_t lseek(int fildes, off_t offset, int whence)            STUB_ERRNO
 
 int stat(const char *path, struct stat *sb)                  STUB_ERRNO
+int lstat(const char *path, struct stat *sb)                 STUB_ERRNO
+int fstat(int fd, struct stat *sb)                           STUB_ERRNO
 int statvfs(const char * restrict path, \
             struct statvfs * restrict buf)                   STUB_ERRNO
 
 int select(int nfds, fd_set *readfds, fd_set *writefds, \
            fd_set *exceptfds, struct timeval *timeout)       STUB_ERRNO
+ssize_t readlink(const char *restrict path, \
+                 char *restrict buf, size_t bufsiz)          STUB_ERRNO
 
 /* DIRECTORY OPERATIONS */
 
@@ -150,12 +158,30 @@ size_t iconv(iconv_t cd, const char ** restrict src, \
              char ** restrict dst, \
              size_t * restrict dstleft)                      STUB_SIZET
 
-/* GETPID */
+/* TERMINAL */
 
+int tcgetattr(int fd, struct termios *t)                     STUB_ERRNO
+int tcsetattr(int fd, int action, const struct termios *t)   STUB_ERRNO
+
+/* PROCESSES */
+
+char *environ[] = { NULL };
+
+int execvp(const char *file, char *const argv[])             STUB_ERRNO
+int execve(const char *path, char *const argv[], \
+           char *const envp[])                               STUB_ERRNO
+int chdir(const char *path)                                  STUB_ERRNO
+char *getenv(const char *name)                               STUB_NULL
 pid_t getpid() {
 	printf("WARNING: getpid should never fail!");
 	STUB_ERRNO
 }
+pid_t waitpid(pid_t wpid, int *status, int options)          STUB_ERRNO
+pid_t fork()                                                 STUB_ERRNO
+int kill(pid_t pid, int sig)                                 STUB_ERRNO
+int raise(int sig)                                           STUB_ERRNO
+
+/* INITIALIZATION */
 
 static FILE *get_stdin() {
 	register_t result = hostInvoke_0(GetStdin);
