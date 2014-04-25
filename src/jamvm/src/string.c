@@ -237,4 +237,10 @@ char *String2Utf8(pObject string) {
 
     return unicode2Utf8(unicode, len, utf8);
 }
+
+char *String2Utf8_ownBuffer(pObject string, char *utf8) {
+    int len = getStringLen(string);
+    unsigned short *unicode = getStringChars(string);
+    return unicode2Utf8(unicode, len, utf8);
+}
 #endif

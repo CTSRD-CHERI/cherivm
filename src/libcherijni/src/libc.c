@@ -186,19 +186,19 @@ int raise(int sig)                                           STUB_ERRNO
 static FILE *get_stdin() {
 	register_t result = hostInvoke_0(GetStdin);
 	check_cheri_fail(result, NULL);
-	return create_file_ptr(get_output, result);
+	return create_file_ptr(get_output_obj, result);
 }
 
 static FILE *get_stdout() {
 	register_t result = hostInvoke_0(GetStdout);
 	check_cheri_fail(result, NULL);
-	return create_file_ptr(get_output, result);
+	return create_file_ptr(get_output_obj, result);
 }
 
 static FILE *get_stderr() {
 	register_t result = hostInvoke_0(GetStderr);
 	check_cheri_fail(result, NULL);
-	return create_file_ptr(get_output, result);
+	return create_file_ptr(get_output_obj, result);
 }
 
 void cherijni_libc_init() {

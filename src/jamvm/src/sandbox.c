@@ -7,6 +7,7 @@
 #include <pthread.h>
 
 #include "jam.h"
+#include "symbol.h"
 
 #ifdef JNI_CHERI
 
@@ -23,6 +24,7 @@
 #include "sandbox_shared.h"
 
 extern const JNIEnv globalJNIEnv;
+static pClass class_String;
 
 typedef struct cherijni_sandbox {
         struct sandbox_class    *classp;
@@ -207,20 +209,27 @@ uintptr_t *cherijni_callMethod(void* handle, void *native_func, pClass class, ch
 #define return_mid(field)  { (*mem_output) = cap_seal(MethodID, field); }
 #define return_fid(field)  { (*mem_output) = cap_seal(FieldID, field); }
 #define return_file(file)  { (*mem_output) = cap_seal(FILE, file); }
+#define return_str(str)    { (*mem_output) = cap_string(str); }
+
+static inline int isWithinBounds(uintptr_t ptr, __capability void *cap) {
+	uintptr_t cap_start = cheri_getbase(cap);
+	uintptr_t cap_end = cap_start + cheri_getlen(cap);
+	return ((((uintptr_t) ptr) >= cap_start) && (((uintptr_t) ptr) < cap_end));
+}
 
 static inline void *convertSandboxPointer(register_t guest_ptr, __capability void *cap_default) {
 	// NULL pointer will be zero
 	if (guest_ptr == 0)
 		return NULL;
 
-	// check it is within bounds
-	if (guest_ptr < 0 || guest_ptr >= cheri_getlen(cap_default)) {
+	uintptr_t host_ptr = cheri_getbase(cap_default) + guest_ptr;
+
+	if (!isWithinBounds(host_ptr, cap_default)) {
 		jam_printf("Warning: sandbox gave a pointer outside of its bounds\n");
 		return NULL;
 	}
 
-	// translate
-	return (void*) cheri_incbase(cap_default, guest_ptr);
+	return (void*) host_ptr;
 }
 
 static inline __capability void *getCapabilityAt(void *ptr) {
@@ -244,6 +253,10 @@ static inline pClass checkIsClass(pObject obj) {
 		jam_printf("Warning: expected a class object from sandbox\n");
 		return NULL;
 	}
+}
+
+static inline int isValidString(pObject obj) {
+	return (obj != NULL) && (obj->class == class_String);
 }
 
 #define JNI_FUNCTION(NAME) \
@@ -351,6 +364,52 @@ JNI_FUNCTION(GetStaticMethodID)
 #endif
 	return_mid(result);
 	return CHERI_SUCCESS;
+}
+
+JNI_FUNCTION(NewStringUTF)
+	const char *bytes = arg_str(a1);
+	if (bytes == NULL)
+		return CHERI_FAIL;
+
+	jstring str = (*env)->NewStringUTF(env, bytes);
+	if (str == NULL)
+		return CHERI_FAIL;
+
+	return_obj(str);
+	return CHERI_SUCCESS;
+}
+
+JNI_FUNCTION(GetStringUTFLength)
+	pObject string = arg_obj(a1);
+	if (!isValidString(string))
+		return CHERI_FAIL;
+	return (*env)->GetStringUTFLength(env, string);
+}
+
+void Jam_GetStringUTFChars_ownBuffer(JNIEnv *env, jstring string, char *buffer);
+
+JNI_FUNCTION(GetStringUTFChars)
+	pObject string = arg_obj(a1);
+	char *buffer = arg_ptr(a2);
+
+	if (!isValidString(string))
+		return CHERI_FAIL;
+
+	jsize str_length = (*env)->GetStringUTFLength(env, string);
+	if (str_length == 0)
+		return CHERI_FAIL;
+
+	uintptr_t buffer_start = (uintptr_t) buffer;
+	uintptr_t buffer_end = buffer_start + str_length + 1;
+	if (!isWithinBounds(buffer_start, cap_default) || !isWithinBounds(buffer_end, cap_default))
+		return CHERI_FAIL;
+
+	Jam_GetStringUTFChars_ownBuffer(env, string, buffer);
+	return CHERI_SUCCESS;
+}
+
+JNI_FUNCTION(ReleaseStringUTFChars)
+	return CHERI_FAIL;
 }
 
 LIBC_FUNCTION(GetStdin)
@@ -697,13 +756,13 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 	case CHERIJNI_JNIEnv_ReleaseStringChars:
 		break;
 	case CHERIJNI_JNIEnv_NewStringUTF:
-		break;
+		return CALL_JNI(NewStringUTF);
 	case CHERIJNI_JNIEnv_GetStringUTFLength:
-		break;
+		return CALL_JNI(GetStringUTFLength);
 	case CHERIJNI_JNIEnv_GetStringUTFChars:
-		break;
+		return CALL_JNI(GetStringUTFChars);
 	case CHERIJNI_JNIEnv_ReleaseStringUTFChars:
-		break;
+		return CALL_JNI(ReleaseStringUTFChars);
 	case CHERIJNI_JNIEnv_GetArrayLength:
 		break;
 	case CHERIJNI_JNIEnv_NewObjectArray:
@@ -843,13 +902,16 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 	return CHERI_FAIL;
 }
 
-void cherijni_init() {
+void initialiseCheriJNI() {
 	cheri_system_user_register_fn(&cherijni_trampoline);
 	INIT_SEAL(JavaObject);
 	INIT_SEAL(Context);
 	INIT_SEAL(MethodID);
 	INIT_SEAL(FieldID);
 	INIT_SEAL(FILE);
+
+    class_String = findSystemClass0(SYMBOL(java_lang_String));
+    registerStaticClassRef(&class_String);
 }
 
 #endif

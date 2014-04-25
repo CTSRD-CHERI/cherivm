@@ -80,6 +80,24 @@ void cherijni_runTests(JNIEnv *env) {
 	} else
 		TEST_FAILED;
 
+	TEST_START("StringUTF");
+	if ((*env)->NewStringUTF && (*env)->GetStringUTFLength && (*env)->GetStringUTFChars && (*env)->ReleaseStringUTFChars) {
+		jstring str = (*env)->NewStringUTF(env, "Hello, CheriJNI!!!");
+		if (str == NULL)
+			TEST_FAILED;
+		else {
+			jboolean isCopy;
+			const char *buf = (*env)->GetStringUTFChars(env, str, &isCopy);
+			if (buf == NULL || isCopy == JNI_FALSE || strcmp("Hello, CheriJNI!!!", buf) != 0)
+				TEST_FAILED;
+			else {
+				(*env)->ReleaseStringUTFChars(env, str, buf);
+				TEST_PASSED;
+			}
+		}
+	} else
+		TEST_FAILED;
+
 	(*env)->ExceptionClear(env);
 	printf("[SANDBOX: Finished running tests...]\n");
 }

@@ -19,7 +19,7 @@ typedef jint (*fn_init)(JavaVM*, void*);
 typedef void (*fn_void)(JNIEnv*, register_t, register_t, register_t, register_t, register_t, register_t, register_t);
 typedef register_t (*fn_prim)(JNIEnv*, register_t, register_t, register_t, register_t, register_t, register_t, register_t);
 
-static char* cherijni_extractHostString(__capability char* str_cap) {
+char* cherijni_extractHostString(__capability char* str_cap) {
 	unsigned int i;
 	size_t str_len = cheri_getlen(str_cap);
 	char *buf = malloc(sizeof(char) * str_len);

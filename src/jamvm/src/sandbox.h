@@ -7,7 +7,7 @@
 
  #define DEFAULT_SANDBOX_MEM 4*MB
 
-extern void cherijni_init();
+extern void initialiseCheriJNI();
 extern char *cherijni_libName(char *name);
 extern void *cherijni_lookup(void *handle, char *methodName);
 extern void *cherijni_open(char *path);

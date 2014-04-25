@@ -72,9 +72,6 @@ int VMInitialising() {
 void initVM(InitArgs *args) {
     /* Perform platform dependent initialisation */
     initialisePlatform();
-#ifdef JNI_CHERI
-    cherijni_init();
-#endif
 
     /* Initialise the VM modules -- ordering is important! */
     initialiseHooks(args);
@@ -89,6 +86,9 @@ void initVM(InitArgs *args) {
     initialiseString();
     initialiseException();
     initialiseNatives();
+#ifdef JNI_CHERI
+    initialiseCheriJNI();
+#endif
     initialiseJNI();
     initialiseInterpreter(args);
     initialiseThreadStage2(args);

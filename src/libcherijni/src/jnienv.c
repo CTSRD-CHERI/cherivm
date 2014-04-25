@@ -68,6 +68,33 @@ static jmethodID GetStaticMethodID(JNIEnv *env, jclass clazz, const char *name, 
 	return_obj(jmethodID);
 }
 
+static jstring NewStringUTF(JNIEnv *env, const char *bytes) {
+	register_t result = hostInvoke_1(NewStringUTF, bytes);
+	check_cheri_fail(result, NULL);
+	return_obj(jstring);
+}
+
+static jsize GetStringUTFLength(JNIEnv *env, jstring string) {
+	register_t result = hostInvoke_1(GetStringUTFLength, string);
+	check_cheri_fail(result, 0);
+	return_obj(jstring);
+}
+
+static const char * GetStringUTFChars(JNIEnv *env, jstring string, jboolean *isCopy) {
+	jsize str_length = (*env)->GetStringUTFLength(env, string);
+	const char *str_buffer = (const char *) malloc(str_length + 1);
+	register_t result = hostInvoke_2(GetStringUTFChars, string, str_buffer);
+	check_cheri_fail(result, 0);
+
+	if (isCopy != NULL)
+		*isCopy = JNI_TRUE;
+	return str_buffer;
+}
+
+static void ReleaseStringUTFChars(JNIEnv *env, jstring string, const char *utf) {
+	free((void*)utf);
+}
+
 static struct _JNINativeInterface cherijni_JNIEnv_struct = {
 		NULL,
 		NULL,
@@ -237,10 +264,10 @@ static struct _JNINativeInterface cherijni_JNIEnv_struct = {
 		NULL, // GetStringLength,
 		NULL, // GetStringChars,
 		NULL, // ReleaseStringChars,
-		NULL, // NewStringUTF,
-		NULL, // GetStringUTFLength,
-		NULL, // GetStringUTFChars,
-		NULL, // ReleaseStringUTFChars,
+		NewStringUTF,
+		GetStringUTFLength,
+		GetStringUTFChars,
+		ReleaseStringUTFChars,
 		NULL, // GetArrayLength,
 		NULL, // NewObjectArray,
 		NULL, // GetObjectArrayElement,
