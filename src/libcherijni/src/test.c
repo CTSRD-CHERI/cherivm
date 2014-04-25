@@ -80,5 +80,6 @@ void cherijni_runTests(JNIEnv *env) {
 	} else
 		TEST_FAILED;
 
+	(*env)->ExceptionClear(env);
 	printf("[SANDBOX: Finished running tests...]\n");
 }
