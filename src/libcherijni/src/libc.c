@@ -23,10 +23,9 @@
 	(cheri_invoke(cherijni_obj_system, \
 	    CHERIJNI_LIBC_ ## name, \
 	    a1, a2, a3, a4, a5, a6, a7, \
-	    cheri_getdefault(), \
-	    CNULL, \
-		cap_output, \
-	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(), cheri_zerocap(), cheri_zerocap()))
+	    cap_output, \
+	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(), cheri_zerocap(), \
+	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap()))
 
 #define STUB_ERRNO        { printf("[SANDBOX stub: %s\n", __func__); errno = ECAPMODE; return (-1); }
 #define STUB_SIZET        { printf("[SANDBOX stub: %s\n", __func__); errno = ECAPMODE; return ((size_t) - 1); }

@@ -16,8 +16,7 @@ struct cheri_object cherijni_obj_system;
 __capability void *cherijni_output;
 
 typedef jint (*fn_init)(JavaVM*, void*);
-typedef void (*fn_void)(JNIEnv*, register_t, register_t, register_t, register_t, register_t, register_t, register_t);
-typedef register_t (*fn_prim)(JNIEnv*, register_t, register_t, register_t, register_t, register_t, register_t, register_t);
+typedef register_t (*fn_jni)(JNIEnv*, register_t, register_t, register_t, register_t, register_t, register_t, register_t);
 
 char* cherijni_extractHostString(__capability char* str_cap) {
 	unsigned int i;
@@ -86,7 +85,6 @@ register_t cherijni_invoke(u_int op,
 		__capability void *cap_context = CNULL;
 		char *signature = cherijni_extractHostString(c1);
 		JNIEnv *env = cherijni_getJNIEnv(&cap_context);
-		register_t result;
 
 		if (ranTests == JNI_FALSE) {
 			ranTests = JNI_TRUE;
@@ -104,29 +102,13 @@ register_t cherijni_invoke(u_int op,
 			/* double primitives */ { args_ready[args_prim_ready + args_objs_ready] = args_prim[args_prim_ready]; args_prim_ready++; },
 			/* objects           */ { args_ready[args_prim_ready + args_objs_ready] = (register_t) cherijni_obj_storecap(args_objs[args_objs_ready]); args_objs_ready++; });
 
-		if (entry->type == FNTYPE_VOID) {
-
-			printf("[SANDBOX: invoke method (void) %s]\n", entry->name);
-			((fn_void) entry->func)(env, args_this, args_ready[0], args_ready[1], args_ready[2], args_ready[3], args_ready[4], args_ready[5]);
-			result = 0;
-
-		} else if (entry->type == FNTYPE_PRIMITIVE) {
-
-			printf("[SANDBOX: invoke method (prim) %s]\n", entry->name);
-			result = ((fn_prim) entry->func)(env, args_this, args_ready[0], args_ready[1], args_ready[2], args_ready[3], args_ready[4], args_ready[5]);
-
-		} else if (entry->type == FNTYPE_OBJECT) {
-
-			printf("[SANDBOX: invoke method (obj) %s]\n", entry->name);
-			result = CHERI_FAIL;
-
-		} else
-			result = CHERI_FAIL;
-
+		printf("[SANDBOX: invoke method %s]\n", entry->name);
+		register_t result = ((fn_jni) entry->func)(env, args_this, args_ready[0], args_ready[1], args_ready[2], args_ready[3], args_ready[4], args_ready[5]);
 		printf("[SANDBOX: returning %p]\n", (void*) result);
 
 		free(signature);
 		cherijni_destroyJNIEnv(env);
+
 		return result;
 
 //	} else if (op == CHERIJNI_METHOD_TEST) {

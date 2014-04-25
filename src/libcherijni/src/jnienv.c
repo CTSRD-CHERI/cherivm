@@ -4,10 +4,9 @@
 	(cheri_invoke(cherijni_obj_system, \
 	    CHERIJNI_JNIEnv_ ## name, \
 	    a1, a2, a3, 0, 0, 0, 0, \
-	    cheri_getdefault(), \
-	    CNULL, \
 		cap_output, \
-	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(), cheri_zerocap(), cheri_zerocap()))
+	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(), cheri_zerocap(), \
+	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap()))
 		/* *((__capability void**) ((*env)->cherijni_context)), \ */
 
 static jint GetVersion(JNIEnv *env) {

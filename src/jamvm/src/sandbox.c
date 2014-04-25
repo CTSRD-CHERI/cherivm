@@ -29,6 +29,7 @@ static pClass class_String;
 typedef struct cherijni_sandbox {
         struct sandbox_class    *classp;
         struct sandbox_object   *objectp;
+        __capability void       *cap_default;
 } cherijniSandbox;
 
 #define DEFINE_SEAL_VARS(NAME)                                \
@@ -112,6 +113,10 @@ void *cherijni_open(char *path) {
 		return NULL;
 	}
 
+	sandbox->cap_default = cheri_ptr(
+			sandbox_object_getbase(sandbox->objectp),
+			sandbox_class_getlength(sandbox->classp));
+
 	return sandbox;
 }
 
@@ -132,73 +137,6 @@ jint cherijni_callOnLoadUnload(void *handle, void *ptr, JavaVM *jvm, void *reser
 	return (jint) CInvoke_1_0(handle, CHERIJNI_METHOD_ONLOAD_ONUNLOAD, ptr);
 }
 
-uintptr_t *cherijni_callMethod(void* handle, void *native_func, pClass class, char *sig, uintptr_t *ostack) {
-	__capability void *cSignature = cap_string(sig); // cap_seal(Context, class);
-	__capability void *cThis;
-	uintptr_t *_ostack = ostack;
-
-	/* Is it an instance call? */
-
-	if (class == NULL)
-		cThis = cap_seal(JavaObject, (pObject) *(_ostack++));
-	else
-		cThis = cap_seal(JavaObject, class);
-
-	/* Count the arguments */
-
-	size_t cPrimitiveArgs = 0;
-	size_t cObjectArgs = 0;
-
-	forEachArgument(sig,
-		/* single primitives */ { (cPrimitiveArgs++); },
-		/* double primitives */ { (cPrimitiveArgs++); },
-		/* objects           */ { (cObjectArgs++); });
-
-	// TODO: check number of arguments
-
-	register_t pPrimitiveArgs [6] = {0, 0, 0, 0, 0, 0};
-	__capability void *pObjectArgs [4] = {CNULL, CNULL, CNULL, CNULL};
-
-	register_t *_pPrimitiveArgs = pPrimitiveArgs;
-	__capability void **_pObjectArgs = pObjectArgs;
-
-	forEachArgument(sig,
-		/* single primitives */ { *(_pPrimitiveArgs++) = *(_ostack++); },
-		/* double primitives */ { *(_pPrimitiveArgs++) = *(_ostack++); _ostack++; },
-		/* objects           */ { *(_pObjectArgs++) = cap_seal(JavaObject, (pObject) *(_ostack++)); });
-
-	register_t a0 = pPrimitiveArgs[0];
-	register_t a1 = pPrimitiveArgs[1];
-	register_t a2 = pPrimitiveArgs[2];
-	register_t a3 = pPrimitiveArgs[3];
-	register_t a4 = pPrimitiveArgs[4];
-	register_t a5 = pPrimitiveArgs[5];
-
-	__capability void* c0 = pObjectArgs[0];
-	__capability void* c1 = pObjectArgs[1];
-	__capability void* c2 = pObjectArgs[2];
-	__capability void* c3 = pObjectArgs[3];
-
-	jam_printf("Calling cherijni function %p with handle %p and %d args\n", native_func, handle, cPrimitiveArgs + cObjectArgs);
-
-	register_t result = CInvoke_7_6(handle, CHERIJNI_METHOD_RUN, native_func, a0, a1, a2, a3, a4, a5, cSignature, cThis, c0, c1, c2, c3);
-
-	// TODO: if it returns (-1), it *might* have failed executing!
-	// TODO: ask rwatson: how much would it take to return the error code in $v1?
-
-	jam_printf("Sandbox returned %p\n", (void*) result);
-
-	/* Put the return value back on stack */
-
-	forReturnType(sig,
-		/* void             */ { },
-		/* single primitive */ { *(ostack++) = result; },
-		/* double primitive */ { *(ostack++) = result; ostack++; },
-		/* objects          */ { *(ostack++) = result; });
-
-	return ostack;
-}
-
 #define arg_ptr(ptr)    convertSandboxPointer(ptr, cap_default)
 #define arg_cap(ptr)    getCapabilityAt(arg_ptr(ptr))
 #define arg_obj(ptr)    cap_unseal(pObject, JavaObject, arg_cap(ptr))
@@ -211,7 +149,24 @@ uintptr_t *cherijni_callMethod(void* handle, void *native_func, pClass class, ch
 #define return_file(file)  { (*mem_output) = cap_seal(FILE, file); }
 #define return_str(str)    { (*mem_output) = cap_string(str); }
 
+static inline __capability void *getSandboxDefaultCap(void *handle) {
+	if (handle == NULL)
+		return CNULL;
+
+	__capability void *cap_default = ((cherijniSandbox*) handle)->cap_default;
+
+	if (!cheri_gettag(cap_default)) {
+		jam_printf("Warning: cap_default inside CheriJNI handle does not have its tag set\n");
+		return CNULL;
+	}
+
+	return cap_default;
+}
+
 static inline int isWithinBounds(uintptr_t ptr, __capability void *cap) {
+	if (!cheri_gettag(cap))
+		return FALSE;
+
 	uintptr_t cap_start = cheri_getbase(cap);
 	uintptr_t cap_end = cap_start + cheri_getlen(cap);
 	return ((((uintptr_t) ptr) >= cap_start) && (((uintptr_t) ptr) < cap_end));
@@ -259,9 +214,78 @@ static inline int isValidString(pObject obj) {
 	return (obj != NULL) && (obj->class == class_String);
 }
 
+uintptr_t *cherijni_callMethod(void* handle, void *native_func, pClass class, char *sig, uintptr_t *ostack) {
+	__capability void *cap_default = getSandboxDefaultCap(handle);
+	__capability void *cap_signature = cap_string(sig);
+	__capability void *cap_this;
+	uintptr_t *_ostack = ostack;
+
+	/* Is it an instance call? */
+
+	if (class == NULL)
+		cap_this = cap_seal(JavaObject, (pObject) *(_ostack++));
+	else
+		cap_this = cap_seal(JavaObject, class);
+
+	/* Count the arguments */
+
+	size_t cPrimitiveArgs = 0;
+	size_t cObjectArgs = 0;
+
+	forEachArgument(sig,
+		/* single primitives */ { (cPrimitiveArgs++); },
+		/* double primitives */ { (cPrimitiveArgs++); },
+		/* objects           */ { (cObjectArgs++); });
+
+	// TODO: check number of arguments
+
+	register_t pPrimitiveArgs [6] = {0, 0, 0, 0, 0, 0};
+	__capability void *pObjectArgs [4] = {CNULL, CNULL, CNULL, CNULL};
+
+	register_t *_pPrimitiveArgs = pPrimitiveArgs;
+	__capability void **_pObjectArgs = pObjectArgs;
+
+	forEachArgument(sig,
+		/* single primitives */ { *(_pPrimitiveArgs++) = *(_ostack++); },
+		/* double primitives */ { *(_pPrimitiveArgs++) = *(_ostack++); _ostack++; },
+		/* objects           */ { *(_pObjectArgs++) = cap_seal(JavaObject, (pObject) *(_ostack++)); });
+
+	register_t a0 = pPrimitiveArgs[0];
+	register_t a1 = pPrimitiveArgs[1];
+	register_t a2 = pPrimitiveArgs[2];
+	register_t a3 = pPrimitiveArgs[3];
+	register_t a4 = pPrimitiveArgs[4];
+	register_t a5 = pPrimitiveArgs[5];
+
+	__capability void* c0 = pObjectArgs[0];
+	__capability void* c1 = pObjectArgs[1];
+	__capability void* c2 = pObjectArgs[2];
+	__capability void* c3 = pObjectArgs[3];
+
+	jam_printf("Calling cherijni function %p with handle %p and %d args\n", native_func, handle, cPrimitiveArgs + cObjectArgs);
+
+	register_t result = CInvoke_7_6(handle, CHERIJNI_METHOD_RUN, native_func, a0, a1, a2, a3, a4, a5, cap_signature, cap_this, c0, c1, c2, c3);
+
+	// TODO: if it returns (-1), it *might* have failed executing!
+	// TODO: ask rwatson: how much would it take to return the error code in $v1?
+
+	jam_printf("Sandbox returned %p\n", (void*) result);
+
+	/* Put the return value back on stack */
+
+	forReturnType(sig,
+		/* void             */ { },
+		/* single primitive */ { *(ostack++) = result; },
+		/* double primitive */ { *(ostack++) = result; ostack++; },
+		/* objects          */ { *(ostack++) = arg_obj(result); });
+
+	return ostack;
+}
+
 #define JNI_FUNCTION(NAME) \
-	static register_t JNI_##NAME (register_t a1, register_t a2, register_t a3, register_t a4, register_t a5, register_t a6, register_t a7, __capability void *cap_default, __capability void *cap_context, __capability void *cap_output, __capability void *c1, __capability void *c2) { \
+	static register_t JNI_##NAME (register_t a1, register_t a2, register_t a3, register_t a4, register_t a5, register_t a6, register_t a7, __capability void *cap_output, __capability void *c1, __capability void *c2, __capability void *c3, __capability void *c4) { \
 	JNIEnv *env = &globalJNIEnv; \
+	__capability void *cap_default = getSandboxDefaultCap(getExecEnv()->last_frame->mb->sandbox_handle); \
 	__capability void **mem_output = (void*) cap_output;
 /*	const pClass context = cap_unseal(pClass, Context, cap_context); \
 	if (!context) { \
@@ -270,20 +294,22 @@ static inline int isValidString(pObject obj) {
  	} */
 
 #define LIBC_FUNCTION(NAME) \
-	static register_t LIBC_##NAME (register_t a1, register_t a2, register_t a3, register_t a4, register_t a5, register_t a6, register_t a7, __capability void *cap_default, __capability void *cap_context, __capability void *cap_output, __capability void *c1, __capability void *c2) { \
+	static register_t LIBC_##NAME (register_t a1, register_t a2, register_t a3, register_t a4, register_t a5, register_t a6, register_t a7, __capability void *cap_output, __capability void *c1, __capability void *c2, __capability void *c3, __capability void *c4) { \
+	__capability void *cap_default = getSandboxDefaultCap(getExecEnv()->last_frame->mb->sandbox_handle); \
 	__capability void **mem_output = (void*) cap_output;
 
 #define CALL_JNI(NAME) \
-	JNI_##NAME (a1, a2, a3, a4, a5, a6, a7, cap_default, cap_context, cap_output, c1, c2)
+	JNI_##NAME (a1, a2, a3, a4, a5, a6, a7, cap_output, c1, c2, c3, c4)
 
 #define CALL_LIBC(NAME) \
-	LIBC_##NAME (a1, a2, a3, a4, a5, a6, a7, cap_default, cap_context, cap_output, c1, c2)
+	LIBC_##NAME (a1, a2, a3, a4, a5, a6, a7, cap_output, c1, c2, c3, c4)
 
 JNI_FUNCTION(GetVersion)
 	return (*env)->GetVersion(env);
 }
 
 JNI_FUNCTION(FindClass)
+
 	const char *className = arg_str(a1);
 	if (className == NULL)
 		return CHERI_FAIL;
@@ -427,7 +453,7 @@ LIBC_FUNCTION(GetStderr)
 	return fileno(stderr);
 }
 
-register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a2, register_t a3, register_t a4, register_t a5, register_t a6, register_t a7, struct cheri_object system_object, __capability void *cap_default, __capability void *cap_context, __capability void *cap_output, __capability void *c1, __capability void *c2) __attribute__((cheri_ccall)) {
+register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a2, register_t a3, register_t a4, register_t a5, register_t a6, register_t a7, struct cheri_object system_object, __capability void *cap_output, __capability void *c1, __capability void *c2, __capability void *c3, __capability void *c4) __attribute__((cheri_ccall)) {
 	switch(methodnum) {
 	case CHERIJNI_JNIEnv_GetVersion:
 		return CALL_JNI(GetVersion);
