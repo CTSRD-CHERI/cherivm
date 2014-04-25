@@ -19,7 +19,7 @@ void cherijni_obj_init() {
                               (CAP_BYTE(c1, 2) == CAP_BYTE(c2, 2)) && \
                               (CAP_BYTE(c1, 3) == CAP_BYTE(c2, 3)) )
 
-jobject cherijni_obj_storecap(__capability void *cobj) {
+__capability void **cherijni_obj_storecap(__capability void *cobj) {
 	size_t i, j;
 
 	// don't store NULLs
@@ -36,7 +36,7 @@ jobject cherijni_obj_storecap(__capability void *cobj) {
 	return (jobject) &(store->caps[store->used_slots++]);
 }
 
-__capability void *cherijni_obj_loadcap(jobject obj) {
+__capability void *cherijni_obj_loadcap(__capability void **obj) {
 	if (obj == NULL)
 		return cheri_zerocap();
 	else {

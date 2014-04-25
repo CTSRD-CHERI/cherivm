@@ -196,6 +196,7 @@ uintptr_t *cherijni_callMethod(void* handle, void *native_func, pClass class, ch
 #define arg_cap(ptr)    getCapabilityAt(arg_ptr(ptr))
 #define arg_obj(ptr)    cap_unseal(pObject, JavaObject, arg_cap(ptr))
 #define arg_class(ptr)  checkIsClass(arg_obj(ptr))
+#define arg_file(ptr)   cap_unseal(FILE*, FILE, arg_cap(ptr))
 #define arg_str(ptr)    ((const char*) arg_ptr(ptr))
 #define return_obj(obj)    { *mem_output = cap_seal(JavaObject, obj); }
 #define return_mid(field)  { (*mem_output) = cap_seal(MethodID, field); }
@@ -349,17 +350,17 @@ JNI_FUNCTION(GetStaticMethodID)
 
 LIBC_FUNCTION(GetStdin)
 	return_file(stdin);
-	return CHERI_SUCCESS;
+	return fileno(stdin);
 }
 
 LIBC_FUNCTION(GetStdout)
 	return_file(stdout);
-	return CHERI_SUCCESS;
+	return fileno(stdout);
 }
 
 LIBC_FUNCTION(GetStderr)
 	return_file(stderr);
-	return CHERI_SUCCESS;
+	return fileno(stderr);
 }
 
 register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a2, register_t a3, register_t a4, register_t a5, register_t a6, register_t a7, struct cheri_object system_object, __capability void *cap_default, __capability void *cap_context, __capability void *cap_output, __capability void *c1, __capability void *c2) __attribute__((cheri_ccall)) {
@@ -829,6 +830,9 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 		return CALL_LIBC(GetStdout);
 	case CHERIJNI_LIBC_GetStderr:
 		return CALL_LIBC(GetStderr);
+
+	default:
+		break;
 	}
 
 	return CHERI_FAIL;

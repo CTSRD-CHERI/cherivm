@@ -39,9 +39,19 @@ int __isthreaded = 0;
 
 FILE *__stdinp = NULL, *__stdoutp = NULL, *__stderrp = NULL;
 
-#undef fileno
-int fileno(FILE *stream) {
-	return 0;
+struct __sFILE_compat {
+	void   *_capability;
+	int     _r;
+	int     _w;
+	short   _flags;
+	short   _file;          /* (*) fileno, if Unix descriptor, else -1 */
+};
+
+FILE *create_file_ptr(void *cap_ptr, short file_num) {
+	struct __sFILE_compat *file_ptr = (struct __sFILE_compat*) malloc(sizeof(struct __sFILE_compat));
+	file_ptr->_capability = cap_ptr;
+	file_ptr->_file = file_num;
+	return (FILE*) file_ptr;
 }
 
 /* PROCESS MANAGEMENT */
@@ -150,23 +160,32 @@ pid_t getpid() {
 static FILE *get_stdin() {
 	register_t result = hostInvoke_0(GetStdin);
 	check_cheri_fail(result, NULL);
-	return_obj(FILE*);
+	return create_file_ptr(get_output, result);
 }
 
 static FILE *get_stdout() {
 	register_t result = hostInvoke_0(GetStdout);
 	check_cheri_fail(result, NULL);
-	return_obj(FILE*);
+	return create_file_ptr(get_output, result);
 }
 
 static FILE *get_stderr() {
 	register_t result = hostInvoke_0(GetStderr);
 	check_cheri_fail(result, NULL);
-	return_obj(FILE*);
+	return create_file_ptr(get_output, result);
 }
 
 void cherijni_libc_init() {
 	if (__stdinp == NULL) __stdinp = get_stdin();
 	if (__stdoutp == NULL) __stdoutp = get_stdout();
 	if (__stderrp == NULL) __stderrp = get_stderr();
+}
+
+/*
+ * Must provide a definition of fileno, but it will never be called.
+ * The system defines it (provided __isThreaded == 0) as: (stream->file)
+ */
+#undef fileno
+int fileno(FILE *stream) {
+	return 0;
 }
