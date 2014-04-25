@@ -1,29 +1,13 @@
 #include "guest.h"
 
-#define CNULL		(cheri_zerocap())
-
-static __capability void *cherijni_output;
-
-#define SendObject(obj) (cherijni_obj_loadcap(env, obj))
-#define COutput (cheri_ptrperm(&cherijni_output, sizeof(__capability void*), CHERI_PERM_STORE | CHERI_PERM_STORE_CAP))
-
-#define checkCheriFail(errcode, func_result)   { if (errcode == CHERI_FAIL) { printf("[SANDBOX ERROR: call to %s failed]\n", __func__); return func_result; } }
-#define checkCheriFail_void(errcode)   { if (errcode == CHERI_FAIL) { printf("[SANDBOX ERROR: call to %s failed]\n", __func__); return; } }
-#define getOutput ( cherijni_obj_storecap(env, cherijni_output) )
-#define return_obj(TYPE) return (TYPE) getOutput
-
-#define hostInvoke_3(name, a1, a2, a3) \
-	(cheri_invoke(cherijni_SystemObject, \
+#define hostInvoke_7(name, a1, a2, a3, a4, a5, a6, a7) \
+	(cheri_invoke(cherijni_obj_system, \
 	    CHERIJNI_JNIEnv_ ## name, \
 	    a1, a2, a3, 0, 0, 0, 0, \
 	    cheri_getdefault(), \
 	    *((__capability void**) ((*env)->cherijni_context)), \
-		COutput, \
+		cap_output, \
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(), cheri_zerocap(), cheri_zerocap()))
-#define hostInvoke_2(name, a1, a2) hostInvoke_3(name, a1, a2, 0)
-#define hostInvoke_1(name, a1)     hostInvoke_2(name, a1, 0)
-#define hostInvoke_0(name)         hostInvoke_1(name, 0)
-
 
 static jint GetVersion(JNIEnv *env) {
 	return (jint) hostInvoke_0(GetVersion);
@@ -35,51 +19,51 @@ static jclass FindClass(JNIEnv *env, const char *className) {
 	 * pass it as a pointer with the default capability
 	 */
 	register res = hostInvoke_1(FindClass, (register_t) className);
-	checkCheriFail(res, NULL);
+	check_cheri_fail(res, NULL);
 	return_obj(jclass);
 }
 
 static jint ThrowNew(JNIEnv *env, jclass clazz, const char *msg) {
-	register_t res = hostInvoke_2(GetStaticMethodID, clazz, msg);
-	checkCheriFail(res, -1);
+	register_t res = hostInvoke_2(ThrowNew, clazz, msg);
+	check_cheri_fail(res, -1);
 	return (jint) res;
 }
 
 static jthrowable ExceptionOccurred(JNIEnv *env) {
-	register res = hostInvoke_0(FindClass);
-	checkCheriFail(res, NULL);
+	register res = hostInvoke_0(ExceptionOccurred);
+	check_cheri_fail(res, NULL);
 	return_obj(jthrowable);
 }
 
 static void ExceptionDescribe(JNIEnv *env) {
-	checkCheriFail_void(hostInvoke_0(ExceptionDescribe))
+	check_cheri_fail_void(hostInvoke_0(ExceptionDescribe))
 }
 
 static void ExceptionClear(JNIEnv *env) {
-	checkCheriFail_void(hostInvoke_0(ExceptionClear));
+	check_cheri_fail_void(hostInvoke_0(ExceptionClear));
 }
 
 static jboolean IsInstanceOf(JNIEnv *env, jobject obj, jclass clazz) {
 	register_t res = hostInvoke_2(IsInstanceOf, obj, clazz);
-	checkCheriFail(res, JNI_FALSE);
+	check_cheri_fail(res, JNI_FALSE);
 	return res;
 }
 
 static jmethodID GetMethodID(JNIEnv *env, jclass clazz, const char *name, const char *sig) {
 	register_t res = hostInvoke_3(GetMethodID, clazz, name, sig);
-	checkCheriFail(res, NULL);
+	check_cheri_fail(res, NULL);
 	return_obj(jmethodID);
 }
 
 static jfieldID GetFieldID(JNIEnv *env, jclass clazz, const char *name, const char *sig) {
 	register_t res = hostInvoke_3(GetFieldID, clazz, name, sig);
-	checkCheriFail(res, NULL);
+	check_cheri_fail(res, NULL);
 	return_obj(jfieldID);
 }
 
 static jmethodID GetStaticMethodID(JNIEnv *env, jclass clazz, const char *name, const char *sig) {
 	register_t res = hostInvoke_3(GetStaticMethodID, clazz, name, sig);
-	checkCheriFail(res, NULL);
+	check_cheri_fail(res, NULL);
 	return_obj(jmethodID);
 }
 

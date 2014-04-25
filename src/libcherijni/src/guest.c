@@ -12,7 +12,8 @@ typedef struct method_entry {
 
 extern methodEntry cherijni_MethodList[];
 
-struct cheri_object cherijni_SystemObject;
+struct cheri_object cherijni_obj_system;
+__capability void *cherijni_output;
 
 typedef jint (*fn_init)(JavaVM*, void*);
 typedef void (*fn_void)(JNIEnv*, register_t, register_t, register_t, register_t, register_t, register_t, register_t);
@@ -37,6 +38,8 @@ static void* cherijni_methodLookup(char *name) {
 	return NULL;
 }
 
+static jboolean ranTests = JNI_FALSE;
+
 register_t cherijni_invoke(u_int op,
                            register_t a1, register_t a2, register_t a3,
                            register_t a4, register_t a5, register_t a6,
@@ -46,7 +49,7 @@ register_t cherijni_invoke(u_int op,
                            __capability void *c5, __capability void *c6) {
 
 	cheri_system_setup(system_object);
-	cherijni_SystemObject = system_object;
+	cherijni_obj_system = system_object;
 
 	if (op == CHERIJNI_METHOD_LOOKUP) {
 
@@ -82,6 +85,11 @@ register_t cherijni_invoke(u_int op,
 		char *signature = cherijni_extractHostString(c1);
 		JNIEnv *env = cherijni_getJNIEnv(&cap_context);
 		register_t result;
+
+		if (ranTests == JNI_FALSE) {
+			ranTests = JNI_TRUE;
+			cherijni_runTests(env);
+		}
 
 		register_t args_prim[] = { a2, a3, a4, a5, a6, a7 };
 		__capability void *args_objs[] = { c3, c4, c5, c6 };

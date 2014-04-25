@@ -20,7 +20,21 @@
 #include <cherijni.h>
 #include "sandbox_shared.h"
 
-extern struct cheri_object cherijni_SystemObject;
+extern struct cheri_object cherijni_obj_system;
+extern __capability void *cherijni_output;
+
+#define cap_output           (cheri_ptrperm(&cherijni_output, sizeof(__capability void*), CHERI_PERM_STORE | CHERI_PERM_STORE_CAP))
+
+#define hostInvoke_3(name, a1, a2, a3) hostInvoke_7(name, a1, a2, a3, 0, 0, 0, 0)
+#define hostInvoke_2(name, a1, a2)     hostInvoke_3(name, a1, a2, 0)
+#define hostInvoke_1(name, a1)         hostInvoke_2(name, a1, 0)
+#define hostInvoke_0(name)             hostInvoke_1(name, 0)
+
+#define check_cheri_fail(errcode, func_result)   { if (errcode == CHERI_FAIL) { printf("[SANDBOX ERROR: call to %s failed]\n", __func__); return func_result; } }
+#define check_cheri_fail_void(errcode)   { if (errcode == CHERI_FAIL) { printf("[SANDBOX ERROR: call to %s failed]\n", __func__); return; } }
+#define get_output ( cherijni_obj_storecap(env, cherijni_output) )
+#define return_obj(TYPE) return (TYPE) get_output
+#define send_capability(obj) (cherijni_obj_loadcap(env, obj))
 
 extern JavaVM *cherijni_getJavaVM();
 extern JNIEnv *cherijni_getJNIEnv(__capability void **context);
@@ -30,5 +44,7 @@ extern void cherijni_runTests(JNIEnv *env);
 extern void cherijni_obj_init(struct _JNINativeInterface *env);
 extern jobject cherijni_obj_storecap(JNIEnv *env, __capability void *cobj);
 extern __capability void *cherijni_obj_loadcap(JNIEnv *env, jobject obj);
+
+extern void cherijni_libc_init();
 
 #endif //__GUEST_H__

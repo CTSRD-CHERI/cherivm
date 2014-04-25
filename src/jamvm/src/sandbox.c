@@ -116,7 +116,7 @@ void cherijni_runTests(void *handle, pClass context) {
 // TODO: check the return value? -1 *may* mean that a trap happened inside the sandbox (will be replaced with signals)
 
 void *cherijni_lookup(void *handle, char *methodName) {
-	return (void*) CInvoke_0_1(handle, CHERIJNI_METHOD_LOOKUP, CString(methodName));
+	return (void*) CInvoke_0_1(handle, CHERIJNI_METHOD_LOOKUP, cap_string(methodName));
 }
 
 jint cherijni_callOnLoadUnload(void *handle, void *ptr, JavaVM *jvm, void *reserved) {
@@ -125,7 +125,7 @@ jint cherijni_callOnLoadUnload(void *handle, void *ptr, JavaVM *jvm, void *reser
 }
 
 uintptr_t *cherijni_callMethod(void* handle, void *native_func, pClass class, char *sig, uintptr_t *ostack) {
-	__capability void *cContext = CString(sig); // cap_seal(Context, class);
+	__capability void *cSignature = cap_string(sig); // cap_seal(Context, class);
 	__capability void *cThis;
 	uintptr_t *_ostack = ostack;
 
@@ -173,7 +173,7 @@ uintptr_t *cherijni_callMethod(void* handle, void *native_func, pClass class, ch
 
 	jam_printf("Calling cherijni function %p with handle %p and %d args\n", native_func, handle, cPrimitiveArgs + cObjectArgs);
 
-	register_t result = CInvoke_7_6(handle, CHERIJNI_METHOD_RUN, native_func, a0, a1, a2, a3, a4, a5, cContext, cThis, c0, c1, c2, c3);
+	register_t result = CInvoke_7_6(handle, CHERIJNI_METHOD_RUN, native_func, a0, a1, a2, a3, a4, a5, cSignature, cThis, c0, c1, c2, c3);
 
 	// TODO: if it returns (-1), it *might* have failed executing!
 	// TODO: ask rwatson: how much would it take to return the error code in $v1?
@@ -255,6 +255,8 @@ JNI_FUNCTION(GetVersion)
 
 JNI_FUNCTION(FindClass)
 	const char *className = arg_str(a1);
+	if (className == NULL)
+		return CHERI_FAIL;
 	jclass clazz = (*env)->FindClass(env, className);
 	return_obj(clazz);
 	return CHERI_SUCCESS;

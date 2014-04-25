@@ -1,12 +1,12 @@
+#include "guest.h"
+
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/param.h>
 #include <sys/select.h>
 #include <sys/socket.h>
-#include <sys/stat.h>
 #include <sys/statvfs.h>
 #include <sys/time.h>
-#include <sys/types.h>
 #include <sys/uio.h>
 #include <sys/event.h>
 
@@ -14,9 +14,17 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <iconv.h>
-#include <stdio.h>
 #include <unistd.h>
 #include <utime.h>
+
+#define hostInvoke_7(name, a1, a2, a3, a4, a5, a6, a7) \
+	(cheri_invoke(cherijni_obj_system, \
+	    CHERIJNI_LIBC_ ## name, \
+	    a1, a2, a3, a4, a5, a6, a7, \
+	    cheri_getdefault(), \
+	    CNULL, \
+		cap_output, \
+	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(), cheri_zerocap(), cheri_zerocap()))
 
 #define STUB_ERRNO        { printf("[SANDBOX stub: %s\n", __func__); errno = ECAPMODE; return (-1); }
 #define STUB_SIZET        { printf("[SANDBOX stub: %s\n", __func__); errno = ECAPMODE; return ((size_t) - 1); }
@@ -26,6 +34,15 @@
 /* CONSTANTS */
 
 int __isthreaded = 0;
+
+/* STANDARD STREAMS */
+
+FILE *__stdinp = NULL, *__stdoutp = NULL, *__stderrp = NULL;
+
+#undef fileno
+int fileno(FILE *stream) {
+	return 0;
+}
 
 /* PROCESS MANAGEMENT */
 
@@ -51,6 +68,8 @@ int	fcntl(int fd, int cmd, ...)                              STUB_ERRNO
 int fstat(int fd, struct stat *sb)                           STUB_ERRNO
 int fsync(int fd)                                            STUB_ERRNO
 int ftruncate(int fd, off_t length)                          STUB_ERRNO
+int fprintf(FILE * restrict stream, \
+            const char * restrict format, ...)               STUB_ERRNO
 
 int ioctl(int fd, unsigned long request, ...)                STUB_ERRNO
 off_t lseek(int fildes, off_t offset, int whence)            STUB_ERRNO
@@ -126,4 +145,13 @@ size_t iconv(iconv_t cd, const char ** restrict src, \
 pid_t getpid() {
 	printf("WARNING: getpid should never fail!");
 	STUB_ERRNO
+}
+
+void cherijni_libc_init() {
+	if ((__stdinp == NULL) || (__stdoutp == NULL) || (__stderrp == NULL)) {
+		register_t result = hostInvoke_3(GetStandardStreams, &__stdinp, &__stdoutp, &__stderrp);
+		if (result == CHERI_FAIL) {
+			printf("[SANDBOX error: could not initialize standard streams");
+		}
+	}
 }

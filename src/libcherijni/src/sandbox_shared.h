@@ -17,7 +17,7 @@
 	    (uintptr_t)cheri_getlen(cap));				\
 } while (0)
 
-#define CString(str)                     (cheri_ptrperm(str, strlen(str) + 1, CHERI_PERM_LOAD))
+#define cap_string(str)      (cheri_ptrperm(str, strlen(str) + 1, CHERI_PERM_LOAD))
 
 #define forEachArgument(sig, SCAN_PRIM_SINGLE, SCAN_PRIM_DOUBLE, SCAN_OBJECT) \
 {                                         \
@@ -296,5 +296,7 @@
 #define CHERIJNI_JNIEnv_GetDirectBufferAddress			(CHERI_SYSTEM_USER_BASE + 227)
 #define CHERIJNI_JNIEnv_GetDirectBufferCapacity			(CHERI_SYSTEM_USER_BASE + 228)
 #define CHERIJNI_JNIEnv_GetObjectRefType			(CHERI_SYSTEM_USER_BASE + 229)
+
+#define CHERIJNI_LIBC_GetStandardStreams			(CHERI_SYSTEM_USER_BASE + 501)
 
 #endif //__SANDBOX_SHARED_H__
