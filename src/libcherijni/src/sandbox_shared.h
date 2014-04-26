@@ -19,18 +19,18 @@
 
 #define cap_string(str)      (cheri_ptrperm((void*) str, strlen(str) + 1, CHERI_PERM_LOAD))
 
-#define forEachArgument(sig, SCAN_PRIM_SINGLE, SCAN_PRIM_DOUBLE, SCAN_OBJECT) \
+#define scanSignature(sig, ARG_PRIM_SINGLE, ARG_PRIM_DOUBLE, ARG_OBJECT, RET_VOID, RET_PRIM_SINGLE, RET_PRIM_DOUBLE, RET_OBJECT) \
 {                                         \
 	char *s = sig;                        \
 	char c = s[1];                        \
 	while (c != ')') {                    \
 		if (c == 'D' || c == 'J')         \
-			SCAN_PRIM_DOUBLE              \
+			ARG_PRIM_DOUBLE               \
 		else {                            \
 			if (c == 'L' || c == '[')     \
-				SCAN_OBJECT               \
+				ARG_OBJECT                \
 			else                          \
-				SCAN_PRIM_SINGLE          \
+				ARG_PRIM_SINGLE           \
 			                              \
 			while (c == '[')              \
 				c = (++s)[1];             \
@@ -40,23 +40,15 @@
 		}                                 \
 		c = (++s)[1];                     \
 	}                                     \
-}
-
-#define forReturnType(sig, SCAN_VOID, SCAN_PRIM_SINGLE, SCAN_PRIM_DOUBLE, SCAN_OBJECT) \
-{                                         \
-	char *s = sig;                        \
-	char c = s[1];                        \
-	while (c != ')')                      \
-		c = (++s)[1];                     \
 	c = (++s)[1];                         \
 	if (c == 'V')                         \
-        SCAN_VOID                         \
+        RET_VOID                          \
 	else if (c == 'D' || c == 'J')        \
-		SCAN_PRIM_DOUBLE                  \
+		RET_PRIM_DOUBLE                   \
 	else if (c == 'L' || c == '[')        \
-		SCAN_OBJECT                       \
+		RET_OBJECT                        \
 	else                                  \
-		SCAN_PRIM_SINGLE                  \
+		RET_PRIM_SINGLE                   \
 }
 
 #define CHERI_FAIL                           (-1)

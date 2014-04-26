@@ -43,7 +43,7 @@ extern __capability void *cherijni_output;
 #define check_cheri_fail_void(errcode)           { if (errcode == CHERI_FAIL) { printf("[SANDBOX ERROR: call to %s failed]\n", __func__); return; } }
 #define get_output_obj                           cherijni_obj_storecap(cherijni_output)
 #define get_output_str                           cherijni_extractHostString(cherijni_output)
-#define get_cap(ptr)                             (*((__capability void**) ptr))
+#define get_cap(ptr)                             (*((__capability void**) (ptr)))
 #define return_obj(TYPE)                         return (TYPE) get_output_obj
 
 extern JavaVM *cherijni_getJavaVM();

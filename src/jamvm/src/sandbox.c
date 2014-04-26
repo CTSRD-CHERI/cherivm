@@ -19,6 +19,7 @@
 #include <cheri/cheri_class.h>
 #include <cheri/cheri_enter.h>
 #include <cheri/cheri_system.h>
+#include <cheri/cheri_invoke.h>
 
 #include "sandbox.h"
 #include "sandbox_shared.h"
@@ -26,11 +27,23 @@
 extern JNIEnv globalJNIEnv;
 static pClass class_String;
 
+struct sandbox_object {
+	struct sandbox_class	*sbo_sandbox_classp;
+	void			*sbo_mem;
+	register_t		 sbo_sandboxlen;
+	register_t		 sbo_heapbase;
+	register_t		 sbo_heaplen;
+	struct cheri_object	 sbo_cheri_object;
+	struct cheri_object	 sbo_cheri_system_object;
+	struct sandbox_object_stat	*sbo_sandbox_object_statp;
+};
+
 typedef struct cherijni_sandbox {
         struct sandbox_class    *classp;
         struct sandbox_object   *objectp;
-        __capability void       *cap_default;
 } cherijniSandbox;
+
+typedef __capability void* (*fn_jni_cap)(struct cheri_object, u_int, register_t, register_t, register_t, register_t, register_t, register_t, register_t, __capability void *, __capability void *, __capability void *, __capability void *,   __capability void *,__capability void *, __capability void *, __capability void *) __attribute__((cheri_ccall));
 
 #define DEFINE_SEAL_VARS(NAME)                                \
         static uintptr_t          type_##NAME;                      \
@@ -45,6 +58,11 @@ DEFINE_SEAL_VARS(Context)
 DEFINE_SEAL_VARS(MethodID)
 DEFINE_SEAL_VARS(FieldID)
 DEFINE_SEAL_VARS(FILE)
+
+#define RETURNTYPE_VOID   1
+#define RETURNTYPE_SINGLE 2
+#define RETURNTYPE_DOUBLE 3
+#define RETURNTYPE_OBJECT 4
 
 static inline __capability void *cherijni_seal(void *data, __capability void *sealcap) {
 	if (data == NULL)
@@ -87,7 +105,7 @@ char *cherijni_libName(char *name) {
 }
 
 #define CInvoke_7_6(handle, op, a1, a2, a3, a4, a5, a6, a7, c5, c6, c7, c8, c9, c10)                         \
-		sandbox_object_cinvoke(                                                                              \
+		sandbox_object_cinvoke ( \
 				((cherijniSandbox *) handle)->objectp, op,                                           \
 	            (register_t) a1, (register_t) a2, (register_t) a3, (register_t) a4,                          \
                 (register_t) a5, (register_t) a6, (register_t) a7,                                           \
@@ -112,10 +130,6 @@ void *cherijni_open(char *path) {
 		sysFree(sandbox);
 		return NULL;
 	}
-
-	sandbox->cap_default = cheri_ptr(
-			sandbox_object_getbase(sandbox->objectp),
-			sandbox_class_getlength(sandbox->classp));
 
 	return sandbox;
 }
@@ -154,29 +168,6 @@ static inline void copyToSandbox(const char *src, __capability char *dest, size_
 	for (i = 0; i < len; i++)
 		dest[i] = src[i];
 }
-
-static inline __capability void *getSandboxDefaultCap(void *handle) {
-	if (handle == NULL)
-		return CNULL;
-
-	__capability void *cap_default = ((cherijniSandbox*) handle)->cap_default;
-
-	if (!cheri_gettag(cap_default)) {
-		jam_printf("Warning: cap_default inside CheriJNI handle does not have its tag set\n");
-		return CNULL;
-	}
-
-	return cap_default;
-}
-
-//static inline int isWithinBounds(uintptr_t ptr, __capability void *cap) {
-//	if (!cheri_gettag(cap))
-//		return FALSE;
-//
-//	uintptr_t cap_start = cheri_getbase(cap);
-//	uintptr_t cap_end = cap_start + cheri_getlen(cap);
-//	return ((((uintptr_t) ptr) >= cap_start) && (((uintptr_t) ptr) < cap_end));
-//}
 
 static inline __capability void *checkSandboxCapability(__capability void *cap, size_t min_length, register_t perm_mask) {
 	if (!cheri_gettag(cap)) {
@@ -223,18 +214,6 @@ static inline __capability void *checkSandboxCapability_w(__capability void *cap
 	return checkSandboxCapability(cap, min_length, CHERI_PERM_STORE);
 }
 
-static inline __capability void *getCapabilityAt(void *ptr) {
-	if (ptr == NULL)
-		return CNULL;
-
-	if (((uintptr_t) ptr) & (sizeof(__capability void*) - 1)) {
-		jam_printf("Warning: sandbox gave a misaligned capability pointer\n");
-		return cheri_zerocap();
-	}
-
-	return *((__capability void**) ptr);
-}
-
 static inline pClass checkIsClass(pObject obj) {
 	if (obj == NULL)
 		return NULL;
@@ -246,74 +225,85 @@ static inline pClass checkIsClass(pObject obj) {
 	}
 }
 
-static inline int isValidString(pObject obj) {
+static inline int checkIsValidString(pObject obj) {
 	return (obj != NULL) && (obj->class == class_String);
 }
 
+/*
+ * XXX: HACKISH!!! Bypassing cheri_sandbox_cinvoke
+ */
+static __capability void *invoke_returnCap(void *handle, void *native_func, __capability void *cap_signature, __capability void *cap_this, register_t args_prim[], __capability void *args_cap[]) {
+	fn_jni_cap func = (fn_jni_cap) cheri_invoke;
+	cherijniSandbox *sandbox = (cherijniSandbox*) handle;
+	__capability void *result = (func)(
+			sandbox->objectp->sbo_cheri_object,
+			CHERIJNI_METHOD_RUN, native_func,
+			args_prim[0], args_prim[1], args_prim[2], args_prim[3], args_prim[4], args_prim[5],
+			sandbox_object_getsystemobject(sandbox->objectp).co_codecap,
+			sandbox_object_getsystemobject(sandbox->objectp).co_datacap,
+            cap_signature, cap_this,
+            args_cap[0], args_cap[1], args_cap[2], args_cap[3]);
+	CHERI_CAP_PRINT(result);
+	return result;
+}
+
+static register_t invoke_returnPrim(void *handle, void *native_func, __capability void *cap_signature, __capability void *cap_this, register_t args_prim[], __capability void *args_cap[]) {
+	return CInvoke_7_6(handle, CHERIJNI_METHOD_RUN, native_func,
+	                   args_prim[0], args_prim[1], args_prim[2], args_prim[3], args_prim[4], args_prim[5],
+	                   cap_signature, cap_this,
+	                   args_cap[0], args_cap[1], args_cap[2], args_cap[3]);
+}
+
+static void fillArguments(char *sig, uintptr_t *_ostack, register_t *_pPrimitiveArgs, __capability void **_pObjectArgs) {
+	scanSignature(sig,
+		/* single primitives */ { *(_pPrimitiveArgs++) = *(_ostack++); },
+		/* double primitives */ { *(_pPrimitiveArgs++) = *(_ostack++); _ostack++; },
+		/* objects           */ { *(_pObjectArgs++) = cap_seal(JavaObject, (pObject) *(_ostack++)); },
+		/* return values     */ { }, { }, { }, { });
+}
+
 uintptr_t *cherijni_callMethod(void* handle, void *native_func, pClass class, char *sig, uintptr_t *ostack) {
-	__capability void *cap_default = getSandboxDefaultCap(handle);
-	__capability void *cap_signature = cap_string(sig);
 	__capability void *cap_this;
 	uintptr_t *_ostack = ostack;
-
-	/* Is it an instance call? */
-
-	if (class == NULL)
-		cap_this = cap_seal(JavaObject, (pObject) *(_ostack++));
-	else
-		cap_this = cap_seal(JavaObject, class);
+	size_t cPrimitiveArgs = 0, cObjectArgs = 0, returnType;
+	register_t args_prim [6] = {0, 0, 0, 0, 0, 0};
+	__capability void *args_cap [4] = {CNULL, CNULL, CNULL, CNULL};
 
 	/* Count the arguments */
-
-	size_t cPrimitiveArgs = 0;
-	size_t cObjectArgs = 0;
-
-	forEachArgument(sig,
+	scanSignature(sig,
 		/* single primitives */ { (cPrimitiveArgs++); },
 		/* double primitives */ { (cPrimitiveArgs++); },
-		/* objects           */ { (cObjectArgs++); });
+		/* objects           */ { (cObjectArgs++); },
+		/* return values     */ { returnType = RETURNTYPE_VOID; },
+		                        { returnType = RETURNTYPE_SINGLE; },
+		                        { returnType = RETURNTYPE_DOUBLE; },
+		                        { returnType = RETURNTYPE_OBJECT; });
 
 	// TODO: check number of arguments
 
-	register_t pPrimitiveArgs [6] = {0, 0, 0, 0, 0, 0};
-	__capability void *pObjectArgs [4] = {CNULL, CNULL, CNULL, CNULL};
+	/* Prepare arguments */
+	if (class == NULL) cap_this = cap_seal(JavaObject, (pObject) *(_ostack++));
+	else               cap_this = cap_seal(JavaObject, class);
+	fillArguments(sig, _ostack, args_prim, args_cap);
 
-	register_t *_pPrimitiveArgs = pPrimitiveArgs;
-	__capability void **_pObjectArgs = pObjectArgs;
-
-	forEachArgument(sig,
-		/* single primitives */ { *(_pPrimitiveArgs++) = *(_ostack++); },
-		/* double primitives */ { *(_pPrimitiveArgs++) = *(_ostack++); _ostack++; },
-		/* objects           */ { *(_pObjectArgs++) = cap_seal(JavaObject, (pObject) *(_ostack++)); });
-
-	register_t a0 = pPrimitiveArgs[0];
-	register_t a1 = pPrimitiveArgs[1];
-	register_t a2 = pPrimitiveArgs[2];
-	register_t a3 = pPrimitiveArgs[3];
-	register_t a4 = pPrimitiveArgs[4];
-	register_t a5 = pPrimitiveArgs[5];
-
-	__capability void* c0 = pObjectArgs[0];
-	__capability void* c1 = pObjectArgs[1];
-	__capability void* c2 = pObjectArgs[2];
-	__capability void* c3 = pObjectArgs[3];
+	/* Invoke JNI method */
 
 	jam_printf("Calling cherijni function %p with handle %p and %d args\n", native_func, handle, cPrimitiveArgs + cObjectArgs);
 
-	register_t result = CInvoke_7_6(handle, CHERIJNI_METHOD_RUN, native_func, a0, a1, a2, a3, a4, a5, cap_signature, cap_this, c0, c1, c2, c3);
-
-	// TODO: if it returns (-1), it *might* have failed executing!
-	// TODO: ask rwatson: how much would it take to return the error code in $v1?
-
-	jam_printf("Sandbox returned %p\n", (void*) result);
-
-	/* Put the return value back on stack */
-
-	forReturnType(sig,
-		/* void             */ { },
-		/* single primitive */ { *(ostack++) = result; },
-		/* double primitive */ { *(ostack++) = result; ostack++; },
-		/* objects          */ { *(ostack++) = (uintptr_t) arg_obj(getCapabilityAt((void*) (cheri_getbase(cap_default) + result))); });;
+	if (returnType == RETURNTYPE_OBJECT) {
+		__capability void *cap_result = invoke_returnCap(handle, native_func, cap_string(sig), cap_this, args_prim, args_cap);
+		pObject result_obj = arg_obj(cap_result);
+		printf("Sandbox returned object %p\n", result_obj);
+		*(ostack++) = (uintptr_t) result_obj;
+	} else {
+		register_t result = invoke_returnPrim(handle, native_func, cap_string(sig), cap_this, args_prim, args_cap);
+		if (returnType == RETURNTYPE_SINGLE)
+			*(ostack++) = result;
+		else if (returnType == RETURNTYPE_DOUBLE) {
+			*(ostack++) = result;
+			ostack++;
+		}
+	}
 
 	return ostack;
 }
@@ -461,14 +451,14 @@ JNI_FUNCTION(GetStringUTFLength)
 	if (string == NULL)
 		return CHERI_FAIL;
 
-	if (!isValidString(string))
+	if (!checkIsValidString(string))
 		return CHERI_FAIL;
 	return (*env)->GetStringUTFLength(env, string);
 }
 
 JNI_FUNCTION(GetStringUTFChars)
 	pObject string = arg_obj(c1);
-	if (!isValidString(string))
+	if (!checkIsValidString(string))
 		return CHERI_FAIL;
 	jsize str_length = (*env)->GetStringUTFLength(env, string);
 
