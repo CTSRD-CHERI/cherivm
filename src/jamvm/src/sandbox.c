@@ -235,7 +235,7 @@ static inline int checkIsValidString(pObject obj) {
 static __capability void *invoke_returnCap(void *handle, void *native_func, __capability void *cap_signature, __capability void *cap_this, register_t args_prim[], __capability void *args_cap[]) {
 	fn_jni_cap func = (fn_jni_cap) cheri_invoke;
 	cherijniSandbox *sandbox = (cherijniSandbox*) handle;
-	__capability void *result = (func)(
+	return (func)(
 			sandbox->objectp->sbo_cheri_object,
 			CHERIJNI_METHOD_RUN, native_func,
 			args_prim[0], args_prim[1], args_prim[2], args_prim[3], args_prim[4], args_prim[5],
@@ -243,8 +243,6 @@ static __capability void *invoke_returnCap(void *handle, void *native_func, __ca
 			sandbox_object_getsystemobject(sandbox->objectp).co_datacap,
             cap_signature, cap_this,
             args_cap[0], args_cap[1], args_cap[2], args_cap[3]);
-	CHERI_CAP_PRINT(result);
-	return result;
 }
 
 static register_t invoke_returnPrim(void *handle, void *native_func, __capability void *cap_signature, __capability void *cap_this, register_t args_prim[], __capability void *args_cap[]) {
@@ -288,12 +286,9 @@ uintptr_t *cherijni_callMethod(void* handle, void *native_func, pClass class, ch
 
 	/* Invoke JNI method */
 
-	jam_printf("Calling cherijni function %p with handle %p and %d args\n", native_func, handle, cPrimitiveArgs + cObjectArgs);
-
 	if (returnType == RETURNTYPE_OBJECT) {
 		__capability void *cap_result = invoke_returnCap(handle, native_func, cap_string(sig), cap_this, args_prim, args_cap);
 		pObject result_obj = arg_obj(cap_result);
-		printf("Sandbox returned object %p\n", result_obj);
 		*(ostack++) = (uintptr_t) result_obj;
 	} else {
 		register_t result = invoke_returnPrim(handle, native_func, cap_string(sig), cap_this, args_prim, args_cap);
