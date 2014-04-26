@@ -3,7 +3,7 @@
 #define hostInvoke_name(name)  (CHERIJNI_JNIEnv_ ## name)
 
 static jint GetVersion(JNIEnv *env) {
-	return (jint) hostInvoke_0_0(GetVersion);
+	return (jint) hostInvoke_0_0(cheri_invoke_prim, GetVersion);
 }
 
 static jclass FindClass(JNIEnv *env, const char *className) {
@@ -11,63 +11,56 @@ static jclass FindClass(JNIEnv *env, const char *className) {
 	 * Interesting: no point in passing the name as a read-only capability
 	 * pass it as a pointer with the default capability
 	 */
-	register_t res = hostInvoke_0_1(FindClass, cap_string(className));
-	check_cheri_fail(res, NULL);
-	return_obj(jclass);
+	__capability void *result = hostInvoke_0_1(cheri_invoke_cap, FindClass, cap_string(className));
+	return (jclass) get_obj(result);
 }
 
 static jint ThrowNew(JNIEnv *env, jclass clazz, const char *msg) {
-	register_t res = hostInvoke_0_2(ThrowNew, get_cap(clazz), cap_string(msg));
-	check_cheri_fail(res, -1);
+	register_t res = hostInvoke_0_2(cheri_invoke_prim, ThrowNew, get_cap(clazz), cap_string(msg));
 	return (jint) res;
 }
 
 static jthrowable ExceptionOccurred(JNIEnv *env) {
-	register_t res = hostInvoke_0_0(ExceptionOccurred);
-	check_cheri_fail(res, NULL);
-	return_obj(jthrowable);
+	__capability void *result = hostInvoke_0_0(cheri_invoke_cap, ExceptionOccurred);
+	return (jthrowable) get_obj(result);
 }
 
 static void ExceptionDescribe(JNIEnv *env) {
-	check_cheri_fail_void(hostInvoke_0_0(ExceptionDescribe))
+	check_cheri_fail_void(hostInvoke_0_0(cheri_invoke_prim, ExceptionDescribe));
 }
 
 static void ExceptionClear(JNIEnv *env) {
-	check_cheri_fail_void(hostInvoke_0_0(ExceptionClear));
+	check_cheri_fail_void(hostInvoke_0_0(cheri_invoke_prim, ExceptionClear));
 }
 
 static jboolean IsInstanceOf(JNIEnv *env, jobject obj, jclass clazz) {
-	register_t res = hostInvoke_0_2(IsInstanceOf, get_cap(obj), get_cap(clazz));
+	register_t res = hostInvoke_0_2(cheri_invoke_prim, IsInstanceOf, get_cap(obj), get_cap(clazz));
 	check_cheri_fail(res, JNI_FALSE);
 	return res;
 }
 
 static jmethodID GetMethodID(JNIEnv *env, jclass clazz, const char *name, const char *sig) {
-	register_t res = hostInvoke_0_3(GetMethodID, get_cap(clazz), cap_string(name), cap_string(sig));
-	check_cheri_fail(res, NULL);
-	return_obj(jmethodID);
+	__capability void *result = hostInvoke_0_3(cheri_invoke_cap, GetMethodID, get_cap(clazz), cap_string(name), cap_string(sig));
+	return (jmethodID) get_obj(result);
 }
 
 static jfieldID GetFieldID(JNIEnv *env, jclass clazz, const char *name, const char *sig) {
-	register_t res = hostInvoke_0_3(GetFieldID, get_cap(clazz), cap_string(name), cap_string(sig));
-	check_cheri_fail(res, NULL);
-	return_obj(jfieldID);
+	__capability void *result = hostInvoke_0_3(cheri_invoke_cap, GetFieldID, get_cap(clazz), cap_string(name), cap_string(sig));
+	return (jfieldID) get_obj(result);
 }
 
 static jmethodID GetStaticMethodID(JNIEnv *env, jclass clazz, const char *name, const char *sig) {
-	register_t res = hostInvoke_0_3(GetStaticMethodID, get_cap(clazz), cap_string(name), cap_string(sig));
-	check_cheri_fail(res, NULL);
-	return_obj(jmethodID);
+	__capability void *result = hostInvoke_0_3(cheri_invoke_cap, GetStaticMethodID, get_cap(clazz), cap_string(name), cap_string(sig));
+	return (jmethodID) get_obj(result);
 }
 
 static jstring NewStringUTF(JNIEnv *env, const char *bytes) {
-	register_t result = hostInvoke_0_1(NewStringUTF, cap_string(bytes));
-	check_cheri_fail(result, NULL);
-	return_obj(jstring);
+	__capability void *result = hostInvoke_0_1(cheri_invoke_cap, NewStringUTF, cap_string(bytes));
+	return (jstring) get_obj(result);
 }
 
 static jsize GetStringUTFLength(JNIEnv *env, jstring string) {
-	register_t result = hostInvoke_0_1(GetStringUTFLength, get_cap(string));
+	register_t result = hostInvoke_0_1(cheri_invoke_prim, GetStringUTFLength, get_cap(string));
 	check_cheri_fail(result, 0);
 	return result;
 }
@@ -75,8 +68,8 @@ static jsize GetStringUTFLength(JNIEnv *env, jstring string) {
 static const char * GetStringUTFChars(JNIEnv *env, jstring string, jboolean *isCopy) {
 	jsize str_length = (*env)->GetStringUTFLength(env, string);
 	char *str_buffer = (char *) malloc(str_length + 1);
-	register_t result = hostInvoke_0_2(GetStringUTFChars, get_cap(string), cap_buffer(str_buffer, str_length + 1));
-	check_cheri_fail(result, 0);
+	register_t result = hostInvoke_0_2(cheri_invoke_prim, GetStringUTFChars, get_cap(string), cap_buffer(str_buffer, str_length + 1));
+	check_cheri_fail_extra(result, NULL, free(str_buffer));
 
 	if (isCopy != NULL)
 		*isCopy = JNI_TRUE;
@@ -84,7 +77,8 @@ static const char * GetStringUTFChars(JNIEnv *env, jstring string, jboolean *isC
 }
 
 static void ReleaseStringUTFChars(JNIEnv *env, jstring string, const char *utf) {
-	free((void*)utf);
+	if (utf != NULL)
+		free((void*)utf);
 }
 
 static struct _JNINativeInterface cherijni_JNIEnv_struct = {

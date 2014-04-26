@@ -25,6 +25,7 @@
 #include "sandbox_shared.h"
 
 extern JNIEnv globalJNIEnv;
+static JNIEnv *env = &globalJNIEnv;
 static pClass class_String;
 
 struct sandbox_object {
@@ -38,12 +39,10 @@ struct sandbox_object {
 	struct sandbox_object_stat	*sbo_sandbox_object_statp;
 };
 
-typedef struct cherijni_sandbox {
+struct cherijni_sandbox {
         struct sandbox_class    *classp;
         struct sandbox_object   *objectp;
-} cherijniSandbox;
-
-typedef __capability void* (*fn_jni_cap)(struct cheri_object, u_int, register_t, register_t, register_t, register_t, register_t, register_t, register_t, __capability void *, __capability void *, __capability void *, __capability void *,   __capability void *,__capability void *, __capability void *, __capability void *) __attribute__((cheri_ccall));
+};
 
 #define DEFINE_SEAL_VARS(NAME)                                \
         static uintptr_t          type_##NAME;                      \
@@ -106,11 +105,11 @@ char *cherijni_libName(char *name) {
 
 #define CInvoke_7_6(handle, op, a1, a2, a3, a4, a5, a6, a7, c5, c6, c7, c8, c9, c10)                         \
 		sandbox_object_cinvoke ( \
-				((cherijniSandbox *) handle)->objectp, op,                                           \
+				((struct cherijni_sandbox *) handle)->objectp, op,                                           \
 	            (register_t) a1, (register_t) a2, (register_t) a3, (register_t) a4,                          \
                 (register_t) a5, (register_t) a6, (register_t) a7,                                           \
-	            sandbox_object_getsystemobject(((cherijniSandbox *) handle)->objectp).co_codecap,    \
-	            sandbox_object_getsystemobject(((cherijniSandbox *) handle)->objectp).co_datacap,    \
+	            sandbox_object_getsystemobject(((struct cherijni_sandbox *) handle)->objectp).co_codecap,    \
+	            sandbox_object_getsystemobject(((struct cherijni_sandbox *) handle)->objectp).co_datacap,    \
 	            c5, c6, c7, c8, c9, c10)
 #define CInvoke_1_1(handle, op, a1, c5)  CInvoke_7_6(handle, op, a1, 0, 0, 0, 0, 0, 0, c5, CNULL, CNULL, CNULL, CNULL, CNULL)
 #define CInvoke_1_0(handle, op, a1)      CInvoke_1_1(handle, op, a1, CNULL)
@@ -118,7 +117,7 @@ char *cherijni_libName(char *name) {
 #define CInvoke_0_0(handle, op)          CInvoke_1_1(handle, op, 0, CNULL)
 
 void *cherijni_open(char *path) {
-	cherijniSandbox *sandbox = sysMalloc(sizeof(cherijniSandbox));
+	struct cherijni_sandbox *sandbox = sysMalloc(sizeof(struct cherijni_sandbox));
 
 	/* Initialize the sandbox class and object */
 	if (sandbox_class_new(path, DEFAULT_SANDBOX_MEM, &sandbox->classp) < 0) {
@@ -157,11 +156,11 @@ jint cherijni_callOnLoadUnload(void *handle, void *ptr, JavaVM *jvm, void *reser
 #define arg_obj(cap)    cap_unseal(pObject, JavaObject, cap)
 #define arg_class(cap)  checkIsClass(arg_obj(cap))
 #define arg_file(cap)   cap_unseal(FILE*, FILE, cap)
-#define return_obj(obj)    { *mem_output = cap_seal(JavaObject, obj); }
-#define return_mid(field)  { (*mem_output) = cap_seal(MethodID, field); }
-#define return_fid(field)  { (*mem_output) = cap_seal(FieldID, field); }
-#define return_file(file)  { (*mem_output) = cap_seal(FILE, file); }
-#define return_str(str)    { (*mem_output) = cap_string(str); }
+#define return_obj(obj)    cap_seal(JavaObject, obj)
+#define return_mid(field)  cap_seal(MethodID, field)
+#define return_fid(field)  cap_seal(FieldID, field)
+#define return_file(file)  cap_seal(FILE, file)
+#define return_str(str)    cap_string(str)
 
 static inline void copyToSandbox(const char *src, __capability char *dest, size_t len) {
 	size_t i;
@@ -233,8 +232,8 @@ static inline int checkIsValidString(pObject obj) {
  * XXX: HACKISH!!! Bypassing cheri_sandbox_cinvoke
  */
 static __capability void *invoke_returnCap(void *handle, void *native_func, __capability void *cap_signature, __capability void *cap_this, register_t args_prim[], __capability void *args_cap[]) {
-	fn_jni_cap func = (fn_jni_cap) cheri_invoke;
-	cherijniSandbox *sandbox = (cherijniSandbox*) handle;
+	cheri_invoke_cap func = (cheri_invoke_cap) cheri_invoke;
+	struct cherijni_sandbox *sandbox = (struct cherijni_sandbox*) handle;
 	return (func)(
 			sandbox->objectp->sbo_cheri_object,
 			CHERIJNI_METHOD_RUN, native_func,
@@ -303,78 +302,61 @@ uintptr_t *cherijni_callMethod(void* handle, void *native_func, pClass class, ch
 	return ostack;
 }
 
-#define JNI_FUNCTION(NAME) \
-	static register_t JNI_##NAME (register_t a1, register_t a2, register_t a3, register_t a4, register_t a5, register_t a6, register_t a7, __capability void *cap_output, __capability void *c1, __capability void *c2, __capability void *c3, __capability void *c4) { \
-	JNIEnv *env = &globalJNIEnv; \
-	__capability void **mem_output = arg_ptr(cap_output, sizeof(__capability void*), wc);
-/*
- 	__capability void *cap_default = getSandboxDefaultCap(getExecEnv()->last_frame->mb->sandbox_handle); \
-    const pClass context = cap_unseal(pClass, Context, cap_context); \
-	if (!context) { \
-		printf("Warning: sandbox hasn't provided a valid context\n"); \
-		return CHERI_FAIL; \
- 	} */
+#define JNI_FUNCTION_PRIM(NAME)     static register_t          JNI_##NAME (register_t a1, register_t a2, register_t a3, register_t a4, register_t a5, register_t a6, register_t a7, __capability void *c1, __capability void *c2, __capability void *c3, __capability void *c4, __capability void *c5)
+#define JNI_FUNCTION_CAP(NAME)      static __capability void  *JNI_##NAME (register_t a1, register_t a2, register_t a3, register_t a4, register_t a5, register_t a6, register_t a7, __capability void *c1, __capability void *c2, __capability void *c3, __capability void *c4, __capability void *c5)
+#define LIBC_FUNCTION_PRIM(NAME)    static register_t          LIBC_##NAME (register_t a1, register_t a2, register_t a3, register_t a4, register_t a5, register_t a6, register_t a7, __capability void *c1, __capability void *c2, __capability void *c3, __capability void *c4, __capability void *c5)
+#define LIBC_FUNCTION_CAP(NAME)     static __capability void * LIBC_##NAME (register_t a1, register_t a2, register_t a3, register_t a4, register_t a5, register_t a6, register_t a7, __capability void *c1, __capability void *c2, __capability void *c3, __capability void *c4, __capability void *c5)
 
-#define LIBC_FUNCTION(NAME) \
-	static register_t LIBC_##NAME (register_t a1, register_t a2, register_t a3, register_t a4, register_t a5, register_t a6, register_t a7, __capability void *cap_output, __capability void *c1, __capability void *c2, __capability void *c3, __capability void *c4) { \
-	__capability void **mem_output = arg_ptr(cap_output, sizeof(__capability void*), wc);
+#define CALL_JNI_PRIM(NAME)         { return JNI_##NAME (a1, a2, a3, a4, a5, a6, a7, c1, c2, c3, c4, c5); }
+#define CALL_JNI_CAP(NAME)          { __capability void *result = JNI_##NAME (a1, a2, a3, a4, a5, a6, a7, c1, c2, c3, c4, c5); cheri_setreg(3, result); return CHERI_SUCCESS; }
+#define CALL_LIBC_PRIM(NAME)        { return LIBC_##NAME (a1, a2, a3, a4, a5, a6, a7, c1, c2, c3, c4, c5); }
+#define CALL_LIBC_CAP(NAME)         { __capability void *result = LIBC_##NAME (a1, a2, a3, a4, a5, a6, a7, c1, c2, c3, c4, c5); cheri_setreg(3, result); return CHERI_SUCCESS; }
 
-#define CALL_JNI(NAME) \
-	JNI_##NAME (a1, a2, a3, a4, a5, a6, a7, cap_output, c1, c2, c3, c4)
-
-#define CALL_LIBC(NAME) \
-	LIBC_##NAME (a1, a2, a3, a4, a5, a6, a7, cap_output, c1, c2, c3, c4)
-
-JNI_FUNCTION(GetVersion)
+JNI_FUNCTION_PRIM(GetVersion) {
 	return (*env)->GetVersion(env);
 }
 
-JNI_FUNCTION(FindClass)
+JNI_FUNCTION_CAP(FindClass) {
 	const char *className = arg_str(c1, 1, r);
 	if (className == NULL)
 		return CHERI_FAIL;
 
-	jclass clazz = (*env)->FindClass(env, className);
-	return_obj(clazz);
-	return CHERI_SUCCESS;
+	return return_obj((*env)->FindClass(env, className));
 }
 
-JNI_FUNCTION(ThrowNew)
+JNI_FUNCTION_PRIM(ThrowNew) {
 	pClass clazz = arg_class(c1);
+	const char *msg = arg_str(c2, 1, r);
 	if (clazz == NULL)
 		return CHERI_FAIL;
 
-	const char *msg = arg_str(c2, 1, r);
 	return (*env)->ThrowNew(env, clazz, msg);
 }
 
-JNI_FUNCTION(ExceptionOccurred)
-	jthrowable ex = (*env)->ExceptionOccurred(env);
-	return_obj(ex);
-	return CHERI_SUCCESS;
+JNI_FUNCTION_CAP(ExceptionOccurred) {
+	return return_obj((*env)->ExceptionOccurred(env));
 }
 
-JNI_FUNCTION(ExceptionDescribe)
+JNI_FUNCTION_PRIM(ExceptionDescribe) {
 	(*env)->ExceptionDescribe(env);
 	return CHERI_SUCCESS;
 }
 
-JNI_FUNCTION(ExceptionClear)
+JNI_FUNCTION_PRIM(ExceptionClear) {
 	(*env)->ExceptionClear(env);
 	return CHERI_SUCCESS;
 }
 
-JNI_FUNCTION(IsInstanceOf)
+JNI_FUNCTION_PRIM(IsInstanceOf) {
 	pObject obj = arg_obj(c1);
 	pClass clazz = arg_class(c2);
 	if (clazz == NULL)
 		return CHERI_FAIL;
 
-	jboolean result = (*env)->IsInstanceOf(env, obj, clazz);
-	return (register_t) result;
+	return (register_t) (*env)->IsInstanceOf(env, obj, clazz);
 }
 
-JNI_FUNCTION(GetMethodID)
+JNI_FUNCTION_CAP(GetMethodID) {
 	pClass clazz = arg_class(c1);
 	const char *name = arg_str(c2, 1, r);
 	const char *sig = arg_str(c3, 1, r);
@@ -388,60 +370,52 @@ JNI_FUNCTION(GetMethodID)
 		result = NULL;
 	}
 #endif
-	return_mid(result);
-	return CHERI_SUCCESS;
+	return return_mid(result);
 }
 
-JNI_FUNCTION(GetFieldID)
+JNI_FUNCTION_CAP(GetFieldID) {
 	pClass clazz = arg_class(c1);
 	const char *name = arg_str(c2, 1, r);
 	const char *sig = arg_str(c3, 1, r);
 	if (clazz == NULL || name == NULL || sig == NULL)
-		return CHERI_FAIL;
+		return CNULL;
 
 	pFieldBlock result = (*env)->GetFieldID(env, clazz, name, sig);
 #ifdef JNI_CHERI_STRICT
 	if (!checkFieldAccess(result, context)) {
 		jam_printf("Warning: sandbox requested a field outside its execution context\n");
-		result = NULL;
+		result = CNULL;
 	}
 #endif
-	return_fid(result);
-	return CHERI_SUCCESS;
+	return return_fid(result);
 }
 
-JNI_FUNCTION(GetStaticMethodID)
+JNI_FUNCTION_CAP(GetStaticMethodID) {
 	pClass clazz = arg_class(c1);
 	const char *name = arg_str(c2, 1, r);
 	const char *sig = arg_str(c3, 1, r);
 	if (clazz == NULL || name == NULL || sig == NULL)
-		return CHERI_FAIL;
+		return CNULL;
 
 	pMethodBlock result = (*env)->GetStaticMethodID(env, clazz, name, sig);
 #ifdef JNI_CHERI_STRICT
 	if (!checkMethodAccess(result, context)) {
 		jam_printf("Warning: sandbox requested a static method outside its execution context\n");
-		result = NULL;
+		result = CNULL;
 	}
 #endif
-	return_mid(result);
-	return CHERI_SUCCESS;
+	return return_mid(result);
 }
 
-JNI_FUNCTION(NewStringUTF)
+JNI_FUNCTION_CAP(NewStringUTF) {
 	const char *bytes = arg_str(c1, 1, r);
 	if (bytes == NULL)
-		return CHERI_FAIL;
+		return CNULL;
 
-	jstring str = (*env)->NewStringUTF(env, bytes);
-	if (str == NULL)
-		return CHERI_FAIL;
-
-	return_obj(str);
-	return CHERI_SUCCESS;
+	return return_obj((*env)->NewStringUTF(env, bytes));
 }
 
-JNI_FUNCTION(GetStringUTFLength)
+JNI_FUNCTION_PRIM(GetStringUTFLength) {
 	pObject string = arg_obj(c1);
 	if (string == NULL)
 		return CHERI_FAIL;
@@ -451,7 +425,7 @@ JNI_FUNCTION(GetStringUTFLength)
 	return (*env)->GetStringUTFLength(env, string);
 }
 
-JNI_FUNCTION(GetStringUTFChars)
+JNI_FUNCTION_PRIM(GetStringUTFChars) {
 	pObject string = arg_obj(c1);
 	if (!checkIsValidString(string))
 		return CHERI_FAIL;
@@ -468,33 +442,30 @@ JNI_FUNCTION(GetStringUTFChars)
 	return CHERI_SUCCESS;
 }
 
-JNI_FUNCTION(ReleaseStringUTFChars)
+JNI_FUNCTION_PRIM(ReleaseStringUTFChars) {
 	return CHERI_FAIL;
 }
 
-LIBC_FUNCTION(GetStdin)
-	return_file(stdin);
-	return fileno(stdin);
+LIBC_FUNCTION_CAP(GetStdin) {
+	return return_file(stdin);
 }
 
-LIBC_FUNCTION(GetStdout)
-	return_file(stdout);
-	return fileno(stdout);
+LIBC_FUNCTION_CAP(GetStdout) {
+	return return_file(stdout);
 }
 
-LIBC_FUNCTION(GetStderr)
-	return_file(stderr);
-	return fileno(stderr);
+LIBC_FUNCTION_CAP(GetStderr) {
+	return return_file(stderr);
 }
 
-register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a2, register_t a3, register_t a4, register_t a5, register_t a6, register_t a7, struct cheri_object system_object, __capability void *cap_output, __capability void *c1, __capability void *c2, __capability void *c3, __capability void *c4) __attribute__((cheri_ccall)) {
+register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a2, register_t a3, register_t a4, register_t a5, register_t a6, register_t a7, struct cheri_object system_object, __capability void *c1, __capability void *c2, __capability void *c3, __capability void *c4, __capability void *c5) __attribute__((cheri_ccall)) {
 	switch(methodnum) {
 	case CHERIJNI_JNIEnv_GetVersion:
-		return CALL_JNI(GetVersion);
+		CALL_JNI_PRIM(GetVersion)
 	case CHERIJNI_JNIEnv_DefineClass:
 		break;
 	case CHERIJNI_JNIEnv_FindClass:
-		return CALL_JNI(FindClass);
+		CALL_JNI_CAP(FindClass)
 	case CHERIJNI_JNIEnv_FromReflectedMethod:
 		break;
 	case CHERIJNI_JNIEnv_FromReflectedField:
@@ -510,13 +481,13 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 	case CHERIJNI_JNIEnv_Throw:
 		break;
 	case CHERIJNI_JNIEnv_ThrowNew:
-		return CALL_JNI(ThrowNew);
+		CALL_JNI_PRIM(ThrowNew)
 	case CHERIJNI_JNIEnv_ExceptionOccurred:
-		return CALL_JNI(ExceptionOccurred);
+		CALL_JNI_CAP(ExceptionOccurred)
 	case CHERIJNI_JNIEnv_ExceptionDescribe:
-		return CALL_JNI(ExceptionDescribe);
+		CALL_JNI_PRIM(ExceptionDescribe)
 	case CHERIJNI_JNIEnv_ExceptionClear:
-		return CALL_JNI(ExceptionClear);
+		CALL_JNI_PRIM(ExceptionClear)
 	case CHERIJNI_JNIEnv_FatalError:
 		break;
 	case CHERIJNI_JNIEnv_PushLocalFrame:
@@ -546,9 +517,9 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 	case CHERIJNI_JNIEnv_GetObjectClass:
 		break;
 	case CHERIJNI_JNIEnv_IsInstanceOf:
-		return CALL_JNI(IsInstanceOf);
+		CALL_JNI_PRIM(IsInstanceOf)
 	case CHERIJNI_JNIEnv_GetMethodID:
-		return CALL_JNI(GetMethodID);
+		CALL_JNI_CAP(GetMethodID)
 	case CHERIJNI_JNIEnv_CallObjectMethod:
 		break;
 	case CHERIJNI_JNIEnv_CallObjectMethodV:
@@ -670,7 +641,7 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 	case CHERIJNI_JNIEnv_CallNonvirtualVoidMethodA:
 		break;
 	case CHERIJNI_JNIEnv_GetFieldID:
-		return CALL_JNI(GetFieldID);
+		CALL_JNI_CAP(GetFieldID)
 	case CHERIJNI_JNIEnv_GetObjectField:
 		break;
 	case CHERIJNI_JNIEnv_GetBooleanField:
@@ -708,7 +679,7 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 	case CHERIJNI_JNIEnv_SetDoubleField:
 		break;
 	case CHERIJNI_JNIEnv_GetStaticMethodID:
-		return CALL_JNI(GetStaticMethodID);
+		CALL_JNI_CAP(GetStaticMethodID)
 	case CHERIJNI_JNIEnv_CallStaticObjectMethod:
 		break;
 	case CHERIJNI_JNIEnv_CallStaticObjectMethodV:
@@ -816,13 +787,13 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 	case CHERIJNI_JNIEnv_ReleaseStringChars:
 		break;
 	case CHERIJNI_JNIEnv_NewStringUTF:
-		return CALL_JNI(NewStringUTF);
+		CALL_JNI_CAP(NewStringUTF)
 	case CHERIJNI_JNIEnv_GetStringUTFLength:
-		return CALL_JNI(GetStringUTFLength);
+		CALL_JNI_PRIM(GetStringUTFLength)
 	case CHERIJNI_JNIEnv_GetStringUTFChars:
-		return CALL_JNI(GetStringUTFChars);
+		CALL_JNI_PRIM(GetStringUTFChars)
 	case CHERIJNI_JNIEnv_ReleaseStringUTFChars:
-		return CALL_JNI(ReleaseStringUTFChars);
+		CALL_JNI_PRIM(ReleaseStringUTFChars)
 	case CHERIJNI_JNIEnv_GetArrayLength:
 		break;
 	case CHERIJNI_JNIEnv_NewObjectArray:
@@ -949,11 +920,11 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 		break;
 
 	case CHERIJNI_LIBC_GetStdin:
-		return CALL_LIBC(GetStdin);
+		CALL_LIBC_CAP(GetStdin)
 	case CHERIJNI_LIBC_GetStdout:
-		return CALL_LIBC(GetStdout);
+		CALL_LIBC_CAP(GetStdout)
 	case CHERIJNI_LIBC_GetStderr:
-		return CALL_LIBC(GetStderr);
+		CALL_LIBC_CAP(GetStderr)
 
 	default:
 		break;

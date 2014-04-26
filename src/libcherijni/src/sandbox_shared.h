@@ -19,6 +19,9 @@
 
 #define cap_string(str)      (cheri_ptrperm((void*) str, strlen(str) + 1, CHERI_PERM_LOAD))
 
+typedef register_t (*cheri_invoke_prim)(struct cheri_object, u_int, register_t, register_t, register_t, register_t, register_t, register_t, register_t, __capability void *, __capability void *, __capability void *, __capability void *,   __capability void *,__capability void *, __capability void *, __capability void *) __attribute__((cheri_ccall));
+typedef __capability void* (*cheri_invoke_cap)(struct cheri_object, u_int, register_t, register_t, register_t, register_t, register_t, register_t, register_t, __capability void *, __capability void *, __capability void *, __capability void *,   __capability void *,__capability void *, __capability void *, __capability void *) __attribute__((cheri_ccall));
+
 #define scanSignature(sig, ARG_PRIM_SINGLE, ARG_PRIM_DOUBLE, ARG_OBJECT, RET_VOID, RET_PRIM_SINGLE, RET_PRIM_DOUBLE, RET_OBJECT) \
 {                                         \
 	char *s = sig;                        \

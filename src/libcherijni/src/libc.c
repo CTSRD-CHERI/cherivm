@@ -35,16 +35,13 @@ int __isthreaded = 0;
 FILE *__stdinp = NULL, *__stdoutp = NULL, *__stderrp = NULL;
 
 struct __sFILE_compat {
-	void   *_capability;
-	int     _r;
-	int     _w;
-	short   _flags;
-	short   _file;          /* (*) fileno, if Unix descriptor, else -1 */
+	__capability void *_capability;
+	short             _file;
 };
 
-FILE *create_file_ptr(void *cap_ptr, short file_num) {
+FILE *create_file_ptr(__capability void *cap, short file_num) {
 	struct __sFILE_compat *file_ptr = (struct __sFILE_compat*) malloc(sizeof(struct __sFILE_compat));
-	file_ptr->_capability = cap_ptr;
+	file_ptr->_capability = cap;
 	file_ptr->_file = file_num;
 	return (FILE*) file_ptr;
 }
@@ -177,21 +174,18 @@ int raise(int sig)                                           STUB_ERRNO
 /* INITIALIZATION */
 
 static FILE *get_stdin() {
-	register_t result = hostInvoke_0_0(GetStdin);
-	check_cheri_fail(result, NULL);
-	return create_file_ptr(get_output_obj, result);
+	__capability void *result = hostInvoke_0_0(cheri_invoke_cap, GetStdin);
+	return create_file_ptr(result, STDIN_FILENO);
 }
 
 static FILE *get_stdout() {
-	register_t result = hostInvoke_0_0(GetStdout);
-	check_cheri_fail(result, NULL);
-	return create_file_ptr(get_output_obj, result);
+	__capability void *result = hostInvoke_0_0(cheri_invoke_cap, GetStdout);
+	return create_file_ptr(result, STDOUT_FILENO);
 }
 
 static FILE *get_stderr() {
-	register_t result = hostInvoke_0_0(GetStderr);
-	check_cheri_fail(result, NULL);
-	return create_file_ptr(get_output_obj, result);
+	__capability void *result = hostInvoke_0_0(cheri_invoke_cap, GetStderr);
+	return create_file_ptr(result, STDERR_FILENO);
 }
 
 void cherijni_libc_init() {

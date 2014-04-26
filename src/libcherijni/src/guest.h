@@ -26,25 +26,25 @@ extern __capability void *cherijni_output;
 #define cap_output             (cheri_ptrperm(&cherijni_output, sizeof(__capability void*), CHERI_PERM_STORE | CHERI_PERM_STORE_CAP))
 #define cap_buffer(ptr, len)   (cheri_ptrperm(ptr, len, CHERI_PERM_STORE))
 
-#define hostInvoke_7_4(name, a1, a2, a3, a4, a5, a6, a7, c1, c2, c3, c4) \
-	(cheri_invoke(cherijni_obj_system, \
+#define hostInvoke_7_5(recast, name, a1, a2, a3, a4, a5, a6, a7, c1, c2, c3, c4, c5) \
+	(((recast) cheri_invoke) (cherijni_obj_system, \
 		hostInvoke_name(name), \
 	    a1, a2, a3, a4, a5, a6, a7, \
-		cap_output, \
-	    c1, c2, c3, c4, \
+	    c1, c2, c3, c4, c5, \
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap()))
 
-#define hostInvoke_0_3(name, c1, c2, c3)           hostInvoke_7_4(name, 0, 0, 0, 0, 0, 0, 0, c1, c2, c3, CNULL)
-#define hostInvoke_0_2(name, c1, c2)               hostInvoke_0_3(name, c1, c2, CNULL)
-#define hostInvoke_0_1(name, c1)                   hostInvoke_0_2(name, c1, CNULL)
-#define hostInvoke_0_0(name)                       hostInvoke_0_1(name, CNULL)
+#define hostInvoke_0_3(recast, name, c1, c2, c3)           hostInvoke_7_5(recast, name, 0, 0, 0, 0, 0, 0, 0, c1, c2, c3, CNULL, CNULL)
+#define hostInvoke_0_2(recast, name, c1, c2)               hostInvoke_0_3(recast, name, c1, c2, CNULL)
+#define hostInvoke_0_1(recast, name, c1)                   hostInvoke_0_2(recast, name, c1, CNULL)
+#define hostInvoke_0_0(recast, name)                       hostInvoke_0_1(recast, name, CNULL)
 
-#define check_cheri_fail(errcode, func_result)   { if (errcode == CHERI_FAIL) { printf("[SANDBOX ERROR: call to %s failed]\n", __func__); return func_result; } }
-#define check_cheri_fail_void(errcode)           { if (errcode == CHERI_FAIL) { printf("[SANDBOX ERROR: call to %s failed]\n", __func__); return; } }
-#define get_output_obj                           cherijni_obj_storecap(cherijni_output)
-#define get_output_str                           cherijni_extractHostString(cherijni_output)
-#define get_cap(ptr)                             (*((__capability void**) (ptr)))
-#define return_obj(TYPE)                         return (TYPE) get_output_obj
+#define check_cheri_fail(errcode, func_result)                { if (errcode == CHERI_FAIL) { printf("[SANDBOX ERROR: call to %s failed]\n", __func__); return func_result; } }
+#define check_cheri_fail_extra(errcode, func_result, doExtra) { if (errcode == CHERI_FAIL) { doExtra; check_cheri_fail(errcode, func_result) } }
+#define check_cheri_fail_void(errcode)                        { if (errcode == CHERI_FAIL) { printf("[SANDBOX ERROR: call to %s failed]\n", __func__); return; } }
+
+#define get_obj(cap)        cherijni_obj_storecap(cap)
+#define get_str(cap)        cherijni_extractHostString(cap)
+#define get_cap(ptr)        (*((__capability void**) (ptr)))
 
 extern JavaVM *cherijni_getJavaVM();
 extern JNIEnv *cherijni_getJNIEnv(__capability void **context);
