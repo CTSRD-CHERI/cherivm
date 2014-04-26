@@ -1,16 +1,9 @@
 #include "guest.h"
 
-#define hostInvoke_7(name, a1, a2, a3, a4, a5, a6, a7) \
-	(cheri_invoke(cherijni_obj_system, \
-	    CHERIJNI_JNIEnv_ ## name, \
-	    a1, a2, a3, 0, 0, 0, 0, \
-		cap_output, \
-	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(), cheri_zerocap(), \
-	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap()))
-		/* *((__capability void**) ((*env)->cherijni_context)), \ */
+#define hostInvoke_name(name)  (CHERIJNI_JNIEnv_ ## name)
 
 static jint GetVersion(JNIEnv *env) {
-	return (jint) hostInvoke_0(GetVersion);
+	return (jint) hostInvoke_0_0(GetVersion);
 }
 
 static jclass FindClass(JNIEnv *env, const char *className) {
@@ -18,71 +11,71 @@ static jclass FindClass(JNIEnv *env, const char *className) {
 	 * Interesting: no point in passing the name as a read-only capability
 	 * pass it as a pointer with the default capability
 	 */
-	register res = hostInvoke_1(FindClass, (register_t) className);
+	register_t res = hostInvoke_0_1(FindClass, cap_string(className));
 	check_cheri_fail(res, NULL);
 	return_obj(jclass);
 }
 
 static jint ThrowNew(JNIEnv *env, jclass clazz, const char *msg) {
-	register_t res = hostInvoke_2(ThrowNew, clazz, msg);
+	register_t res = hostInvoke_0_2(ThrowNew, get_cap(clazz), cap_string(msg));
 	check_cheri_fail(res, -1);
 	return (jint) res;
 }
 
 static jthrowable ExceptionOccurred(JNIEnv *env) {
-	register res = hostInvoke_0(ExceptionOccurred);
+	register_t res = hostInvoke_0_0(ExceptionOccurred);
 	check_cheri_fail(res, NULL);
 	return_obj(jthrowable);
 }
 
 static void ExceptionDescribe(JNIEnv *env) {
-	check_cheri_fail_void(hostInvoke_0(ExceptionDescribe))
+	check_cheri_fail_void(hostInvoke_0_0(ExceptionDescribe))
 }
 
 static void ExceptionClear(JNIEnv *env) {
-	check_cheri_fail_void(hostInvoke_0(ExceptionClear));
+	check_cheri_fail_void(hostInvoke_0_0(ExceptionClear));
 }
 
 static jboolean IsInstanceOf(JNIEnv *env, jobject obj, jclass clazz) {
-	register_t res = hostInvoke_2(IsInstanceOf, obj, clazz);
+	register_t res = hostInvoke_0_2(IsInstanceOf, get_cap(obj), get_cap(clazz));
 	check_cheri_fail(res, JNI_FALSE);
 	return res;
 }
 
 static jmethodID GetMethodID(JNIEnv *env, jclass clazz, const char *name, const char *sig) {
-	register_t res = hostInvoke_3(GetMethodID, clazz, name, sig);
+	register_t res = hostInvoke_0_3(GetMethodID, get_cap(clazz), cap_string(name), cap_string(sig));
 	check_cheri_fail(res, NULL);
 	return_obj(jmethodID);
 }
 
 static jfieldID GetFieldID(JNIEnv *env, jclass clazz, const char *name, const char *sig) {
-	register_t res = hostInvoke_3(GetFieldID, clazz, name, sig);
+	register_t res = hostInvoke_0_3(GetFieldID, get_cap(clazz), cap_string(name), cap_string(sig));
 	check_cheri_fail(res, NULL);
 	return_obj(jfieldID);
 }
 
 static jmethodID GetStaticMethodID(JNIEnv *env, jclass clazz, const char *name, const char *sig) {
-	register_t res = hostInvoke_3(GetStaticMethodID, clazz, name, sig);
+	register_t res = hostInvoke_0_3(GetStaticMethodID, get_cap(clazz), cap_string(name), cap_string(sig));
 	check_cheri_fail(res, NULL);
 	return_obj(jmethodID);
 }
 
 static jstring NewStringUTF(JNIEnv *env, const char *bytes) {
-	register_t result = hostInvoke_1(NewStringUTF, bytes);
+	register_t result = hostInvoke_0_1(NewStringUTF, cap_string(bytes));
 	check_cheri_fail(result, NULL);
 	return_obj(jstring);
 }
 
 static jsize GetStringUTFLength(JNIEnv *env, jstring string) {
-	register_t result = hostInvoke_1(GetStringUTFLength, string);
+	register_t result = hostInvoke_0_1(GetStringUTFLength, get_cap(string));
 	check_cheri_fail(result, 0);
-	return_obj(jstring);
+	return result;
 }
 
 static const char * GetStringUTFChars(JNIEnv *env, jstring string, jboolean *isCopy) {
 	jsize str_length = (*env)->GetStringUTFLength(env, string);
-	const char *str_buffer = (const char *) malloc(str_length + 1);
-	register_t result = hostInvoke_2(GetStringUTFChars, string, str_buffer);
+	char *str_buffer = (char *) malloc(str_length + 1);
+	register_t result = hostInvoke_0_2(GetStringUTFChars, get_cap(string), cap_buffer(str_buffer, str_length + 1));
 	check_cheri_fail(result, 0);
 
 	if (isCopy != NULL)

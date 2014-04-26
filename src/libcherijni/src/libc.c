@@ -19,13 +19,7 @@
 #include <utime.h>
 #include <signal.h>
 
-#define hostInvoke_7(name, a1, a2, a3, a4, a5, a6, a7) \
-	(cheri_invoke(cherijni_obj_system, \
-	    CHERIJNI_LIBC_ ## name, \
-	    a1, a2, a3, a4, a5, a6, a7, \
-	    cap_output, \
-	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(), cheri_zerocap(), \
-	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap()))
+#define hostInvoke_name(name) CHERIJNI_LIBC_ ## name
 
 #define STUB_ERRNO        { printf("[SANDBOX stub: %s\n", __func__); errno = ECAPMODE; return (-1); }
 #define STUB_SIZET        { printf("[SANDBOX stub: %s\n", __func__); errno = ECAPMODE; return ((size_t) - 1); }
@@ -183,19 +177,19 @@ int raise(int sig)                                           STUB_ERRNO
 /* INITIALIZATION */
 
 static FILE *get_stdin() {
-	register_t result = hostInvoke_0(GetStdin);
+	register_t result = hostInvoke_0_0(GetStdin);
 	check_cheri_fail(result, NULL);
 	return create_file_ptr(get_output_obj, result);
 }
 
 static FILE *get_stdout() {
-	register_t result = hostInvoke_0(GetStdout);
+	register_t result = hostInvoke_0_0(GetStdout);
 	check_cheri_fail(result, NULL);
 	return create_file_ptr(get_output_obj, result);
 }
 
 static FILE *get_stderr() {
-	register_t result = hostInvoke_0(GetStderr);
+	register_t result = hostInvoke_0_0(GetStderr);
 	check_cheri_fail(result, NULL);
 	return create_file_ptr(get_output_obj, result);
 }

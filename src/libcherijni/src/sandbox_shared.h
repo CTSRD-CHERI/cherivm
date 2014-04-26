@@ -17,7 +17,7 @@
 	    (uintptr_t)cheri_getlen(cap));				\
 } while (0)
 
-#define cap_string(str)      (cheri_ptrperm(str, strlen(str) + 1, CHERI_PERM_LOAD))
+#define cap_string(str)      (cheri_ptrperm((void*) str, strlen(str) + 1, CHERI_PERM_LOAD))
 
 #define forEachArgument(sig, SCAN_PRIM_SINGLE, SCAN_PRIM_DOUBLE, SCAN_OBJECT) \
 {                                         \

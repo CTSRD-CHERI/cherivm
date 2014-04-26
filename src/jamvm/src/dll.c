@@ -60,7 +60,7 @@ void *lookupLoadedDlls(pMethodBlock mb);
 #define TRACE(fmt, ...)
 #endif
 
-const JNIEnv globalJNIEnv = &Jam_JNINativeInterface;
+JNIEnv globalJNIEnv = &Jam_JNINativeInterface;
 
 char *mangleString(char *utf8) {
     int len = utf8Len(utf8);

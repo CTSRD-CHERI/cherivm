@@ -23,7 +23,7 @@
 #include "sandbox.h"
 #include "sandbox_shared.h"
 
-extern const JNIEnv globalJNIEnv;
+extern JNIEnv globalJNIEnv;
 static pClass class_String;
 
 typedef struct cherijni_sandbox {
@@ -137,17 +137,23 @@ jint cherijni_callOnLoadUnload(void *handle, void *ptr, JavaVM *jvm, void *reser
 	return (jint) CInvoke_1_0(handle, CHERIJNI_METHOD_ONLOAD_ONUNLOAD, ptr);
 }
 
-#define arg_ptr(ptr)    convertSandboxPointer(ptr, cap_default)
-#define arg_cap(ptr)    getCapabilityAt(arg_ptr(ptr))
-#define arg_obj(ptr)    cap_unseal(pObject, JavaObject, arg_cap(ptr))
-#define arg_class(ptr)  checkIsClass(arg_obj(ptr))
-#define arg_file(ptr)   cap_unseal(FILE*, FILE, arg_cap(ptr))
-#define arg_str(ptr)    ((const char*) arg_ptr(ptr))
+#define arg_cap(cap, len, perm)            checkSandboxCapability_##perm(cap, len)
+#define arg_ptr(cap, len, perm)            convertSandboxPointer(arg_cap(cap, len, perm))
+#define arg_str(ptr, len, perm)            ((const char*) arg_ptr(ptr, len, perm))
+#define arg_obj(cap)    cap_unseal(pObject, JavaObject, cap)
+#define arg_class(cap)  checkIsClass(arg_obj(cap))
+#define arg_file(cap)   cap_unseal(FILE*, FILE, cap)
 #define return_obj(obj)    { *mem_output = cap_seal(JavaObject, obj); }
 #define return_mid(field)  { (*mem_output) = cap_seal(MethodID, field); }
 #define return_fid(field)  { (*mem_output) = cap_seal(FieldID, field); }
 #define return_file(file)  { (*mem_output) = cap_seal(FILE, file); }
 #define return_str(str)    { (*mem_output) = cap_string(str); }
+
+static inline void copyToSandbox(const char *src, __capability char *dest, size_t len) {
+	size_t i;
+	for (i = 0; i < len; i++)
+		dest[i] = src[i];
+}
 
 static inline __capability void *getSandboxDefaultCap(void *handle) {
 	if (handle == NULL)
@@ -163,28 +169,58 @@ static inline __capability void *getSandboxDefaultCap(void *handle) {
 	return cap_default;
 }
 
-static inline int isWithinBounds(uintptr_t ptr, __capability void *cap) {
-	if (!cheri_gettag(cap))
-		return FALSE;
+//static inline int isWithinBounds(uintptr_t ptr, __capability void *cap) {
+//	if (!cheri_gettag(cap))
+//		return FALSE;
+//
+//	uintptr_t cap_start = cheri_getbase(cap);
+//	uintptr_t cap_end = cap_start + cheri_getlen(cap);
+//	return ((((uintptr_t) ptr) >= cap_start) && (((uintptr_t) ptr) < cap_end));
+//}
 
-	uintptr_t cap_start = cheri_getbase(cap);
-	uintptr_t cap_end = cap_start + cheri_getlen(cap);
-	return ((((uintptr_t) ptr) >= cap_start) && (((uintptr_t) ptr) < cap_end));
-}
-
-static inline void *convertSandboxPointer(register_t guest_ptr, __capability void *cap_default) {
-	// NULL pointer will be zero
-	if (guest_ptr == 0)
-		return NULL;
-
-	uintptr_t host_ptr = cheri_getbase(cap_default) + guest_ptr;
-
-	if (!isWithinBounds(host_ptr, cap_default)) {
-		jam_printf("Warning: sandbox gave a pointer outside of its bounds\n");
-		return NULL;
+static inline __capability void *checkSandboxCapability(__capability void *cap, size_t min_length, register_t perm_mask) {
+	if (!cheri_gettag(cap)) {
+		jam_printf("Warning: sandbox provided an invalid capability\n");
+		return CNULL;
 	}
 
-	return (void*) host_ptr;
+	if (!cheri_getunsealed(cap)) {
+		jam_printf("Warning: sandbox provided a sealed pointer capability\n");
+		return CNULL;
+	}
+
+	if (min_length > 0 && cheri_getlen(cap) < min_length) {
+		jam_printf("Warning: sandbox provided a pointer capability which is too short\n");
+		return CNULL;
+	}
+
+	register_t perm_cap = cheri_getperm(cap);
+	if ((perm_cap & perm_mask) != perm_mask) {
+		jam_printf("Warning: sandbox provided a pointer capability with insufficient permissions\n");
+		return CNULL;
+	}
+
+	return cap;
+}
+
+static inline void *convertSandboxPointer(__capability void *cap) {
+	// NULL capability?
+	if (cap == CNULL)
+		return NULL;
+
+	return (void*) cap;
+}
+
+static inline __capability void *checkSandboxCapability_wc(__capability void *cap, size_t min_length) {
+	return checkSandboxCapability(cap, min_length, CHERI_PERM_STORE_CAP);
+}
+
+static inline __capability void *checkSandboxCapability_r(__capability void *cap, size_t min_length) {
+	return checkSandboxCapability(cap, min_length, CHERI_PERM_LOAD);
+}
+
+static inline __capability void *checkSandboxCapability_w(__capability void *cap, size_t min_length) {
+	return checkSandboxCapability(cap, min_length, CHERI_PERM_STORE);
 }
 
 static inline __capability void *getCapabilityAt(void *ptr) {
@@ -277,7 +313,7 @@ uintptr_t *cherijni_callMethod(void* handle, void *native_func, pClass class, ch
 		/* void             */ { },
 		/* single primitive */ { *(ostack++) = result; },
 		/* double primitive */ { *(ostack++) = result; ostack++; },
-		/* objects          */ { *(ostack++) = arg_obj(result); });
+		/* objects          */ { *(ostack++) = (uintptr_t) arg_obj(getCapabilityAt((void*) (cheri_getbase(cap_default) + result))); });;
 
 	return ostack;
 }
@@ -285,9 +321,10 @@ uintptr_t *cherijni_callMethod(void* handle, void *native_func, pClass class, ch
 #define JNI_FUNCTION(NAME) \
 	static register_t JNI_##NAME (register_t a1, register_t a2, register_t a3, register_t a4, register_t a5, register_t a6, register_t a7, __capability void *cap_output, __capability void *c1, __capability void *c2, __capability void *c3, __capability void *c4) { \
 	JNIEnv *env = &globalJNIEnv; \
-	__capability void *cap_default = getSandboxDefaultCap(getExecEnv()->last_frame->mb->sandbox_handle); \
-	__capability void **mem_output = (void*) cap_output;
-/*	const pClass context = cap_unseal(pClass, Context, cap_context); \
+	__capability void **mem_output = arg_ptr(cap_output, sizeof(__capability void*), wc);
+/*
+ 	__capability void *cap_default = getSandboxDefaultCap(getExecEnv()->last_frame->mb->sandbox_handle); \
+    const pClass context = cap_unseal(pClass, Context, cap_context); \
 	if (!context) { \
 		printf("Warning: sandbox hasn't provided a valid context\n"); \
 		return CHERI_FAIL; \
@@ -295,8 +332,7 @@ uintptr_t *cherijni_callMethod(void* handle, void *native_func, pClass class, ch
 
 #define LIBC_FUNCTION(NAME) \
 	static register_t LIBC_##NAME (register_t a1, register_t a2, register_t a3, register_t a4, register_t a5, register_t a6, register_t a7, __capability void *cap_output, __capability void *c1, __capability void *c2, __capability void *c3, __capability void *c4) { \
-	__capability void *cap_default = getSandboxDefaultCap(getExecEnv()->last_frame->mb->sandbox_handle); \
-	__capability void **mem_output = (void*) cap_output;
+	__capability void **mem_output = arg_ptr(cap_output, sizeof(__capability void*), wc);
 
 #define CALL_JNI(NAME) \
 	JNI_##NAME (a1, a2, a3, a4, a5, a6, a7, cap_output, c1, c2, c3, c4)
@@ -309,18 +345,21 @@ JNI_FUNCTION(GetVersion)
 }
 
 JNI_FUNCTION(FindClass)
-
-	const char *className = arg_str(a1);
+	const char *className = arg_str(c1, 1, r);
 	if (className == NULL)
 		return CHERI_FAIL;
+
 	jclass clazz = (*env)->FindClass(env, className);
 	return_obj(clazz);
 	return CHERI_SUCCESS;
 }
 
 JNI_FUNCTION(ThrowNew)
-	pClass clazz = arg_class(a1);
-	const char *msg = arg_str(a2);
+	pClass clazz = arg_class(c1);
+	if (clazz == NULL)
+		return CHERI_FAIL;
+
+	const char *msg = arg_str(c2, 1, r);
 	return (*env)->ThrowNew(env, clazz, msg);
 }
 
@@ -341,16 +380,22 @@ JNI_FUNCTION(ExceptionClear)
 }
 
 JNI_FUNCTION(IsInstanceOf)
-	pObject obj = arg_obj(a1);
-	pClass clazz = arg_class(a2);
+	pObject obj = arg_obj(c1);
+	pClass clazz = arg_class(c2);
+	if (clazz == NULL)
+		return CHERI_FAIL;
+
 	jboolean result = (*env)->IsInstanceOf(env, obj, clazz);
 	return (register_t) result;
 }
 
 JNI_FUNCTION(GetMethodID)
-	pClass clazz = arg_class(a1);
-	const char *name = arg_str(a2);
-	const char *sig = arg_str(a3);
+	pClass clazz = arg_class(c1);
+	const char *name = arg_str(c2, 1, r);
+	const char *sig = arg_str(c3, 1, r);
+	if (clazz == NULL || name == NULL || sig == NULL)
+		return CHERI_FAIL;
+
 	pMethodBlock result = (*env)->GetMethodID(env, clazz, name, sig);
 #ifdef JNI_CHERI_STRICT
 	if (!checkMethodAccess(result, context)) {
@@ -363,9 +408,12 @@ JNI_FUNCTION(GetMethodID)
 }
 
 JNI_FUNCTION(GetFieldID)
-	pClass clazz = arg_class(a1);
-	const char *name = arg_str(a2);
-	const char *sig = arg_str(a3);
+	pClass clazz = arg_class(c1);
+	const char *name = arg_str(c2, 1, r);
+	const char *sig = arg_str(c3, 1, r);
+	if (clazz == NULL || name == NULL || sig == NULL)
+		return CHERI_FAIL;
+
 	pFieldBlock result = (*env)->GetFieldID(env, clazz, name, sig);
 #ifdef JNI_CHERI_STRICT
 	if (!checkFieldAccess(result, context)) {
@@ -378,9 +426,12 @@ JNI_FUNCTION(GetFieldID)
 }
 
 JNI_FUNCTION(GetStaticMethodID)
-	pClass clazz = arg_class(a1);
-	const char *name = arg_str(a2);
-	const char *sig = arg_str(a3);
+	pClass clazz = arg_class(c1);
+	const char *name = arg_str(c2, 1, r);
+	const char *sig = arg_str(c3, 1, r);
+	if (clazz == NULL || name == NULL || sig == NULL)
+		return CHERI_FAIL;
+
 	pMethodBlock result = (*env)->GetStaticMethodID(env, clazz, name, sig);
 #ifdef JNI_CHERI_STRICT
 	if (!checkMethodAccess(result, context)) {
@@ -393,7 +444,7 @@ JNI_FUNCTION(GetStaticMethodID)
 }
 
 JNI_FUNCTION(NewStringUTF)
-	const char *bytes = arg_str(a1);
+	const char *bytes = arg_str(c1, 1, r);
 	if (bytes == NULL)
 		return CHERI_FAIL;
 
@@ -406,31 +457,29 @@ JNI_FUNCTION(NewStringUTF)
 }
 
 JNI_FUNCTION(GetStringUTFLength)
-	pObject string = arg_obj(a1);
+	pObject string = arg_obj(c1);
+	if (string == NULL)
+		return CHERI_FAIL;
+
 	if (!isValidString(string))
 		return CHERI_FAIL;
 	return (*env)->GetStringUTFLength(env, string);
 }
 
-void Jam_GetStringUTFChars_ownBuffer(JNIEnv *env, jstring string, char *buffer);
-
 JNI_FUNCTION(GetStringUTFChars)
-	pObject string = arg_obj(a1);
-	char *buffer = arg_ptr(a2);
-
+	pObject string = arg_obj(c1);
 	if (!isValidString(string))
 		return CHERI_FAIL;
-
 	jsize str_length = (*env)->GetStringUTFLength(env, string);
-	if (str_length == 0)
+
+	__capability char *sandbox_buffer = arg_cap(c2, str_length + 1, w);
+	if (sandbox_buffer == CNULL)
 		return CHERI_FAIL;
 
-	uintptr_t buffer_start = (uintptr_t) buffer;
-	uintptr_t buffer_end = buffer_start + str_length + 1;
-	if (!isWithinBounds(buffer_start, cap_default) || !isWithinBounds(buffer_end, cap_default))
-		return CHERI_FAIL;
+	const char *host_buffer = (*env)->GetStringUTFChars(env, string, NULL);
+	copyToSandbox(host_buffer, sandbox_buffer, str_length + 1);
+	(*env)->ReleaseStringUTFChars(env, string, host_buffer);
 
-	Jam_GetStringUTFChars_ownBuffer(env, string, buffer);
 	return CHERI_SUCCESS;
 }
 

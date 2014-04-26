@@ -785,13 +785,6 @@ const char *Jam_GetStringUTFChars(JNIEnv *env, jstring string,
     return (const char*)String2Utf8(REF_TO_OBJ(string));
 }
 
-void Jam_GetStringUTFChars_ownBuffer(JNIEnv *env, jstring string,
-                                  char *buffer) {
-    if(string == NULL)
-        return;
-    String2Utf8_ownBuffer(REF_TO_OBJ(string), buffer);
-}
-
 void Jam_ReleaseStringUTFChars(JNIEnv *env, jstring string, const char *chars) {
     sysFree((void*)chars);
 }
