@@ -44,11 +44,38 @@ static jmethodID GetMethodID(JNIEnv *env, jclass clazz, const char *name, const 
 	return (jmethodID) cherijni_jmethodID_store(result, sig);
 }
 
-static jint CallIntMethod(JNIEnv *env, jobject obj, jmethodID mid, ...) {
-	register_t args_prim[] = { 0, 0, 0, 0, 0, 0, 0 };
-	__capability void *args_cap[] = { CNULL, CNULL, CNULL, CNULL, CNULL };
-	return 0;
-}
+#define VIRTUAL_METHOD(TYPE, jtype)                                                                                                      \
+	static jtype Call##TYPE##Method(JNIEnv *env, jobject obj, jmethodID mid, ...) {                                                      \
+		register_t args_prim[] = { 0, 0, 0, 0, 0, 0, 0 };                                                                                \
+		__capability void *args_cap[] = { CNULL, CNULL, CNULL };                                                                         \
+		size_t args_prim_ready = 0, args_cap_ready = 0;                                                                                  \
+		va_list native_args;                                                                                                             \
+                                                                                                                                         \
+		cherijni_objtype_jmethodID *mid_struct = (cherijni_objtype_jmethodID *) mid;                                                     \
+		va_start(native_args, mid);                                                                                                      \
+		scanSignature(mid_struct->sig,                                                                                                   \
+		/* single primitives */ { args_prim[args_prim_ready++] = va_arg(native_args, register_t); },                                     \
+		/* double primitives */ { args_prim[args_prim_ready++] = va_arg(native_args, register_t); },                                     \
+		/* objects           */ { jobject obj = (jobject) va_arg(native_args, register_t); args_cap[args_cap_ready++] = get_cap(obj); }, \
+		/* return values     */ { }, { }, { }, { });                                                                                     \
+		va_end(native_args);                                                                                                             \
+		return (jtype) hostInvoke_7_5(cheri_invoke_prim, Call##TYPE##Method,                                                             \
+				args_prim[0], args_prim[1], args_prim[2], args_prim[3], args_prim[4], args_prim[5], args_prim[6],                        \
+				get_cap(obj), get_cap(mid), args_cap[0], args_cap[1], args_cap[2]);                                                      \
+	}
+
+#define CALL_METHOD(access)        \
+access##_METHOD(Boolean, jboolean) \
+access##_METHOD(Byte, jbyte)       \
+access##_METHOD(Char, jchar)       \
+access##_METHOD(Short, jshort)     \
+access##_METHOD(Int, jint)         \
+access##_METHOD(Long, jlong)       \
+access##_METHOD(Float, jfloat)     \
+access##_METHOD(Double, jdouble)   \
+access##_METHOD(Void, void)
+
+CALL_METHOD(VIRTUAL)
 
 static jfieldID GetFieldID(JNIEnv *env, jclass clazz, const char *name, const char *sig) {
 	__capability void *result = hostInvoke_0_3(cheri_invoke_cap, GetFieldID, get_cap(clazz), cap_string(name), cap_string(sig));
@@ -138,31 +165,31 @@ static struct _JNINativeInterface cherijni_JNIEnv_struct = {
 		NULL, // CallObjectMethod,
 		NULL, // CallObjectMethodV,
 		NULL, // CallObjectMethodA,
-		NULL, // CallBooleanMethod,
+		CallBooleanMethod,
 		NULL, // CallBooleanMethodV,
 		NULL, // CallBooleanMethodA,
-		NULL, // CallByteMethod,
+		CallByteMethod,
 		NULL, // CallByteMethodV,
 		NULL, // CallByteMethodA,
-		NULL, // CallCharMethod,
+		CallCharMethod,
 		NULL, // CallCharMethodV,
 		NULL, // CallCharMethodA,
-		NULL, // CallShortMethod,
+		CallShortMethod,
 		NULL, // CallShortMethodV,
 		NULL, // CallShortMethodA,
 		CallIntMethod,
 		NULL, // CallIntMethodV,
 		NULL, // CallIntMethodA,
-		NULL, // CallLongMethod,
+		CallLongMethod,
 		NULL, // CallLongMethodV,
 		NULL, // CallLongMethodA,
-		NULL, // CallFloatMethod,
+		CallFloatMethod,
 		NULL, // CallFloatMethodV,
 		NULL, // CallFloatMethodA,
-		NULL, // CallDoubleMethod,
+		CallDoubleMethod,
 		NULL, // CallDoubleMethodV,
 		NULL, // CallDoubleMethodA,
-		NULL, // CallVoidMethod,
+		CallVoidMethod,
 		NULL, // CallVoidMethodV,
 		NULL, // CallVoidMethodA,
 		NULL, // CallNonvirtualObjectMethod,

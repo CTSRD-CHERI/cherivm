@@ -156,7 +156,8 @@ jint cherijni_callOnLoadUnload(void *handle, void *ptr, JavaVM *jvm, void *reser
 #define arg_str(ptr, len, perm)            ((const char*) arg_ptr(ptr, len, perm))
 #define arg_obj(cap)    cap_unseal(pObject, JavaObject, cap)
 #define arg_class(cap)  checkIsClass(arg_obj(cap))
-#define arg_file(cap)   cap_unseal(FILE*, FILE, cap)
+#define arg_file(cap)   cap_unseal(pFILE, FILE, cap)
+#define arg_mid(cap)    cap_unseal(pMethodBlock, MethodID, cap)
 #define return_obj(obj)    cap_seal(JavaObject, obj)
 #define return_mid(field)  cap_seal(MethodID, field)
 #define return_fid(field)  cap_seal(FieldID, field)
@@ -372,6 +373,50 @@ JNI_FUNCTION_CAP(GetMethodID) {
 	return return_mid(result);
 }
 
+#define VIRTUAL_METHOD(TYPE, jtype) \
+	JNI_FUNCTION_PRIM(Call##TYPE##Method) { \
+		pObject obj = arg_obj(c1); \
+		pMethodBlock mb = arg_mid(c2); \
+		if (obj == NULL || mb == NULL) \
+			return CHERI_FAIL; \
+		\
+		int arg_count = 0; \
+		scanSignature(mb->type, \
+				{ arg_count++; }, { arg_count++; }, { arg_count++; }, \
+				{ }, { }, { }, { }); \
+		\
+		jvalue *args; \
+		if (arg_count > 0) { \
+			arg_count = (jvalue*) sysMalloc(sizeof(jvalue) * arg_count); \
+			if (args == NULL) \
+				return CHERI_FAIL; \
+			\
+			register_t args_prim[] = { a1, a2, a3, a4, a5, a6, a7 }; \
+			__capability void *args_cap[] = { c2, c3, c4 }; \
+			int args_ready = 0, args_used_prim = 0, args_used_cap = 0; \
+			scanSignature(mb->type, \
+			/* single primitives */ { args[arg_count++].i = args_prim[args_used_prim++]; }, \
+			/* double primitives */ { args[arg_count++].j = args_prim[args_used_prim++]; }, \
+			/* objects           */ { args[arg_count++].l = arg_obj(args_cap[args_used_cap]); args_used_cap++; }, \
+			/* return values     */ { }, { }, { }, { }); \
+		} else \
+			args = NULL; \
+		\
+		return (jtype) (*env)->Call##TYPE##MethodA(env, obj, mb, args); \
+	}
+
+#define CALL_METHOD(access)                 \
+access##_METHOD(Boolean, jboolean) \
+access##_METHOD(Byte, jbyte)       \
+access##_METHOD(Char, jchar)       \
+access##_METHOD(Short, jshort)     \
+access##_METHOD(Int, jint)         \
+access##_METHOD(Long, jlong)       \
+access##_METHOD(Float, jfloat)     \
+access##_METHOD(Double, jdouble)
+
+CALL_METHOD(VIRTUAL)
+
 JNI_FUNCTION_CAP(GetFieldID) {
 	pClass clazz = arg_class(c1);
 	const char *name = arg_str(c2, 1, r);
@@ -523,10 +568,6 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 		break;
 	case CHERIJNI_JNIEnv_NewObject:
 		break;
-	case CHERIJNI_JNIEnv_NewObjectV:
-		break;
-	case CHERIJNI_JNIEnv_NewObjectA:
-		break;
 	case CHERIJNI_JNIEnv_GetObjectClass:
 		break;
 	case CHERIJNI_JNIEnv_IsInstanceOf:
@@ -535,123 +576,43 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 		CALL_JNI_CAP(GetMethodID)
 	case CHERIJNI_JNIEnv_CallObjectMethod:
 		break;
-	case CHERIJNI_JNIEnv_CallObjectMethodV:
-		break;
-	case CHERIJNI_JNIEnv_CallObjectMethodA:
-		break;
 	case CHERIJNI_JNIEnv_CallBooleanMethod:
-		break;
-	case CHERIJNI_JNIEnv_CallBooleanMethodV:
-		break;
-	case CHERIJNI_JNIEnv_CallBooleanMethodA:
-		break;
+		CALL_JNI_PRIM(CallBooleanMethod)
 	case CHERIJNI_JNIEnv_CallByteMethod:
-		break;
-	case CHERIJNI_JNIEnv_CallByteMethodV:
-		break;
-	case CHERIJNI_JNIEnv_CallByteMethodA:
-		break;
+		CALL_JNI_PRIM(CallByteMethod)
 	case CHERIJNI_JNIEnv_CallCharMethod:
-		break;
-	case CHERIJNI_JNIEnv_CallCharMethodV:
-		break;
-	case CHERIJNI_JNIEnv_CallCharMethodA:
-		break;
+		CALL_JNI_PRIM(CallCharMethod)
 	case CHERIJNI_JNIEnv_CallShortMethod:
-		break;
-	case CHERIJNI_JNIEnv_CallShortMethodV:
-		break;
-	case CHERIJNI_JNIEnv_CallShortMethodA:
-		break;
+		CALL_JNI_PRIM(CallShortMethod)
 	case CHERIJNI_JNIEnv_CallIntMethod:
-		break;
-	case CHERIJNI_JNIEnv_CallIntMethodV:
-		break;
-	case CHERIJNI_JNIEnv_CallIntMethodA:
-		break;
+		CALL_JNI_PRIM(CallIntMethod)
 	case CHERIJNI_JNIEnv_CallLongMethod:
-		break;
-	case CHERIJNI_JNIEnv_CallLongMethodV:
-		break;
-	case CHERIJNI_JNIEnv_CallLongMethodA:
-		break;
+		CALL_JNI_PRIM(CallLongMethod)
 	case CHERIJNI_JNIEnv_CallFloatMethod:
-		break;
-	case CHERIJNI_JNIEnv_CallFloatMethodV:
-		break;
-	case CHERIJNI_JNIEnv_CallFloatMethodA:
-		break;
+		CALL_JNI_PRIM(CallFloatMethod)
 	case CHERIJNI_JNIEnv_CallDoubleMethod:
-		break;
-	case CHERIJNI_JNIEnv_CallDoubleMethodV:
-		break;
-	case CHERIJNI_JNIEnv_CallDoubleMethodA:
-		break;
+		CALL_JNI_PRIM(CallDoubleMethod)
 	case CHERIJNI_JNIEnv_CallVoidMethod:
-		break;
-	case CHERIJNI_JNIEnv_CallVoidMethodV:
-		break;
-	case CHERIJNI_JNIEnv_CallVoidMethodA:
 		break;
 	case CHERIJNI_JNIEnv_CallNonvirtualObjectMethod:
 		break;
-	case CHERIJNI_JNIEnv_CallNonvirtualObjectMethodV:
-		break;
-	case CHERIJNI_JNIEnv_CallNonvirtualObjectMethodA:
-		break;
 	case CHERIJNI_JNIEnv_CallNonvirtualBooleanMethod:
-		break;
-	case CHERIJNI_JNIEnv_CallNonvirtualBooleanMethodV:
-		break;
-	case CHERIJNI_JNIEnv_CallNonvirtualBooleanMethodA:
 		break;
 	case CHERIJNI_JNIEnv_CallNonvirtualByteMethod:
 		break;
-	case CHERIJNI_JNIEnv_CallNonvirtualByteMethodV:
-		break;
-	case CHERIJNI_JNIEnv_CallNonvirtualByteMethodA:
-		break;
 	case CHERIJNI_JNIEnv_CallNonvirtualCharMethod:
-		break;
-	case CHERIJNI_JNIEnv_CallNonvirtualCharMethodV:
-		break;
-	case CHERIJNI_JNIEnv_CallNonvirtualCharMethodA:
 		break;
 	case CHERIJNI_JNIEnv_CallNonvirtualShortMethod:
 		break;
-	case CHERIJNI_JNIEnv_CallNonvirtualShortMethodV:
-		break;
-	case CHERIJNI_JNIEnv_CallNonvirtualShortMethodA:
-		break;
 	case CHERIJNI_JNIEnv_CallNonvirtualIntMethod:
-		break;
-	case CHERIJNI_JNIEnv_CallNonvirtualIntMethodV:
-		break;
-	case CHERIJNI_JNIEnv_CallNonvirtualIntMethodA:
 		break;
 	case CHERIJNI_JNIEnv_CallNonvirtualLongMethod:
 		break;
-	case CHERIJNI_JNIEnv_CallNonvirtualLongMethodV:
-		break;
-	case CHERIJNI_JNIEnv_CallNonvirtualLongMethodA:
-		break;
 	case CHERIJNI_JNIEnv_CallNonvirtualFloatMethod:
-		break;
-	case CHERIJNI_JNIEnv_CallNonvirtualFloatMethodV:
-		break;
-	case CHERIJNI_JNIEnv_CallNonvirtualFloatMethodA:
 		break;
 	case CHERIJNI_JNIEnv_CallNonvirtualDoubleMethod:
 		break;
-	case CHERIJNI_JNIEnv_CallNonvirtualDoubleMethodV:
-		break;
-	case CHERIJNI_JNIEnv_CallNonvirtualDoubleMethodA:
-		break;
 	case CHERIJNI_JNIEnv_CallNonvirtualVoidMethod:
-		break;
-	case CHERIJNI_JNIEnv_CallNonvirtualVoidMethodV:
-		break;
-	case CHERIJNI_JNIEnv_CallNonvirtualVoidMethodA:
 		break;
 	case CHERIJNI_JNIEnv_GetFieldID:
 		CALL_JNI_CAP(GetFieldID)
@@ -695,63 +656,23 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 		CALL_JNI_CAP(GetStaticMethodID)
 	case CHERIJNI_JNIEnv_CallStaticObjectMethod:
 		break;
-	case CHERIJNI_JNIEnv_CallStaticObjectMethodV:
-		break;
-	case CHERIJNI_JNIEnv_CallStaticObjectMethodA:
-		break;
 	case CHERIJNI_JNIEnv_CallStaticBooleanMethod:
-		break;
-	case CHERIJNI_JNIEnv_CallStaticBooleanMethodV:
-		break;
-	case CHERIJNI_JNIEnv_CallStaticBooleanMethodA:
 		break;
 	case CHERIJNI_JNIEnv_CallStaticByteMethod:
 		break;
-	case CHERIJNI_JNIEnv_CallStaticByteMethodV:
-		break;
-	case CHERIJNI_JNIEnv_CallStaticByteMethodA:
-		break;
 	case CHERIJNI_JNIEnv_CallStaticCharMethod:
-		break;
-	case CHERIJNI_JNIEnv_CallStaticCharMethodV:
-		break;
-	case CHERIJNI_JNIEnv_CallStaticCharMethodA:
 		break;
 	case CHERIJNI_JNIEnv_CallStaticShortMethod:
 		break;
-	case CHERIJNI_JNIEnv_CallStaticShortMethodV:
-		break;
-	case CHERIJNI_JNIEnv_CallStaticShortMethodA:
-		break;
 	case CHERIJNI_JNIEnv_CallStaticIntMethod:
-		break;
-	case CHERIJNI_JNIEnv_CallStaticIntMethodV:
-		break;
-	case CHERIJNI_JNIEnv_CallStaticIntMethodA:
 		break;
 	case CHERIJNI_JNIEnv_CallStaticLongMethod:
 		break;
-	case CHERIJNI_JNIEnv_CallStaticLongMethodV:
-		break;
-	case CHERIJNI_JNIEnv_CallStaticLongMethodA:
-		break;
 	case CHERIJNI_JNIEnv_CallStaticFloatMethod:
-		break;
-	case CHERIJNI_JNIEnv_CallStaticFloatMethodV:
-		break;
-	case CHERIJNI_JNIEnv_CallStaticFloatMethodA:
 		break;
 	case CHERIJNI_JNIEnv_CallStaticDoubleMethod:
 		break;
-	case CHERIJNI_JNIEnv_CallStaticDoubleMethodV:
-		break;
-	case CHERIJNI_JNIEnv_CallStaticDoubleMethodA:
-		break;
 	case CHERIJNI_JNIEnv_CallStaticVoidMethod:
-		break;
-	case CHERIJNI_JNIEnv_CallStaticVoidMethodV:
-		break;
-	case CHERIJNI_JNIEnv_CallStaticVoidMethodA:
 		break;
 	case CHERIJNI_JNIEnv_GetStaticFieldID:
 		break;
