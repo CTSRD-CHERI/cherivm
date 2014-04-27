@@ -232,8 +232,6 @@ static inline int checkIsArray(pObject obj, char type) {
 	if (obj == NULL)
 		return FALSE;
 
-	printf("Testing for array-ness: %s\n", CLASS_CB(obj->class)->name);
-
 	if (!IS_ARRAY(CLASS_CB(obj->class)))
 		return FALSE;
 
