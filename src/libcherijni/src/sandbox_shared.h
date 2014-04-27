@@ -24,7 +24,7 @@ typedef __capability void* (*cheri_invoke_cap)(struct cheri_object, u_int, regis
 
 #define scanSignature(sig, ARG_PRIM_SINGLE, ARG_PRIM_DOUBLE, ARG_OBJECT, RET_VOID, RET_PRIM_SINGLE, RET_PRIM_DOUBLE, RET_OBJECT) \
 {                                         \
-	char *s = sig;                        \
+	const char *s = sig;                  \
 	char c = s[1];                        \
 	while (c != ')') {                    \
 		if (c == 'D' || c == 'J')         \
@@ -224,11 +224,11 @@ typedef __capability void* (*cheri_invoke_cap)(struct cheri_object, u_int, regis
 #define CHERIJNI_JNIEnv_NewString			(CHERI_SYSTEM_USER_BASE + 160)
 #define CHERIJNI_JNIEnv_GetStringLength			(CHERI_SYSTEM_USER_BASE + 161)
 #define CHERIJNI_JNIEnv_GetStringChars			(CHERI_SYSTEM_USER_BASE + 162)
-#define CHERIJNI_JNIEnv_ReleaseStringChars			(CHERI_SYSTEM_USER_BASE + 163)
+// #define CHERIJNI_JNIEnv_ReleaseStringChars			(CHERI_SYSTEM_USER_BASE + 163)
 #define CHERIJNI_JNIEnv_NewStringUTF			(CHERI_SYSTEM_USER_BASE + 164)
 #define CHERIJNI_JNIEnv_GetStringUTFLength			(CHERI_SYSTEM_USER_BASE + 165)
 #define CHERIJNI_JNIEnv_GetStringUTFChars			(CHERI_SYSTEM_USER_BASE + 166)
-#define CHERIJNI_JNIEnv_ReleaseStringUTFChars			(CHERI_SYSTEM_USER_BASE + 167)
+// #define CHERIJNI_JNIEnv_ReleaseStringUTFChars			(CHERI_SYSTEM_USER_BASE + 167)
 #define CHERIJNI_JNIEnv_GetArrayLength			(CHERI_SYSTEM_USER_BASE + 168)
 #define CHERIJNI_JNIEnv_NewObjectArray			(CHERI_SYSTEM_USER_BASE + 169)
 #define CHERIJNI_JNIEnv_GetObjectArrayElement			(CHERI_SYSTEM_USER_BASE + 170)
@@ -249,14 +249,14 @@ typedef __capability void* (*cheri_invoke_cap)(struct cheri_object, u_int, regis
 #define CHERIJNI_JNIEnv_GetLongArrayElements			(CHERI_SYSTEM_USER_BASE + 185)
 #define CHERIJNI_JNIEnv_GetFloatArrayElements			(CHERI_SYSTEM_USER_BASE + 186)
 #define CHERIJNI_JNIEnv_GetDoubleArrayElements			(CHERI_SYSTEM_USER_BASE + 187)
-#define CHERIJNI_JNIEnv_ReleaseBooleanArrayElements			(CHERI_SYSTEM_USER_BASE + 188)
-#define CHERIJNI_JNIEnv_ReleaseByteArrayElements			(CHERI_SYSTEM_USER_BASE + 189)
-#define CHERIJNI_JNIEnv_ReleaseCharArrayElements			(CHERI_SYSTEM_USER_BASE + 190)
-#define CHERIJNI_JNIEnv_ReleaseShortArrayElements			(CHERI_SYSTEM_USER_BASE + 191)
-#define CHERIJNI_JNIEnv_ReleaseIntArrayElements			(CHERI_SYSTEM_USER_BASE + 192)
-#define CHERIJNI_JNIEnv_ReleaseLongArrayElements			(CHERI_SYSTEM_USER_BASE + 193)
-#define CHERIJNI_JNIEnv_ReleaseFloatArrayElements			(CHERI_SYSTEM_USER_BASE + 194)
-#define CHERIJNI_JNIEnv_ReleaseDoubleArrayElements			(CHERI_SYSTEM_USER_BASE + 195)
+//#define CHERIJNI_JNIEnv_ReleaseBooleanArrayElements			(CHERI_SYSTEM_USER_BASE + 188)
+//#define CHERIJNI_JNIEnv_ReleaseByteArrayElements			(CHERI_SYSTEM_USER_BASE + 189)
+//#define CHERIJNI_JNIEnv_ReleaseCharArrayElements			(CHERI_SYSTEM_USER_BASE + 190)
+//#define CHERIJNI_JNIEnv_ReleaseShortArrayElements			(CHERI_SYSTEM_USER_BASE + 191)
+//#define CHERIJNI_JNIEnv_ReleaseIntArrayElements			(CHERI_SYSTEM_USER_BASE + 192)
+//#define CHERIJNI_JNIEnv_ReleaseLongArrayElements			(CHERI_SYSTEM_USER_BASE + 193)
+//#define CHERIJNI_JNIEnv_ReleaseFloatArrayElements			(CHERI_SYSTEM_USER_BASE + 194)
+//#define CHERIJNI_JNIEnv_ReleaseDoubleArrayElements			(CHERI_SYSTEM_USER_BASE + 195)
 #define CHERIJNI_JNIEnv_GetBooleanArrayRegion			(CHERI_SYSTEM_USER_BASE + 196)
 #define CHERIJNI_JNIEnv_GetByteArrayRegion			(CHERI_SYSTEM_USER_BASE + 197)
 #define CHERIJNI_JNIEnv_GetCharArrayRegion			(CHERI_SYSTEM_USER_BASE + 198)

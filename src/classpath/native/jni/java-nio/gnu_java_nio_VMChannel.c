@@ -162,7 +162,7 @@ JCL_init_buffer(JNIEnv *env, struct JCL_buffer *buf, jobject bbuf)
   buf->offset = 0;
   buf->count = 0;
   buf->type = UNKNOWN;
-    
+
   if (addr != NULL)
     {
       buf->ptr = (jbyte *) addr;

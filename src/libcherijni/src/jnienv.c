@@ -33,6 +33,10 @@ static void ExceptionClear(JNIEnv *env) {
 	check_cheri_fail_void(hostInvoke_0_0(cheri_invoke_prim, ExceptionClear));
 }
 
+static void DeleteLocalRef(JNIEnv *env, jobject localRef) {
+	check_cheri_fail_void(hostInvoke_0_1(cheri_invoke_prim, ExceptionClear, get_cap(localRef)));
+}
+
 static jboolean IsInstanceOf(JNIEnv *env, jobject obj, jclass clazz) {
 	register_t res = hostInvoke_0_2(cheri_invoke_prim, IsInstanceOf, get_cap(obj), get_cap(clazz));
 	check_cheri_fail(res, JNI_FALSE);
@@ -125,6 +129,45 @@ static void ReleaseStringUTFChars(JNIEnv *env, jstring string, const char *utf) 
 		free((void*)utf);
 }
 
+static jsize GetArrayLength(JNIEnv *env, jarray array) {
+	return (jsize) hostInvoke_0_1(cheri_invoke_prim, GetArrayLength, get_cap(array));
+}
+
+#define GET_ARRAY_ELEMENTS(TYPE, jtype, ctype) \
+	static jtype *Get##TYPE##ArrayElements(JNIEnv *env, jtype##Array array, jboolean *isCopy) { \
+		jsize length = (*env)->GetArrayLength(env, array); \
+		size_t buffer_size = length * sizeof(jtype); \
+		jtype *buffer = (jtype*) malloc(buffer_size); \
+		register_t result = hostInvoke_0_2(cheri_invoke_prim, Get##TYPE##ArrayElements, get_cap(array), cap_buffer(buffer, buffer_size)); \
+		check_cheri_fail_extra(result, NULL, free(buffer)); \
+		\
+		if (isCopy != NULL) \
+			*isCopy = JNI_TRUE; \
+		return buffer; \
+	} \
+	\
+	static void Release##TYPE##ArrayElements(JNIEnv *env, jtype##Array array, jtype *elems, jint mode) { \
+		if (mode != JNI_ABORT) { \
+			jsize length = (*env)->GetArrayLength(env, array); \
+			(*env)->Set##TYPE##ArrayRegion(env, array, 0, length, elems); \
+		} \
+		\
+		if (mode != JNI_COMMIT) \
+			free(elems);\
+	}
+
+#define ARRAY_METHOD(op)   \
+op(Boolean, jboolean, 'Z') \
+op(Byte, jbyte, 'B')       \
+op(Char, jchar, 'C')       \
+op(Short, jshort, 'S')     \
+op(Int, jint, 'I')         \
+op(Long, jlong, 'J')       \
+op(Float, jfloat, 'F')     \
+op(Double, jdouble, 'D')
+
+ARRAY_METHOD(GET_ARRAY_ELEMENTS)
+
 static void *GetDirectBufferAddress(JNIEnv *env, jobject buf) {
 	__capability void *result = hostInvoke_0_1(cheri_invoke_cap, GetDirectBufferAddress, get_cap(buf));
 	if (result == CNULL)
@@ -162,7 +205,7 @@ static struct _JNINativeInterface cherijni_JNIEnv_struct = {
 		NULL, // PopLocalFrame,
 		NULL, // NewGlobalRef,
 		NULL, // DeleteGlobalRef,
-		NULL, // DeleteLocalRef,
+		DeleteLocalRef,
 		NULL, // IsSameObject,
 		NULL, // NewLocalRef,
 		NULL, // EnsureLocalCapacity,
@@ -310,7 +353,7 @@ static struct _JNINativeInterface cherijni_JNIEnv_struct = {
 		GetStringUTFLength,
 		GetStringUTFChars,
 		ReleaseStringUTFChars,
-		NULL, // GetArrayLength,
+		GetArrayLength,
 		NULL, // NewObjectArray,
 		NULL, // GetObjectArrayElement,
 		NULL, // SetObjectArrayElement,
@@ -322,22 +365,22 @@ static struct _JNINativeInterface cherijni_JNIEnv_struct = {
 		NULL, // NewLongArray,
 		NULL, // NewFloatArray,
 		NULL, // NewDoubleArray,
-		NULL, // GetBooleanArrayElements,
-		NULL, // GetByteArrayElements,
-		NULL, // GetCharArrayElements,
-		NULL, // GetShortArrayElements,
-		NULL, // GetIntArrayElements,
-		NULL, // GetLongArrayElements,
-		NULL, // GetFloatArrayElements,
-		NULL, // GetDoubleArrayElements,
-		NULL, // ReleaseBooleanArrayElements,
-		NULL, // ReleaseByteArrayElements,
-		NULL, // ReleaseCharArrayElements,
-		NULL, // ReleaseShortArrayElements,
-		NULL, // ReleaseIntArrayElements,
-		NULL, // ReleaseLongArrayElements,
-		NULL, // ReleaseFloatArrayElements,
-		NULL, // ReleaseDoubleArrayElements,
+		GetBooleanArrayElements,
+		GetByteArrayElements,
+		GetCharArrayElements,
+		GetShortArrayElements,
+		GetIntArrayElements,
+		GetLongArrayElements,
+		GetFloatArrayElements,
+		GetDoubleArrayElements,
+		ReleaseBooleanArrayElements,
+		ReleaseByteArrayElements,
+		ReleaseCharArrayElements,
+		ReleaseShortArrayElements,
+		ReleaseIntArrayElements,
+		ReleaseLongArrayElements,
+		ReleaseFloatArrayElements,
+		ReleaseDoubleArrayElements,
 		NULL, // GetBooleanArrayRegion,
 		NULL, // GetByteArrayRegion,
 		NULL, // GetCharArrayRegion,
