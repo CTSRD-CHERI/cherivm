@@ -104,18 +104,18 @@ char *cherijni_libName(char *name) {
    return buff;
 }
 
-#define CInvoke_7_6(handle, op, a1, a2, a3, a4, a5, a6, a7, c5, c6, c7, c8, c9, c10)                         \
-		sandbox_object_cinvoke ( \
+#define CInvoke_7_6(handle, op, a1, a2, a3, a4, a5, a6, a7, c3, c4, c5, c6, c7, c8, c9, c10)                 \
+		sandbox_object_cinvoke (                                                                             \
 				((struct cherijni_sandbox *) handle)->objectp, op,                                           \
 	            (register_t) a1, (register_t) a2, (register_t) a3, (register_t) a4,                          \
                 (register_t) a5, (register_t) a6, (register_t) a7,                                           \
-	            sandbox_object_getsystemobject(((struct cherijni_sandbox *) handle)->objectp).co_codecap,    \
-	            sandbox_object_getsystemobject(((struct cherijni_sandbox *) handle)->objectp).co_datacap,    \
-	            c5, c6, c7, c8, c9, c10)
-#define CInvoke_1_1(handle, op, a1, c5)  CInvoke_7_6(handle, op, a1, 0, 0, 0, 0, 0, 0, c5, CNULL, CNULL, CNULL, CNULL, CNULL)
-#define CInvoke_1_0(handle, op, a1)      CInvoke_1_1(handle, op, a1, CNULL)
-#define CInvoke_0_1(handle, op, c5)      CInvoke_1_1(handle, op, 0, c5)
-#define CInvoke_0_0(handle, op)          CInvoke_1_1(handle, op, 0, CNULL)
+	            c3, c4, c5, c6, c7, c8, c9, c10)
+#define CInvoke_2_2(handle, op, a1, a2, c3, c4)  CInvoke_7_6(handle, op, a1, a2, 0, 0, 0, 0, 0, c3, c4, CNULL, CNULL, CNULL, CNULL, CNULL, CNULL)
+#define CInvoke_0_2(handle, op, c3, c4)          CInvoke_2_2(handle, op, 0, 0, c3, c4)
+#define CInvoke_1_1(handle, op, a1, c3)          CInvoke_2_2(handle, op, a1, 0, c3, CNULL)
+#define CInvoke_1_0(handle, op, a1)              CInvoke_1_1(handle, op, a1, CNULL)
+#define CInvoke_0_1(handle, op, c5)              CInvoke_1_1(handle, op, 0, c5)
+#define CInvoke_0_0(handle, op)                  CInvoke_1_1(handle, op, 0, CNULL)
 
 void *cherijni_open(char *path) {
 	struct cherijni_sandbox *sandbox = sysMalloc(sizeof(struct cherijni_sandbox));
@@ -131,12 +131,15 @@ void *cherijni_open(char *path) {
 		return NULL;
 	}
 
-	return sandbox;
-}
+	/* Run init inside sandbox */
+	struct cheri_object system = sandbox_object_getsystemobject(sandbox->objectp);
+	register_t result = CInvoke_0_2(sandbox, CHERIJNI_METHOD_INIT, system.co_codecap, system.co_datacap);
+	if (result == CHERI_FAIL) {
+		jam_printf("ERROR: sandbox failed to initialize (%s)\n", path);
+		return NULL;
+	}
 
-void cherijni_runTests(void *handle, pClass context) {
-	__capability void *cJNIContext = cap_seal(Context, context);
-	CInvoke_0_1(handle, CHERIJNI_METHOD_TEST, cJNIContext);
+	return sandbox;
 }
 
 // TODO: make sure only one thread ever enters the sandbox !!!
@@ -248,17 +251,15 @@ static __capability void *invoke_returnCap(void *handle, void *native_func, __ca
 			sandbox->objectp->sbo_cheri_object,
 			CHERIJNI_METHOD_RUN, native_func,
 			args_prim[0], args_prim[1], args_prim[2], args_prim[3], args_prim[4], args_prim[5],
-			sandbox_object_getsystemobject(sandbox->objectp).co_codecap,
-			sandbox_object_getsystemobject(sandbox->objectp).co_datacap,
             cap_signature, cap_this,
-            args_cap[0], args_cap[1], args_cap[2], args_cap[3]);
+            args_cap[0], args_cap[1], args_cap[2], args_cap[3], args_cap[4], args_cap[5]);
 }
 
 static register_t invoke_returnPrim(void *handle, void *native_func, __capability void *cap_signature, __capability void *cap_this, register_t args_prim[], __capability void *args_cap[]) {
 	return CInvoke_7_6(handle, CHERIJNI_METHOD_RUN, native_func,
 	                   args_prim[0], args_prim[1], args_prim[2], args_prim[3], args_prim[4], args_prim[5],
 	                   cap_signature, cap_this,
-	                   args_cap[0], args_cap[1], args_cap[2], args_cap[3]);
+	                   args_cap[0], args_cap[1], args_cap[2], args_cap[3], args_cap[4], args_cap[5]);
 }
 
 static void fillArguments(char *sig, uintptr_t *_ostack, register_t *_pPrimitiveArgs, __capability void **_pObjectArgs) {
@@ -274,7 +275,7 @@ uintptr_t *cherijni_callMethod(void* handle, void *native_func, pClass class, ch
 	uintptr_t *_ostack = ostack;
 	size_t cPrimitiveArgs = 0, cObjectArgs = 0, returnType;
 	register_t args_prim [6] = {0, 0, 0, 0, 0, 0};
-	__capability void *args_cap [4] = {CNULL, CNULL, CNULL, CNULL};
+	__capability void *args_cap [6] = {CNULL, CNULL, CNULL, CNULL, CNULL, CNULL};
 
 	/* Count the arguments */
 	scanSignature(sig,

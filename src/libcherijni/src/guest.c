@@ -42,17 +42,26 @@ static jboolean ranTests = JNI_FALSE;
 register_t cherijni_invoke(u_int op,
                            register_t a1, register_t a2, register_t a3,
                            register_t a4, register_t a5, register_t a6,
-                           register_t a7, struct cheri_object system_object,
+                           register_t a7,
                            __capability void *c1, __capability void *c2,
                            __capability void *c3, __capability void *c4,
-                           __capability void *c5, __capability void *c6) {
+                           __capability void *c5, __capability void *c6,
+                           __capability void *c7, __capability void *c8) {
 
-	cheri_system_setup(system_object);
-	cherijni_obj_system = system_object;
-	cherijni_obj_init();
-	cherijni_libc_init();
+	if (op == CHERIJNI_METHOD_INIT) {
 
-	if (op == CHERIJNI_METHOD_LOOKUP) {
+		struct cheri_object system_object;
+		system_object.co_codecap = c1;
+		system_object.co_datacap = c2;
+
+		cheri_system_setup(system_object);
+		cherijni_obj_system = system_object;
+		cherijni_obj_init();
+		cherijni_libc_init();
+
+		return CHERI_SUCCESS;
+
+	} else if (op == CHERIJNI_METHOD_LOOKUP) {
 
 		/*
 		 * Find method by its name stored in $c5
@@ -82,9 +91,8 @@ register_t cherijni_invoke(u_int op,
 		 */
 
 		methodEntry *entry = (methodEntry*) a1;
-		__capability void *cap_context = CNULL;
 		char *signature = cherijni_extractHostString(c1);
-		JNIEnv *env = cherijni_getJNIEnv(&cap_context);
+		JNIEnv *env = cherijni_getJNIEnv();
 
 		if (ranTests == JNI_FALSE) {
 			ranTests = JNI_TRUE;
@@ -92,7 +100,7 @@ register_t cherijni_invoke(u_int op,
 		}
 
 		register_t args_prim[] = { a2, a3, a4, a5, a6, a7 };
-		__capability void *args_objs[] = { c3, c4, c5, c6 };
+		__capability void *args_objs[] = { c3, c4, c5, c6, c7, c8 };
 		size_t args_prim_ready = 0, args_objs_ready = 0;
 
 		register_t args_this = (register_t) cherijni_jobject_store(c2);
@@ -108,14 +116,13 @@ register_t cherijni_invoke(u_int op,
 		register_t result = ((fn_jni) entry->func)(env, args_this, args_ready[0], args_ready[1], args_ready[2], args_ready[3], args_ready[4], args_ready[5]);
 		printf("[SANDBOX: returning %p]\n", (void*) result);
 
-		cherijni_destroyJNIEnv(env);
-
 		if (entry->type == FNTYPE_OBJECT) {
 			__capability void *result_cap = get_cap((void*) result);
 			cheri_setreg(3, result_cap);
 			return CHERI_SUCCESS;
 		} else
 			return result;
+
 	} else
-		return (-1);
+		return CHERI_FAIL;
 }

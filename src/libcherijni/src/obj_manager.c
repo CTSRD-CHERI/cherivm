@@ -41,16 +41,11 @@ STORAGE_DEF(jfieldID)
 STORAGE_DEF(jmethodID)
 STORAGE_DEF(pFILE)
 
-jboolean ranInit = JNI_FALSE;
-
 void cherijni_obj_init() {
-	if (ranInit == JNI_FALSE) {
-		ranInit = JNI_TRUE;
-		STORAGE_INIT(jobject);
-		STORAGE_INIT(jfieldID);
-		STORAGE_INIT(jmethodID);
-		STORAGE_INIT(pFILE);
-	}
+	STORAGE_INIT(jobject);
+	STORAGE_INIT(jfieldID);
+	STORAGE_INIT(jmethodID);
+	STORAGE_INIT(pFILE);
 }
 
 #define STORAGE_STORE_COMMON(NAME)                                             \

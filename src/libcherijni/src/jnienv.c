@@ -418,20 +418,6 @@ static struct _JNINativeInterface cherijni_JNIEnv_struct = {
 };
 static JNIEnv cherijni_JNIEnv = &cherijni_JNIEnv_struct;
 
-JNIEnv *cherijni_getJNIEnv(__capability void **context) {
-//	void *mem = malloc(sizeof(JNIEnv) + sizeof(struct _JNINativeInterface));
-//
-//	JNIEnv *ppEnv = (JNIEnv*) mem;
-//	struct _JNINativeInterface *pEnv = (struct _JNINativeInterface*) (ppEnv + 1);
-//
-//	memcpy(pEnv, &cherijni_JNIEnv_struct, sizeof(struct _JNINativeInterface));
-//	pEnv->cherijni_context = context;
-//
-//	*ppEnv = pEnv;
-//	return ppEnv;
+JNIEnv *cherijni_getJNIEnv() {
 	return &cherijni_JNIEnv;
-}
-
-void cherijni_destroyJNIEnv(JNIEnv *ppEnv) {
-//	free(ppEnv);
 }

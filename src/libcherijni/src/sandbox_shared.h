@@ -57,10 +57,11 @@ typedef __capability void* (*cheri_invoke_cap)(struct cheri_object, u_int, regis
 #define CHERI_FAIL                           (-1)
 #define CHERI_SUCCESS                        0
 
-#define CHERIJNI_METHOD_LOOKUP               0
-#define CHERIJNI_METHOD_ONLOAD_ONUNLOAD      1
-#define CHERIJNI_METHOD_RUN                  2
-#define CHERIJNI_METHOD_TEST                 3
+#define CHERIJNI_METHOD_INIT                 0
+#define CHERIJNI_METHOD_LOOKUP               1
+#define CHERIJNI_METHOD_ONLOAD_ONUNLOAD      2
+#define CHERIJNI_METHOD_RUN                  3
+// #define CHERIJNI_METHOD_TEST                 4
 
 #define CHERIJNI_JNIEnv_GetVersion			(CHERI_SYSTEM_USER_BASE + 1)
 #define CHERIJNI_JNIEnv_DefineClass			(CHERI_SYSTEM_USER_BASE + 2)

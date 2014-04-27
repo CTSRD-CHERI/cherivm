@@ -47,14 +47,13 @@ extern __capability void *cherijni_output;
 #define get_str(cap)        cherijni_extractHostString(cap)
 #define get_cap(ptr)        ((ptr) ? *((__capability void**) (ptr)) : CNULL)
 
-extern JavaVM *cherijni_getJavaVM();
-extern JNIEnv *cherijni_getJNIEnv(__capability void **context);
-extern void cherijni_destroyJNIEnv(JNIEnv *ppEnv);
-extern void cherijni_runTests(JNIEnv *env);
-extern char* cherijni_extractHostString(__capability char* str_cap);
-
 extern void cherijni_obj_init();
 extern void cherijni_libc_init();
+
+extern JavaVM *cherijni_getJavaVM();
+extern JNIEnv *cherijni_getJNIEnv();
+extern void cherijni_runTests(JNIEnv *env);
+extern char* cherijni_extractHostString(__capability char* str_cap);
 
 /*
  * !!! Types must always have the capability first !!!
