@@ -12,7 +12,7 @@ static jclass FindClass(JNIEnv *env, const char *className) {
 	 * pass it as a pointer with the default capability
 	 */
 	__capability void *result = hostInvoke_0_1(cheri_invoke_cap, FindClass, cap_string(className));
-	return (jclass) get_obj(result);
+	return (jclass) cherijni_jobject_store(result);
 }
 
 static jint ThrowNew(JNIEnv *env, jclass clazz, const char *msg) {
@@ -22,7 +22,7 @@ static jint ThrowNew(JNIEnv *env, jclass clazz, const char *msg) {
 
 static jthrowable ExceptionOccurred(JNIEnv *env) {
 	__capability void *result = hostInvoke_0_0(cheri_invoke_cap, ExceptionOccurred);
-	return (jthrowable) get_obj(result);
+	return (jthrowable) cherijni_jobject_store(result);
 }
 
 static void ExceptionDescribe(JNIEnv *env) {
@@ -41,22 +41,28 @@ static jboolean IsInstanceOf(JNIEnv *env, jobject obj, jclass clazz) {
 
 static jmethodID GetMethodID(JNIEnv *env, jclass clazz, const char *name, const char *sig) {
 	__capability void *result = hostInvoke_0_3(cheri_invoke_cap, GetMethodID, get_cap(clazz), cap_string(name), cap_string(sig));
-	return (jmethodID) get_obj(result);
+	return (jmethodID) cherijni_jmethodID_store(result, sig);
+}
+
+static jint CallIntMethod(JNIEnv *env, jobject obj, jmethodID mid, ...) {
+	register_t args_prim[] = { 0, 0, 0, 0, 0, 0, 0 };
+	__capability void *args_cap[] = { CNULL, CNULL, CNULL, CNULL, CNULL };
+	return 0;
 }
 
 static jfieldID GetFieldID(JNIEnv *env, jclass clazz, const char *name, const char *sig) {
 	__capability void *result = hostInvoke_0_3(cheri_invoke_cap, GetFieldID, get_cap(clazz), cap_string(name), cap_string(sig));
-	return (jfieldID) get_obj(result);
+	return (jfieldID) cherijni_jfieldID_store(result);
 }
 
 static jmethodID GetStaticMethodID(JNIEnv *env, jclass clazz, const char *name, const char *sig) {
 	__capability void *result = hostInvoke_0_3(cheri_invoke_cap, GetStaticMethodID, get_cap(clazz), cap_string(name), cap_string(sig));
-	return (jmethodID) get_obj(result);
+	return (jmethodID) cherijni_jmethodID_store(result, sig);
 }
 
 static jstring NewStringUTF(JNIEnv *env, const char *bytes) {
 	__capability void *result = hostInvoke_0_1(cheri_invoke_cap, NewStringUTF, cap_string(bytes));
-	return (jstring) get_obj(result);
+	return (jstring) cherijni_jobject_store(result);
 }
 
 static jsize GetStringUTFLength(JNIEnv *env, jstring string) {
@@ -144,7 +150,7 @@ static struct _JNINativeInterface cherijni_JNIEnv_struct = {
 		NULL, // CallShortMethod,
 		NULL, // CallShortMethodV,
 		NULL, // CallShortMethodA,
-		NULL, // CallIntMethod,
+		CallIntMethod,
 		NULL, // CallIntMethodV,
 		NULL, // CallIntMethodA,
 		NULL, // CallLongMethod,

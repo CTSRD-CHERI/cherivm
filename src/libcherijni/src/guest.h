@@ -20,6 +20,8 @@
 #include <cherijni.h>
 #include "sandbox_shared.h"
 
+typedef FILE* pFILE;
+
 extern struct cheri_object cherijni_obj_system;
 extern __capability void *cherijni_output;
 
@@ -38,13 +40,12 @@ extern __capability void *cherijni_output;
 #define hostInvoke_0_1(recast, name, c1)                   hostInvoke_0_2(recast, name, c1, CNULL)
 #define hostInvoke_0_0(recast, name)                       hostInvoke_0_1(recast, name, CNULL)
 
-#define check_cheri_fail(errcode, func_result)                { if (errcode == CHERI_FAIL) { printf("[SANDBOX ERROR: call to %s failed]\n", __func__); return func_result; } }
-#define check_cheri_fail_extra(errcode, func_result, doExtra) { if (errcode == CHERI_FAIL) { doExtra; check_cheri_fail(errcode, func_result) } }
-#define check_cheri_fail_void(errcode)                        { if (errcode == CHERI_FAIL) { printf("[SANDBOX ERROR: call to %s failed]\n", __func__); return; } }
+#define check_cheri_fail(errcode, func_result)                { if ((errcode) == CHERI_FAIL) { printf("[SANDBOX ERROR: call to %s failed]\n", __func__); return func_result; } }
+#define check_cheri_fail_extra(errcode, func_result, doExtra) { if ((errcode) == CHERI_FAIL) { doExtra; check_cheri_fail(errcode, func_result) } }
+#define check_cheri_fail_void(errcode)                        { if ((errcode) == CHERI_FAIL) { printf("[SANDBOX ERROR: call to %s failed]\n", __func__); return; } }
 
-#define get_obj(cap)        cherijni_obj_storecap(cap)
 #define get_str(cap)        cherijni_extractHostString(cap)
-#define get_cap(ptr)        (*((__capability void**) (ptr)))
+#define get_cap(ptr)        ((ptr) ? *((__capability void**) (ptr)) : CNULL)
 
 extern JavaVM *cherijni_getJavaVM();
 extern JNIEnv *cherijni_getJNIEnv(__capability void **context);
@@ -53,9 +54,26 @@ extern void cherijni_runTests(JNIEnv *env);
 extern char* cherijni_extractHostString(__capability char* str_cap);
 
 extern void cherijni_obj_init();
-extern __capability void **cherijni_obj_storecap(__capability void *cobj);
-extern __capability void *cherijni_obj_loadcap(__capability void **obj);
-
 extern void cherijni_libc_init();
+
+/*
+ * !!! Types must always have the capability first !!!
+ * For alignment reasons, and also checking whether a slot is being used.
+ */
+typedef __capability void* cherijni_objtype_jobject;
+typedef __capability void* cherijni_objtype_jfieldID;
+typedef struct {
+	__capability void *cap;
+	const char *sig;
+} cherijni_objtype_jmethodID;
+typedef struct {
+	__capability void *cap;
+	short fileno;               // the offset of this matches the offset inside FILE => fileno() works
+} cherijni_objtype_pFILE;
+
+extern jobject cherijni_jobject_store(__capability void *cap);
+extern jfieldID cherijni_jfieldID_store(__capability void *cap);
+extern jmethodID cherijni_jmethodID_store(__capability void *cap, const char *sig);
+extern pFILE cherijni_pFILE_store(__capability void *cap);
 
 #endif //__GUEST_H__
