@@ -117,7 +117,7 @@ register_t cherijni_invoke(u_int op,
 		printf("[SANDBOX: returning %p]\n", (void*) result);
 
 		if (entry->type == FNTYPE_OBJECT) {
-			__capability void *result_cap = get_cap((void*) result);
+			__capability void *result_cap = get_cap((void*) result, jobject);
 			cheri_setreg(3, result_cap);
 			return CHERI_SUCCESS;
 		} else

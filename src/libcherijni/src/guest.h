@@ -25,8 +25,9 @@ typedef FILE* pFILE;
 extern struct cheri_object cherijni_obj_system;
 extern __capability void *cherijni_output;
 
-#define cap_output             (cheri_ptrperm(&cherijni_output, sizeof(__capability void*), CHERI_PERM_STORE | CHERI_PERM_STORE_CAP))
-#define cap_buffer(ptr, len)   (cheri_ptrperm(ptr, len, CHERI_PERM_STORE))
+#define cap_output                (cheri_ptrperm(&cherijni_output, sizeof(__capability void*), CHERI_PERM_STORE | CHERI_PERM_STORE_CAP))
+#define cap_buffer_ro(ptr, len)   (cheri_ptrperm((void*) ptr, len, CHERI_PERM_LOAD))
+#define cap_buffer_wo(ptr, len)   (cheri_ptrperm(ptr, len, CHERI_PERM_STORE))
 
 #define hostInvoke_7_5(recast, name, a1, a2, a3, a4, a5, a6, a7, c1, c2, c3, c4, c5) \
 	(((recast) cheri_invoke) (cherijni_obj_system, \
@@ -45,7 +46,7 @@ extern __capability void *cherijni_output;
 #define check_cheri_fail_void(errcode)                        { if ((errcode) == CHERI_FAIL) { printf("[SANDBOX ERROR: call to %s failed]\n", __func__); return; } }
 
 #define get_str(cap)        cherijni_extractHostString(cap)
-#define get_cap(ptr)        ((ptr) ? *((__capability void**) (ptr)) : CNULL)
+#define get_cap(ptr, type)  ((ptr) ? ((cherijni_objtype_##type*) ptr)->cap : CNULL)
 
 extern void cherijni_obj_init();
 extern void cherijni_libc_init();
@@ -56,23 +57,37 @@ extern void cherijni_runTests(JNIEnv *env);
 extern char* cherijni_extractHostString(__capability char* str_cap);
 
 /*
- * !!! Types must always have the capability first !!!
- * For alignment reasons, and also checking whether a slot is being used.
+ * !!! Types must always have the capability called "cap" !!!
  */
-typedef __capability void* cherijni_objtype_jobject;
-typedef __capability void* cherijni_objtype_jfieldID;
+typedef struct {
+	__capability void *cap;
+} cherijni_objtype_jobject;
+typedef struct {
+	__capability void *cap;
+} cherijni_objtype_jfieldID;
 typedef struct {
 	__capability void *cap;
 	const char *sig;
 } cherijni_objtype_jmethodID;
 typedef struct {
 	__capability void *cap;
+	int fd;
+} cherijni_objtype_fd;
+typedef struct {
+	unsigned char *_p;
+	int	_r;
+	int	_w;
+	short	_flags;
 	short fileno;               // the offset of this matches the offset inside FILE => fileno() works
+	__capability void *cap;
 } cherijni_objtype_pFILE;
 
 extern jobject cherijni_jobject_store(__capability void *cap);
 extern jfieldID cherijni_jfieldID_store(__capability void *cap);
 extern jmethodID cherijni_jmethodID_store(__capability void *cap, const char *sig);
-extern pFILE cherijni_pFILE_store(__capability void *cap);
+extern int cherijni_fd_store(__capability void *cap, int fd);
+extern pFILE cherijni_pFILE_store(__capability void *cap, short fileno);
+
+extern __capability void *cherijni_fd_load(int fd);
 
 #endif //__GUEST_H__

@@ -16,7 +16,7 @@ static jclass FindClass(JNIEnv *env, const char *className) {
 }
 
 static jint ThrowNew(JNIEnv *env, jclass clazz, const char *msg) {
-	register_t res = hostInvoke_0_2(cheri_invoke_prim, ThrowNew, get_cap(clazz), cap_string(msg));
+	register_t res = hostInvoke_0_2(cheri_invoke_prim, ThrowNew, get_cap(clazz, jobject), cap_string(msg));
 	return (jint) res;
 }
 
@@ -34,17 +34,17 @@ static void ExceptionClear(JNIEnv *env) {
 }
 
 static void DeleteLocalRef(JNIEnv *env, jobject localRef) {
-	check_cheri_fail_void(hostInvoke_0_1(cheri_invoke_prim, ExceptionClear, get_cap(localRef)));
+	check_cheri_fail_void(hostInvoke_0_1(cheri_invoke_prim, ExceptionClear, get_cap(localRef, jobject)));
 }
 
 static jboolean IsInstanceOf(JNIEnv *env, jobject obj, jclass clazz) {
-	register_t res = hostInvoke_0_2(cheri_invoke_prim, IsInstanceOf, get_cap(obj), get_cap(clazz));
+	register_t res = hostInvoke_0_2(cheri_invoke_prim, IsInstanceOf, get_cap(obj, jobject), get_cap(clazz, jobject));
 	check_cheri_fail(res, JNI_FALSE);
 	return res;
 }
 
 static jmethodID GetMethodID(JNIEnv *env, jclass clazz, const char *name, const char *sig) {
-	__capability void *result = hostInvoke_0_3(cheri_invoke_cap, GetMethodID, get_cap(clazz), cap_string(name), cap_string(sig));
+	__capability void *result = hostInvoke_0_3(cheri_invoke_cap, GetMethodID, get_cap(clazz, jobject), cap_string(name), cap_string(sig));
 	return (jmethodID) cherijni_jmethodID_store(result, sig);
 }
 
@@ -59,7 +59,7 @@ static jmethodID GetMethodID(JNIEnv *env, jclass clazz, const char *name, const 
 	scanSignature(mid_struct->sig,                                                                                                   \
 	/* single primitives */ { args_prim[args_prim_ready++] = va_arg(native_args, register_t); },                                     \
 	/* double primitives */ { args_prim[args_prim_ready++] = va_arg(native_args, register_t); },                                     \
-	/* objects           */ { jobject obj = (jobject) va_arg(native_args, register_t); args_cap[args_cap_ready++] = get_cap(obj); }, \
+	/* objects           */ { jobject obj = (jobject) va_arg(native_args, register_t); args_cap[args_cap_ready++] = get_cap(obj, jobject); }, \
 	/* return values     */ { }, { }, { }, { });                                                                                     \
 	va_end(native_args);
 
@@ -68,14 +68,16 @@ static jmethodID GetMethodID(JNIEnv *env, jclass clazz, const char *name, const 
 		VIRTUAL_METHOD_COMMON                                                                                      \
 		return (jtype) hostInvoke_7_5(cheri_invoke_prim, Call##TYPE##Method,                                       \
 				args_prim[0], args_prim[1], args_prim[2], args_prim[3], args_prim[4], args_prim[5], args_prim[6],  \
-				get_cap(obj), get_cap(mid), args_cap[0], args_cap[1], args_cap[2]);                                \
+				get_cap(obj, jobject), get_cap(mid, jmethodID),                                                    \
+		        args_cap[0], args_cap[1], args_cap[2]);                                                            \
 	}
 
 static jobject CallObjectMethod(JNIEnv *env, jobject obj, jmethodID mid, ...) {
 	VIRTUAL_METHOD_COMMON
 	__capability void *result = hostInvoke_7_5(cheri_invoke_cap, CallObjectMethod,
 			args_prim[0], args_prim[1], args_prim[2], args_prim[3], args_prim[4], args_prim[5], args_prim[6],
-			get_cap(obj), get_cap(mid), args_cap[0], args_cap[1], args_cap[2]);
+			get_cap(obj, jobject), get_cap(mid, jmethodID),
+			args_cap[0], args_cap[1], args_cap[2]);
 	return (jobject) cherijni_jobject_store(result);
 }
 
@@ -93,12 +95,12 @@ access##_METHOD(Void, void)
 CALL_METHOD(VIRTUAL)
 
 static jfieldID GetFieldID(JNIEnv *env, jclass clazz, const char *name, const char *sig) {
-	__capability void *result = hostInvoke_0_3(cheri_invoke_cap, GetFieldID, get_cap(clazz), cap_string(name), cap_string(sig));
+	__capability void *result = hostInvoke_0_3(cheri_invoke_cap, GetFieldID, get_cap(clazz, jobject), cap_string(name), cap_string(sig));
 	return (jfieldID) cherijni_jfieldID_store(result);
 }
 
 static jmethodID GetStaticMethodID(JNIEnv *env, jclass clazz, const char *name, const char *sig) {
-	__capability void *result = hostInvoke_0_3(cheri_invoke_cap, GetStaticMethodID, get_cap(clazz), cap_string(name), cap_string(sig));
+	__capability void *result = hostInvoke_0_3(cheri_invoke_cap, GetStaticMethodID, get_cap(clazz, jobject), cap_string(name), cap_string(sig));
 	return (jmethodID) cherijni_jmethodID_store(result, sig);
 }
 
@@ -108,7 +110,7 @@ static jstring NewStringUTF(JNIEnv *env, const char *bytes) {
 }
 
 static jsize GetStringUTFLength(JNIEnv *env, jstring string) {
-	register_t result = hostInvoke_0_1(cheri_invoke_prim, GetStringUTFLength, get_cap(string));
+	register_t result = hostInvoke_0_1(cheri_invoke_prim, GetStringUTFLength, get_cap(string, jobject));
 	check_cheri_fail(result, 0);
 	return result;
 }
@@ -116,7 +118,7 @@ static jsize GetStringUTFLength(JNIEnv *env, jstring string) {
 static const char *GetStringUTFChars(JNIEnv *env, jstring string, jboolean *isCopy) {
 	jsize str_length = (*env)->GetStringUTFLength(env, string);
 	char *str_buffer = (char *) malloc(str_length + 1);
-	register_t result = hostInvoke_0_2(cheri_invoke_prim, GetStringUTFChars, get_cap(string), cap_buffer(str_buffer, str_length + 1));
+	register_t result = hostInvoke_0_2(cheri_invoke_prim, GetStringUTFChars, get_cap(string, jobject), cap_buffer_wo(str_buffer, str_length + 1));
 	check_cheri_fail_extra(result, NULL, free(str_buffer));
 
 	if (isCopy != NULL)
@@ -130,7 +132,7 @@ static void ReleaseStringUTFChars(JNIEnv *env, jstring string, const char *utf) 
 }
 
 static jsize GetArrayLength(JNIEnv *env, jarray array) {
-	return (jsize) hostInvoke_0_1(cheri_invoke_prim, GetArrayLength, get_cap(array));
+	return (jsize) hostInvoke_0_1(cheri_invoke_prim, GetArrayLength, get_cap(array, jobject));
 }
 
 #define GET_ARRAY_ELEMENTS(TYPE, jtype, ctype) \
@@ -138,7 +140,7 @@ static jsize GetArrayLength(JNIEnv *env, jarray array) {
 		jsize length = (*env)->GetArrayLength(env, array); \
 		size_t buffer_size = length * sizeof(jtype); \
 		jtype *buffer = (jtype*) malloc(buffer_size); \
-		register_t result = hostInvoke_0_2(cheri_invoke_prim, Get##TYPE##ArrayElements, get_cap(array), cap_buffer(buffer, buffer_size)); \
+		register_t result = hostInvoke_0_2(cheri_invoke_prim, Get##TYPE##ArrayElements, get_cap(array, jobject), cap_buffer_wo(buffer, buffer_size)); \
 		check_cheri_fail_extra(result, NULL, free(buffer)); \
 		\
 		if (isCopy != NULL) \
@@ -169,7 +171,7 @@ op(Double, jdouble, 'D')
 ARRAY_METHOD(GET_ARRAY_ELEMENTS)
 
 static void *GetDirectBufferAddress(JNIEnv *env, jobject buf) {
-	__capability void *result = hostInvoke_0_1(cheri_invoke_cap, GetDirectBufferAddress, get_cap(buf));
+	__capability void *result = hostInvoke_0_1(cheri_invoke_cap, GetDirectBufferAddress, get_cap(buf, jobject));
 	if (result == CNULL)
 		return NULL;
 	else {

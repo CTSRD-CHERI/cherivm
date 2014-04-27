@@ -54,7 +54,7 @@ typedef float           jfloat;
 typedef double          jdouble;
 typedef jint            jsize;
 
-typedef __capability void **jobject;
+typedef void *jobject;
 typedef jobject jclass;
 typedef jobject jthrowable;
 typedef jobject jstring;

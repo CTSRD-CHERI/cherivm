@@ -1,9 +1,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <dlfcn.h>
 #include <sys/param.h>
 #include <sys/sysctl.h>
+#include <sys/types.h>
 #include <pthread.h>
 
 #include "jam.h"
@@ -58,6 +60,9 @@ DEFINE_SEAL_VARS(Context)
 DEFINE_SEAL_VARS(MethodID)
 DEFINE_SEAL_VARS(FieldID)
 DEFINE_SEAL_VARS(FILE)
+DEFINE_SEAL_VARS(FD)
+
+static char FDs[1 << 16];
 
 #define RETURNTYPE_VOID   1
 #define RETURNTYPE_SINGLE 2
@@ -165,7 +170,18 @@ jint cherijni_callOnLoadUnload(void *handle, void *ptr, JavaVM *jvm, void *reser
 #define return_mid(field)  cap_seal(MethodID, field)
 #define return_fid(field)  cap_seal(FieldID, field)
 #define return_file(file)  cap_seal(FILE, file)
+#define return_fd(desc)    cap_seal(FD, &(FDs[desc]))
 #define return_str(str)    cap_string(str)
+
+static inline int arg_fd(__capability void *cap) {
+	uintptr_t fd = cap_unseal(uintptr_t, FD, cap);
+	uintptr_t fd_base = (uintptr_t) FDs;
+	uintptr_t fd_end = fd_base + (1 << 16);
+	if (fd_base <= fd && fd < fd_end)
+		return (int) (fd - fd_base);
+	else
+		return -1;
+}
 
 static inline void copyToSandbox(const char *src, __capability char *dest, size_t len) {
 	size_t i;
@@ -204,10 +220,6 @@ static inline void *convertSandboxPointer(__capability void *cap) {
 		return NULL;
 
 	return (void*) cap;
-}
-
-static inline __capability void *checkSandboxCapability_wc(__capability void *cap, size_t min_length) {
-	return checkSandboxCapability(cap, min_length, CHERI_PERM_STORE_CAP);
 }
 
 static inline __capability void *checkSandboxCapability_r(__capability void *cap, size_t min_length) {
@@ -330,7 +342,7 @@ JNI_FUNCTION_PRIM(GetVersion) {
 JNI_FUNCTION_CAP(FindClass) {
 	const char *className = arg_str(c1, 1, r);
 	if (className == NULL)
-		return CHERI_FAIL;
+		return CNULL;
 
 	return return_obj((*env)->FindClass(env, className));
 }
@@ -380,7 +392,7 @@ JNI_FUNCTION_CAP(GetMethodID) {
 	const char *name = arg_str(c2, 1, r);
 	const char *sig = arg_str(c3, 1, r);
 	if (clazz == NULL || name == NULL || sig == NULL)
-		return CHERI_FAIL;
+		return CNULL;
 
 	pMethodBlock result = (*env)->GetMethodID(env, clazz, name, sig);
 #ifdef JNI_CHERI_STRICT
@@ -403,8 +415,7 @@ static inline jvalue *prepareJniArguments(pMethodBlock mb, register_t a1, regist
 	if (arg_count == 0)
 		return NULL;
 
-	jvalue *args;
-	arg_count = (jvalue*) sysMalloc(sizeof(jvalue) * arg_count);
+	jvalue *args = (jvalue*) sysMalloc(sizeof(jvalue) * arg_count);
 	if (args == NULL) {
 		jam_printf("ERROR: out of memory\n");
 		return NULL;
@@ -571,16 +582,42 @@ JNI_FUNCTION_CAP(GetDirectBufferAddress) {
 	return cheri_ptrperm(base, length, CHERI_PERM_LOAD | CHERI_PERM_STORE);
 }
 
-LIBC_FUNCTION_CAP(GetStdin) {
-	return return_file(stdin);
+LIBC_FUNCTION_CAP(GetStdinFD) {
+	return return_fd(STDIN_FILENO);
 }
 
-LIBC_FUNCTION_CAP(GetStdout) {
-	return return_file(stdout);
+LIBC_FUNCTION_CAP(GetStdoutFD) {
+	return return_fd(STDOUT_FILENO);
 }
 
-LIBC_FUNCTION_CAP(GetStderr) {
-	return return_file(stderr);
+LIBC_FUNCTION_CAP(GetStderrFD) {
+	return return_fd(STDERR_FILENO);
+}
+
+LIBC_FUNCTION_CAP(GetStream) {
+	int fd = arg_fd(c1);
+	if (fd == -1)
+		return CNULL;
+	else if (fd == STDIN_FILENO)
+		return return_file(stdin);
+	else if (fd == STDOUT_FILENO)
+		return return_file(stdout);
+	else if (fd == STDERR_FILENO)
+		return return_file(stderr);
+	else
+		return CNULL;
+}
+
+LIBC_FUNCTION_PRIM(write) {
+	int fd = arg_fd(c1);
+	__capability void *buf = arg_cap(c2, 0, r);
+	if (fd == -1 || buf == CNULL)
+		return CHERI_FAIL;
+
+	void *buf_ptr = (void*) buf;
+	size_t buf_len = cheri_getlen(buf);
+
+	return (ssize_t) write(fd, buf_ptr, buf_len);
 }
 
 register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a2, register_t a3, register_t a4, register_t a5, register_t a6, register_t a7, struct cheri_object system_object, __capability void *c1, __capability void *c2, __capability void *c3, __capability void *c4, __capability void *c5) __attribute__((cheri_ccall)) {
@@ -900,12 +937,17 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 	case CHERIJNI_JNIEnv_GetObjectRefType:
 		break;
 
-	case CHERIJNI_LIBC_GetStdin:
-		CALL_LIBC_CAP(GetStdin)
-	case CHERIJNI_LIBC_GetStdout:
-		CALL_LIBC_CAP(GetStdout)
-	case CHERIJNI_LIBC_GetStderr:
-		CALL_LIBC_CAP(GetStderr)
+	case CHERIJNI_LIBC_GetStdinFD:
+		CALL_LIBC_CAP(GetStdinFD)
+	case CHERIJNI_LIBC_GetStdoutFD:
+		CALL_LIBC_CAP(GetStdoutFD)
+	case CHERIJNI_LIBC_GetStderrFD:
+		CALL_LIBC_CAP(GetStderrFD)
+	case CHERIJNI_LIBC_GetStream:
+		CALL_LIBC_CAP(GetStream)
+
+	case CHERIJNI_LIBC_write:
+		CALL_LIBC_PRIM(write)
 
 	default:
 		break;
@@ -921,6 +963,7 @@ void initialiseCheriJNI() {
 	INIT_SEAL(MethodID);
 	INIT_SEAL(FieldID);
 	INIT_SEAL(FILE);
+	INIT_SEAL(FD);
 
     class_String = findSystemClass0(SYMBOL(java_lang_String));
     class_Buffer = findSystemClass0(SYMBOL(java_nio_Buffer));

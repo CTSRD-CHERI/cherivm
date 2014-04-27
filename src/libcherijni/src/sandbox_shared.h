@@ -293,8 +293,10 @@ typedef __capability void* (*cheri_invoke_cap)(struct cheri_object, u_int, regis
 #define CHERIJNI_JNIEnv_GetDirectBufferCapacity			(CHERI_SYSTEM_USER_BASE + 228)
 #define CHERIJNI_JNIEnv_GetObjectRefType			(CHERI_SYSTEM_USER_BASE + 229)
 
-#define CHERIJNI_LIBC_GetStdin						(CHERI_SYSTEM_USER_BASE + 501)
-#define CHERIJNI_LIBC_GetStdout						(CHERI_SYSTEM_USER_BASE + 502)
-#define CHERIJNI_LIBC_GetStderr						(CHERI_SYSTEM_USER_BASE + 503)
+#define CHERIJNI_LIBC_GetStdinFD					(CHERI_SYSTEM_USER_BASE + 501)
+#define CHERIJNI_LIBC_GetStdoutFD					(CHERI_SYSTEM_USER_BASE + 502)
+#define CHERIJNI_LIBC_GetStderrFD					(CHERI_SYSTEM_USER_BASE + 503)
+#define CHERIJNI_LIBC_GetStream						(CHERI_SYSTEM_USER_BASE + 504)
+#define CHERIJNI_LIBC_write							(CHERI_SYSTEM_USER_BASE + 505)
 
 #endif //__SANDBOX_SHARED_H__

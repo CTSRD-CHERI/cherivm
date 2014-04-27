@@ -9,7 +9,7 @@
 	cherijni_objtype_##NAME *cherijni_obj_##NAME##_find(__capability void *cap) {               \
 		size_t i;                                                                               \
 		for (i = 0; i < storage_##NAME##_length; i++) {                                         \
-			__capability void *cap_slot = *((__capability void**) (&storage_##NAME[i]));        \
+			__capability void *cap_slot = storage_##NAME[i].cap;                                \
 			if (cap == cap_slot)                                                                \
 				return &storage_##NAME[i];                                                      \
 		}                                                                                       \
@@ -19,7 +19,7 @@
 	cherijni_objtype_##NAME *cherijni_obj_##NAME##_emptyslot() {                                \
 		size_t i;                                                                               \
 		for (i = 0; i < storage_##NAME##_length; i++) {                                         \
-			__capability void *cap_slot = *((__capability void**) (&storage_##NAME[i]));        \
+			__capability void *cap_slot = storage_##NAME[i].cap;                                \
 			if (!cheri_gettag(cap_slot))                                                        \
 				return &storage_##NAME[i];                                                      \
 		}                                                                                       \
@@ -39,12 +39,14 @@
 STORAGE_DEF(jobject)
 STORAGE_DEF(jfieldID)
 STORAGE_DEF(jmethodID)
+STORAGE_DEF(fd)
 STORAGE_DEF(pFILE)
 
 void cherijni_obj_init() {
 	STORAGE_INIT(jobject);
 	STORAGE_INIT(jfieldID);
 	STORAGE_INIT(jmethodID);
+	STORAGE_INIT(fd);
 	STORAGE_INIT(pFILE);
 }
 
@@ -58,30 +60,43 @@ void cherijni_obj_init() {
                                                                                \
 	cherijni_objtype_##NAME *newslot = cherijni_obj_##NAME##_emptyslot();      \
 	if (!newslot)                                                              \
-		return NULL;
+		return NULL;                                                           \
+	                                                                           \
+	newslot->cap = cobj;
+
 
 jobject cherijni_jobject_store(__capability void *cobj) {
 	STORAGE_STORE_COMMON(jobject)
-	*newslot = cobj;
 	return newslot;
 }
 
 jfieldID cherijni_jfieldID_store(__capability void *cobj) {
 	STORAGE_STORE_COMMON(jfieldID)
-	*newslot = cobj;
 	return newslot;
 }
 
 jmethodID cherijni_jmethodID_store(__capability void *cobj, const char *sig) {
 	STORAGE_STORE_COMMON(jmethodID)
-	newslot->cap = cobj;
 	newslot->sig = strdup(sig);
 	return newslot;
 }
 
-pFILE cherijni_pFILE_store(__capability void *cobj) {
+int cherijni_fd_store(__capability void *cobj, int fd) {
+	STORAGE_STORE_COMMON(fd)
+	newslot->fd = fd;
+	return fd;
+}
+
+__capability void *cherijni_fd_load(int fd) {
+	size_t i;
+	for (i = 0; i < storage_fd_length; i++)
+		if (storage_fd[i].fd == fd)
+			return storage_fd[i].cap;
+	return CNULL;
+}
+
+pFILE cherijni_pFILE_store(__capability void *cobj, short fileno) {
 	STORAGE_STORE_COMMON(pFILE)
-	newslot->cap = cobj;
-	newslot->fileno = (((uintptr_t) newslot) - ((uintptr_t) storage_pFILE)) / sizeof(cherijni_objtype_pFILE);
+	newslot->fileno = fileno;
 	return newslot;
 }

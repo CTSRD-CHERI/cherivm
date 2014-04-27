@@ -21,10 +21,14 @@
 
 #define hostInvoke_name(name) CHERIJNI_LIBC_ ## name
 
-#define STUB_ERRNO        { printf("[SANDBOX stub: %s\n", __func__); errno = ECAPMODE; return (-1); }
-#define STUB_SIZET        { printf("[SANDBOX stub: %s\n", __func__); errno = ECAPMODE; return ((size_t) - 1); }
-#define STUB_NULL         { printf("[SANDBOX stub: %s\n", __func__); return NULL; }
-#define STUB_MAPFAILED    { printf("[SANDBOX stub: %s\n", __func__); errno = ECAPMODE; return MAP_FAILED; }
+#define STUB_ERRNO        { printf("[SANDBOX error: %s\n", __func__); errno = ECAPMODE; return (-1); }
+#define STUB_SIZET        { printf("[SANDBOX error: %s\n", __func__); errno = ECAPMODE; return ((size_t) - 1); }
+#define STUB_NULL         { printf("[SANDBOX error: %s\n", __func__); return NULL; }
+#define STUB_MAPFAILED    { printf("[SANDBOX error: %s\n", __func__); errno = ECAPMODE; return MAP_FAILED; }
+
+#define init_cap_fd(fd, err) \
+	__capability void* cap_##fd = cherijni_fd_load(fd); \
+	if (cap_##fd == CNULL) STUB_##err else { }
 
 /* CONSTANTS */
 
@@ -51,7 +55,13 @@ int unlink(const char *path)                                 STUB_ERRNO
 
 ssize_t read(int d, void *buf, size_t nbytes)                STUB_ERRNO
 ssize_t readv(int fd, const struct iovec *iov, int iovcnt)   STUB_ERRNO
-ssize_t write(int fd, const void *buf, size_t nbytes)        STUB_ERRNO
+
+ssize_t write(int fd, const void *buf, size_t nbytes) {
+	init_cap_fd(fd, ERRNO)
+	__capability void *cap_buf = cap_buffer_ro(buf, nbytes);
+	return (ssize_t) hostInvoke_0_2(cheri_invoke_cap, write, cap_fd, cap_buf);
+}
+
 ssize_t writev(int fd, const struct iovec *iov, int iovcnt)  STUB_ERRNO
 
 int dup(int oldd)                                            STUB_ERRNO
@@ -161,23 +171,25 @@ int raise(int sig)                                           STUB_ERRNO
 
 /* INITIALIZATION */
 
-static pFILE get_stdin() {
-	__capability void *result = hostInvoke_0_0(cheri_invoke_cap, GetStdin);
-	return cherijni_pFILE_store(result);
-}
+#define GET_STD_STREAM(lowercase, uppercase)                                                 \
+	static pFILE get_std##lowercase() {                                                      \
+		__capability void *cap_fd = hostInvoke_0_0(cheri_invoke_cap, GetStd##lowercase##FD); \
+		if (cap_fd == CNULL)                                                                 \
+			return NULL;                                                                     \
+		cherijni_fd_store(cap_fd, STD##uppercase##_FILENO);                                  \
+		                                                                                     \
+		__capability void *cap_file = hostInvoke_0_1(cheri_invoke_cap, GetStream, cap_fd);   \
+		if (cap_file == CNULL)                                                               \
+			return NULL;                                                                     \
+		else                                                                                 \
+			return cherijni_pFILE_store(cap_file, STD##uppercase##_FILENO);                  \
+	}
 
-static pFILE get_stdout() {
-	__capability void *result = hostInvoke_0_0(cheri_invoke_cap, GetStdout);
-	return cherijni_pFILE_store(result);
-}
-
-static pFILE get_stderr() {
-	__capability void *result = hostInvoke_0_0(cheri_invoke_cap, GetStderr);
-	return cherijni_pFILE_store(result);
-}
+GET_STD_STREAM(in, IN)
+GET_STD_STREAM(out, OUT)
+GET_STD_STREAM(err, ERR)
 
 void cherijni_libc_init() {
-	// order matters! otherwise they'd got wrong fileno's
 	if (__stdinp == NULL) __stdinp = get_stdin();
 	if (__stdoutp == NULL) __stdoutp = get_stdout();
 	if (__stderrp == NULL) __stderrp = get_stderr();
