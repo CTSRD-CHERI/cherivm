@@ -30,10 +30,9 @@
 #define STORAGE_INIT(NAME)                                                           \
 	{                                                                                \
 		storage_##NAME = calloc(DEFAULT_OBJ_COUNT, sizeof(cherijni_objtype_##NAME)); \
-		if (storage_##NAME) {                                                        \
+		if (storage_##NAME)                                                          \
 			storage_##NAME##_length = DEFAULT_OBJ_COUNT;                             \
-			printf("[SANDBOX initialized %s @ %p, len=%d]\n", #NAME, storage_##NAME, storage_##NAME##_length); \
-		} else                                                                       \
+		else                                                                         \
 			printf("[SANDBOX ERROR: cannot allocate storage for type %s]\n", #NAME); \
 	}
 
