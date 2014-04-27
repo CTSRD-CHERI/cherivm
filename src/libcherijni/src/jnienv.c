@@ -44,25 +44,36 @@ static jmethodID GetMethodID(JNIEnv *env, jclass clazz, const char *name, const 
 	return (jmethodID) cherijni_jmethodID_store(result, sig);
 }
 
-#define VIRTUAL_METHOD(TYPE, jtype)                                                                                                      \
-	static jtype Call##TYPE##Method(JNIEnv *env, jobject obj, jmethodID mid, ...) {                                                      \
-		register_t args_prim[] = { 0, 0, 0, 0, 0, 0, 0 };                                                                                \
-		__capability void *args_cap[] = { CNULL, CNULL, CNULL };                                                                         \
-		size_t args_prim_ready = 0, args_cap_ready = 0;                                                                                  \
-		va_list native_args;                                                                                                             \
-                                                                                                                                         \
-		cherijni_objtype_jmethodID *mid_struct = (cherijni_objtype_jmethodID *) mid;                                                     \
-		va_start(native_args, mid);                                                                                                      \
-		scanSignature(mid_struct->sig,                                                                                                   \
-		/* single primitives */ { args_prim[args_prim_ready++] = va_arg(native_args, register_t); },                                     \
-		/* double primitives */ { args_prim[args_prim_ready++] = va_arg(native_args, register_t); },                                     \
-		/* objects           */ { jobject obj = (jobject) va_arg(native_args, register_t); args_cap[args_cap_ready++] = get_cap(obj); }, \
-		/* return values     */ { }, { }, { }, { });                                                                                     \
-		va_end(native_args);                                                                                                             \
-		return (jtype) hostInvoke_7_5(cheri_invoke_prim, Call##TYPE##Method,                                                             \
-				args_prim[0], args_prim[1], args_prim[2], args_prim[3], args_prim[4], args_prim[5], args_prim[6],                        \
-				get_cap(obj), get_cap(mid), args_cap[0], args_cap[1], args_cap[2]);                                                      \
+#define VIRTUAL_METHOD_COMMON                                                                                                        \
+	register_t args_prim[] = { 0, 0, 0, 0, 0, 0, 0 };                                                                                \
+	__capability void *args_cap[] = { CNULL, CNULL, CNULL };                                                                         \
+	size_t args_prim_ready = 0, args_cap_ready = 0;                                                                                  \
+	va_list native_args;                                                                                                             \
+																																	 \
+	cherijni_objtype_jmethodID *mid_struct = (cherijni_objtype_jmethodID *) mid;                                                     \
+	va_start(native_args, mid);                                                                                                      \
+	scanSignature(mid_struct->sig,                                                                                                   \
+	/* single primitives */ { args_prim[args_prim_ready++] = va_arg(native_args, register_t); },                                     \
+	/* double primitives */ { args_prim[args_prim_ready++] = va_arg(native_args, register_t); },                                     \
+	/* objects           */ { jobject obj = (jobject) va_arg(native_args, register_t); args_cap[args_cap_ready++] = get_cap(obj); }, \
+	/* return values     */ { }, { }, { }, { });                                                                                     \
+	va_end(native_args);
+
+#define VIRTUAL_METHOD(TYPE, jtype)                                                                                \
+	static jtype Call##TYPE##Method(JNIEnv *env, jobject obj, jmethodID mid, ...) {                                \
+		VIRTUAL_METHOD_COMMON                                                                                      \
+		return (jtype) hostInvoke_7_5(cheri_invoke_prim, Call##TYPE##Method,                                       \
+				args_prim[0], args_prim[1], args_prim[2], args_prim[3], args_prim[4], args_prim[5], args_prim[6],  \
+				get_cap(obj), get_cap(mid), args_cap[0], args_cap[1], args_cap[2]);                                \
 	}
+
+static jobject CallObjectMethod(JNIEnv *env, jobject obj, jmethodID mid, ...) {
+	VIRTUAL_METHOD_COMMON
+	__capability void *result = hostInvoke_7_5(cheri_invoke_cap, CallObjectMethod,
+			args_prim[0], args_prim[1], args_prim[2], args_prim[3], args_prim[4], args_prim[5], args_prim[6],
+			get_cap(obj), get_cap(mid), args_cap[0], args_cap[1], args_cap[2]);
+	return (jobject) cherijni_jobject_store(result);
+}
 
 #define CALL_METHOD(access)        \
 access##_METHOD(Boolean, jboolean) \
@@ -162,7 +173,7 @@ static struct _JNINativeInterface cherijni_JNIEnv_struct = {
 		NULL, // GetObjectClass,
 		IsInstanceOf,
 		GetMethodID,
-		NULL, // CallObjectMethod,
+		CallObjectMethod,
 		NULL, // CallObjectMethodV,
 		NULL, // CallObjectMethodA,
 		CallBooleanMethod,

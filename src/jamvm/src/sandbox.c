@@ -373,49 +373,66 @@ JNI_FUNCTION_CAP(GetMethodID) {
 	return return_mid(result);
 }
 
-#define VIRTUAL_METHOD(TYPE, jtype) \
-	JNI_FUNCTION_PRIM(Call##TYPE##Method) { \
-		pObject obj = arg_obj(c1); \
-		pMethodBlock mb = arg_mid(c2); \
-		if (obj == NULL || mb == NULL) \
-			return CHERI_FAIL; \
-		\
-		int arg_count = 0; \
-		scanSignature(mb->type, \
-				{ arg_count++; }, { arg_count++; }, { arg_count++; }, \
-				{ }, { }, { }, { }); \
-		\
-		jvalue *args; \
-		if (arg_count > 0) { \
-			arg_count = (jvalue*) sysMalloc(sizeof(jvalue) * arg_count); \
-			if (args == NULL) \
-				return CHERI_FAIL; \
-			\
-			register_t args_prim[] = { a1, a2, a3, a4, a5, a6, a7 }; \
-			__capability void *args_cap[] = { c2, c3, c4 }; \
-			int args_ready = 0, args_used_prim = 0, args_used_cap = 0; \
-			scanSignature(mb->type, \
-			/* single primitives */ { args[arg_count++].i = args_prim[args_used_prim++]; }, \
-			/* double primitives */ { args[arg_count++].j = args_prim[args_used_prim++]; }, \
-			/* objects           */ { args[arg_count++].l = arg_obj(args_cap[args_used_cap]); args_used_cap++; }, \
-			/* return values     */ { }, { }, { }, { }); \
-		} else \
-			args = NULL; \
-		\
+static inline jvalue *prepareJniArguments(pMethodBlock mb, register_t a1, register_t a2,
+		                                  register_t a3, register_t a4, register_t a5,
+		                                  register_t a6, register_t a7,
+		                                  __capability void *c3, __capability void *c4, __capability void *c5) {
+	int arg_count = 0;
+	scanSignature(mb->type,
+			{ arg_count++; }, { arg_count++; }, { arg_count++; },
+			{ }, { }, { }, { });
+	if (arg_count == 0)
+		return NULL;
+
+	jvalue *args;
+	arg_count = (jvalue*) sysMalloc(sizeof(jvalue) * arg_count);
+	if (args == NULL) {
+		jam_printf("ERROR: out of memory\n");
+		return NULL;
+	}
+
+	register_t args_prim[] = { a1, a2, a3, a4, a5, a6, a7 };
+	__capability void *args_cap[] = { c3, c4, c5 };
+	int args_ready = 0, args_used_prim = 0, args_used_cap = 0;
+	scanSignature(mb->type,
+	/* single primitives */ { args[arg_count++].i = args_prim[args_used_prim++]; },
+	/* double primitives */ { args[arg_count++].j = args_prim[args_used_prim++]; },
+	/* objects           */ { args[arg_count++].l = arg_obj(args_cap[args_used_cap]); args_used_cap++; },
+	/* return values     */ { }, { }, { }, { });
+
+	return args;
+}
+
+#define VIRTUAL_METHOD_COMMON(failReturn)                                                                     \
+	pObject obj = arg_obj(c1);                                                                                \
+	pMethodBlock mb = arg_mid(c2);                                                                            \
+	if (obj == NULL || mb == NULL)                                                                            \
+		return failReturn;                                                                                    \
+	jvalue *args = prepareJniArguments(mb, a1, a2, a3, a4, a5, a6, a7, c3, c4, c5);
+
+#define VIRTUAL_METHOD_PRIM(TYPE, jtype)                                \
+	JNI_FUNCTION_PRIM(Call##TYPE##Method) {                             \
+		VIRTUAL_METHOD_COMMON(CHERI_FAIL)                               \
 		return (jtype) (*env)->Call##TYPE##MethodA(env, obj, mb, args); \
 	}
 
-#define CALL_METHOD(access)                 \
-access##_METHOD(Boolean, jboolean) \
-access##_METHOD(Byte, jbyte)       \
-access##_METHOD(Char, jchar)       \
-access##_METHOD(Short, jshort)     \
-access##_METHOD(Int, jint)         \
-access##_METHOD(Long, jlong)       \
-access##_METHOD(Float, jfloat)     \
-access##_METHOD(Double, jdouble)
+#define CALL_METHOD(access)             \
+access##_METHOD_PRIM(Boolean, jboolean) \
+access##_METHOD_PRIM(Byte, jbyte)       \
+access##_METHOD_PRIM(Char, jchar)       \
+access##_METHOD_PRIM(Short, jshort)     \
+access##_METHOD_PRIM(Int, jint)         \
+access##_METHOD_PRIM(Long, jlong)       \
+access##_METHOD_PRIM(Float, jfloat)     \
+access##_METHOD_PRIM(Double, jdouble)
 
 CALL_METHOD(VIRTUAL)
+
+JNI_FUNCTION_CAP(CallObjectMethod) {
+	VIRTUAL_METHOD_COMMON(CNULL)
+	pObject result = (*env)->CallObjectMethodA(env, obj, mb, args);
+	return return_obj(result);
+}
 
 JNI_FUNCTION_CAP(GetFieldID) {
 	pClass clazz = arg_class(c1);
@@ -575,7 +592,7 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 	case CHERIJNI_JNIEnv_GetMethodID:
 		CALL_JNI_CAP(GetMethodID)
 	case CHERIJNI_JNIEnv_CallObjectMethod:
-		break;
+		CALL_JNI_CAP(CallObjectMethod)
 	case CHERIJNI_JNIEnv_CallBooleanMethod:
 		CALL_JNI_PRIM(CallBooleanMethod)
 	case CHERIJNI_JNIEnv_CallByteMethod:
