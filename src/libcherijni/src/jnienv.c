@@ -65,7 +65,7 @@ static jsize GetStringUTFLength(JNIEnv *env, jstring string) {
 	return result;
 }
 
-static const char * GetStringUTFChars(JNIEnv *env, jstring string, jboolean *isCopy) {
+static const char *GetStringUTFChars(JNIEnv *env, jstring string, jboolean *isCopy) {
 	jsize str_length = (*env)->GetStringUTFLength(env, string);
 	char *str_buffer = (char *) malloc(str_length + 1);
 	register_t result = hostInvoke_0_2(cheri_invoke_prim, GetStringUTFChars, get_cap(string), cap_buffer(str_buffer, str_length + 1));
@@ -79,6 +79,18 @@ static const char * GetStringUTFChars(JNIEnv *env, jstring string, jboolean *isC
 static void ReleaseStringUTFChars(JNIEnv *env, jstring string, const char *utf) {
 	if (utf != NULL)
 		free((void*)utf);
+}
+
+static void *GetDirectBufferAddress(JNIEnv *env, jobject buf) {
+	__capability void *result = hostInvoke_0_1(cheri_invoke_cap, GetDirectBufferAddress, get_cap(buf));
+	if (result == CNULL)
+		return NULL;
+	else {
+		printf("GetDirectBufferAddress returned: \n");
+		CHERI_CAP_PRINT(result);
+		printf("warning: returning NULL instead!\n");
+		return NULL;
+	}
 }
 
 static struct _JNINativeInterface cherijni_JNIEnv_struct = {
@@ -313,7 +325,7 @@ static struct _JNINativeInterface cherijni_JNIEnv_struct = {
 		NULL, // DeleteWeakGlobalRef,
 		NULL, // ExceptionCheck,
 		NULL, // NewDirectByteBuffer,
-		NULL, // GetDirectBufferAddress,
+		GetDirectBufferAddress,
 		NULL, // GetDirectBufferCapacity,
 		NULL  // GetObjectRefType,
 };

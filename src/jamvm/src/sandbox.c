@@ -27,6 +27,7 @@
 extern JNIEnv globalJNIEnv;
 static JNIEnv *env = &globalJNIEnv;
 static pClass class_String;
+static pClass class_Buffer;
 
 struct sandbox_object {
 	struct sandbox_class	*sbo_sandbox_classp;
@@ -224,9 +225,7 @@ static inline pClass checkIsClass(pObject obj) {
 	}
 }
 
-static inline int checkIsValidString(pObject obj) {
-	return (obj != NULL) && (obj->class == class_String);
-}
+#define checkIsValid(obj, NAME) ((obj != NULL) && isInstanceOf(obj->class, class_##NAME))
 
 /*
  * XXX: HACKISH!!! Bypassing cheri_sandbox_cinvoke
@@ -420,14 +419,14 @@ JNI_FUNCTION_PRIM(GetStringUTFLength) {
 	if (string == NULL)
 		return CHERI_FAIL;
 
-	if (!checkIsValidString(string))
+	if (!checkIsValid(string, String))
 		return CHERI_FAIL;
 	return (*env)->GetStringUTFLength(env, string);
 }
 
 JNI_FUNCTION_PRIM(GetStringUTFChars) {
 	pObject string = arg_obj(c1);
-	if (!checkIsValidString(string))
+	if (!checkIsValid(string, String))
 		return CHERI_FAIL;
 	jsize str_length = (*env)->GetStringUTFLength(env, string);
 
@@ -444,6 +443,20 @@ JNI_FUNCTION_PRIM(GetStringUTFChars) {
 
 JNI_FUNCTION_PRIM(ReleaseStringUTFChars) {
 	return CHERI_FAIL;
+}
+
+JNI_FUNCTION_CAP(GetDirectBufferAddress) {
+	pObject buf = arg_obj(c1);
+	if (!checkIsValid(buf, Buffer))
+		return CNULL;
+
+	void *base = (*env)->GetDirectBufferAddress(env, buf);
+	size_t length = (*env)->GetDirectBufferCapacity(env, buf);
+	if (base == NULL || length == -1)
+		return CNULL;
+
+	// TODO: needs a type!
+	return cheri_ptrperm(base, length, CHERI_PERM_LOAD | CHERI_PERM_STORE);
 }
 
 LIBC_FUNCTION_CAP(GetStdin) {
@@ -913,7 +926,7 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 	case CHERIJNI_JNIEnv_NewDirectByteBuffer:
 		break;
 	case CHERIJNI_JNIEnv_GetDirectBufferAddress:
-		break;
+		CALL_JNI_CAP(GetDirectBufferAddress)
 	case CHERIJNI_JNIEnv_GetDirectBufferCapacity:
 		break;
 	case CHERIJNI_JNIEnv_GetObjectRefType:
@@ -942,7 +955,9 @@ void initialiseCheriJNI() {
 	INIT_SEAL(FILE);
 
     class_String = findSystemClass0(SYMBOL(java_lang_String));
+    class_Buffer = findSystemClass0(SYMBOL(java_nio_Buffer));
     registerStaticClassRef(&class_String);
+    registerStaticClassRef(&class_Buffer);
 }
 
 #endif
