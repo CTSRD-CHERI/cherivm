@@ -204,7 +204,7 @@ static inline int arg_fd(__capability void *cap) {
 	if (FDs[fd] == fd_counter)
 		return fd;
 	else {
-		jam_printf("Warning: sandbox provided a revoked file descriptor %d\n", fd);
+		jam_printf("Warning: sandbox provided a revoked file descriptor (fd=%d, counter: %d < %d)\n", fd, fd_counter, FDs[fd]);
 		return -1;
 	}
 }
