@@ -719,11 +719,27 @@ LIBC_FUNCTION_PRIM(close) {
 	}
 }
 
-LIBC_FUNCTION_PRIM(write) {
+LIBC_FUNCTION_PRIM(read) {
 	int fd = arg_fd(c1);
-	__capability void *buf = arg_cap(c2, 0, r);
+	__capability void *buf = arg_cap(c2, 1, w);
 	if (fd < 0 || buf == CNULL)
 		return CHERI_FAIL;
+
+	// TODO: should write directly into the capability
+
+	void *buf_ptr = (void*) buf;
+	size_t buf_len = cheri_getlen(buf);
+
+	return (ssize_t) read(fd, buf_ptr, buf_len);
+}
+
+LIBC_FUNCTION_PRIM(write) {
+	int fd = arg_fd(c1);
+	__capability void *buf = arg_cap(c2, 1, r);
+	if (fd < 0 || buf == CNULL)
+		return CHERI_FAIL;
+
+	// TODO: should read directly from the capability
 
 	void *buf_ptr = (void*) buf;
 	size_t buf_len = cheri_getlen(buf);
@@ -1067,6 +1083,8 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 		CALL_LIBC_CAP(open)
 	case CHERIJNI_LIBC_close:
 		CALL_LIBC_PRIM(close)
+	case CHERIJNI_LIBC_read:
+		CALL_LIBC_PRIM(read)
 	case CHERIJNI_LIBC_write:
 		CALL_LIBC_PRIM(write)
 

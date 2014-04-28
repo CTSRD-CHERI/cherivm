@@ -75,13 +75,18 @@ int utime(const char *file, const struct utimbuf *timep)     STUB_ERRNO
 int rename(const char *from, const char *to)                 STUB_ERRNO
 int unlink(const char *path)                                 STUB_ERRNO
 
-ssize_t read(int d, void *buf, size_t nbytes)                STUB_ERRNO
+ssize_t read(int fd, void *buf, size_t nbytes) {
+	init_cap_fd(fd, ERRNO)
+	__capability void *cap_buf = cap_buffer_wo(buf, nbytes);
+	return (ssize_t) hostInvoke_0_2(cheri_invoke_prim, read, cap_fd, cap_buf);
+}
+
 ssize_t readv(int fd, const struct iovec *iov, int iovcnt)   STUB_ERRNO
 
 ssize_t write(int fd, const void *buf, size_t nbytes) {
 	init_cap_fd(fd, ERRNO)
 	__capability void *cap_buf = cap_buffer_ro(buf, nbytes);
-	return (ssize_t) hostInvoke_0_2(cheri_invoke_cap, write, cap_fd, cap_buf);
+	return (ssize_t) hostInvoke_0_2(cheri_invoke_prim, write, cap_fd, cap_buf);
 }
 
 ssize_t writev(int fd, const struct iovec *iov, int iovcnt)  STUB_ERRNO

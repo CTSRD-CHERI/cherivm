@@ -302,6 +302,7 @@ typedef __capability void* (*cheri_invoke_cap)(struct cheri_object, u_int, regis
 #define CHERIJNI_LIBC_fstat							(CHERI_SYSTEM_USER_BASE + 507)
 #define CHERIJNI_LIBC_open							(CHERI_SYSTEM_USER_BASE + 508)
 #define CHERIJNI_LIBC_close							(CHERI_SYSTEM_USER_BASE + 509)
-#define CHERIJNI_LIBC_write							(CHERI_SYSTEM_USER_BASE + 510)
+#define CHERIJNI_LIBC_read							(CHERI_SYSTEM_USER_BASE + 510)
+#define CHERIJNI_LIBC_write							(CHERI_SYSTEM_USER_BASE + 511)
 
 #endif //__SANDBOX_SHARED_H__
