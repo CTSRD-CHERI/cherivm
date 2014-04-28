@@ -135,12 +135,14 @@ static jsize GetArrayLength(JNIEnv *env, jarray array) {
 	return (jsize) hostInvoke_0_1(cheri_invoke_prim, GetArrayLength, get_cap(array, jobject));
 }
 
-#define GET_ARRAY_ELEMENTS(TYPE, jtype, ctype) \
+#define ARRAY_METHOD(TYPE, jtype, ctype) \
 	static jtype *Get##TYPE##ArrayElements(JNIEnv *env, jtype##Array array, jboolean *isCopy) { \
 		jsize length = (*env)->GetArrayLength(env, array); \
 		size_t buffer_size = length * sizeof(jtype); \
 		jtype *buffer = (jtype*) malloc(buffer_size); \
-		register_t result = hostInvoke_0_2(cheri_invoke_prim, Get##TYPE##ArrayElements, get_cap(array, jobject), cap_buffer_wo(buffer, buffer_size)); \
+		register_t result = hostInvoke_0_2(cheri_invoke_prim, Get##TYPE##ArrayElements, \
+		                                   get_cap(array, jobject), \
+		                                   cap_buffer_wo(buffer, buffer_size)); \
 		check_cheri_fail_extra(result, NULL, free(buffer)); \
 		\
 		if (isCopy != NULL) \
@@ -156,19 +158,26 @@ static jsize GetArrayLength(JNIEnv *env, jarray array) {
 		\
 		if (mode != JNI_COMMIT) \
 			free(elems);\
+	} \
+	\
+	static void Set##TYPE##ArrayRegion(JNIEnv *env, jtype##Array array, jsize start, jsize len, const jtype *buf) { \
+		size_t buf_size = len * sizeof(jtype); \
+		__capability void *cap_buf = cap_buffer_ro(buf, buf_size); \
+		\
+		register_t result = hostInvoke_2_2(cheri_invoke_prim, Set##TYPE##ArrayRegion, \
+		                                   start, len, get_cap(array, jobject), \
+		                                   cap_buffer_ro(buf, buf_size)); \
+		check_cheri_fail_void(result); \
 	}
 
-#define ARRAY_METHOD(op)   \
-op(Boolean, jboolean, 'Z') \
-op(Byte, jbyte, 'B')       \
-op(Char, jchar, 'C')       \
-op(Short, jshort, 'S')     \
-op(Int, jint, 'I')         \
-op(Long, jlong, 'J')       \
-op(Float, jfloat, 'F')     \
-op(Double, jdouble, 'D')
-
-ARRAY_METHOD(GET_ARRAY_ELEMENTS)
+ARRAY_METHOD(Boolean, jboolean, 'Z')
+ARRAY_METHOD(Byte, jbyte, 'B')
+ARRAY_METHOD(Char, jchar, 'C')
+ARRAY_METHOD(Short, jshort, 'S')
+ARRAY_METHOD(Int, jint, 'I')
+ARRAY_METHOD(Long, jlong, 'J')
+ARRAY_METHOD(Float, jfloat, 'F')
+ARRAY_METHOD(Double, jdouble, 'D')
 
 static void *GetDirectBufferAddress(JNIEnv *env, jobject buf) {
 	__capability void *result = hostInvoke_0_1(cheri_invoke_cap, GetDirectBufferAddress, get_cap(buf, jobject));
@@ -391,14 +400,14 @@ static struct _JNINativeInterface cherijni_JNIEnv_struct = {
 		NULL, // GetLongArrayRegion,
 		NULL, // GetFloatArrayRegion,
 		NULL, // GetDoubleArrayRegion,
-		NULL, // SetBooleanArrayRegion,
-		NULL, // SetByteArrayRegion,
-		NULL, // SetCharArrayRegion,
-		NULL, // SetShortArrayRegion,
-		NULL, // SetIntArrayRegion,
-		NULL, // SetLongArrayRegion,
-		NULL, // SetFloatArrayRegion,
-		NULL, // SetDoubleArrayRegion,
+		SetBooleanArrayRegion,
+		SetByteArrayRegion,
+		SetCharArrayRegion,
+		SetShortArrayRegion,
+		SetIntArrayRegion,
+		SetLongArrayRegion,
+		SetFloatArrayRegion,
+		SetDoubleArrayRegion,
 		NULL, // RegisterNatives,
 		NULL, // UnregisterNatives,
 		NULL, // MonitorEnter,

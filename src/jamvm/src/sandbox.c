@@ -584,6 +584,21 @@ JNI_FUNCTION_PRIM(GetArrayLength) {
 		const char *host_buffer = ARRAY_DATA(array, const char); \
 		copyToSandbox(host_buffer, sandbox_buffer, length); \
 		return CHERI_SUCCESS; \
+	} \
+	\
+	JNI_FUNCTION_PRIM(Set##TYPE##ArrayRegion) { \
+		jsize start = (jsize) a1, len = (jsize) a2; \
+		pObject array = arg_obj(c1); \
+		if (!checkIsArray(array, ctype)) \
+			return CHERI_FAIL; \
+		\
+		__capability jtype *sandbox_buffer = arg_cap(c2, len * sizeof(jtype), r); \
+		if (sandbox_buffer == CNULL) \
+			return CHERI_FAIL; \
+		\
+		/* TODO: should use the capability directly! */ \
+		(*env)->Set##TYPE##ArrayRegion(env, array, start, len, (jtype*) sandbox_buffer); \
+		return CHERI_SUCCESS; \
 	}
 
 #define ARRAY_METHOD(op)   \
@@ -1012,21 +1027,21 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 	case CHERIJNI_JNIEnv_GetDoubleArrayRegion:
 		break;
 	case CHERIJNI_JNIEnv_SetBooleanArrayRegion:
-		break;
+		CALL_JNI_PRIM(SetBooleanArrayRegion)
 	case CHERIJNI_JNIEnv_SetByteArrayRegion:
-		break;
+		CALL_JNI_PRIM(SetByteArrayRegion)
 	case CHERIJNI_JNIEnv_SetCharArrayRegion:
-		break;
+		CALL_JNI_PRIM(SetCharArrayRegion)
 	case CHERIJNI_JNIEnv_SetShortArrayRegion:
-		break;
+		CALL_JNI_PRIM(SetShortArrayRegion)
 	case CHERIJNI_JNIEnv_SetIntArrayRegion:
-		break;
+		CALL_JNI_PRIM(SetIntArrayRegion)
 	case CHERIJNI_JNIEnv_SetLongArrayRegion:
-		break;
+		CALL_JNI_PRIM(SetLongArrayRegion)
 	case CHERIJNI_JNIEnv_SetFloatArrayRegion:
-		break;
+		CALL_JNI_PRIM(SetFloatArrayRegion)
 	case CHERIJNI_JNIEnv_SetDoubleArrayRegion:
-		break;
+		CALL_JNI_PRIM(SetDoubleArrayRegion)
 	case CHERIJNI_JNIEnv_RegisterNatives:
 		break;
 	case CHERIJNI_JNIEnv_UnregisterNatives:
