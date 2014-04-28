@@ -140,11 +140,8 @@ static jsize GetArrayLength(JNIEnv *env, jarray array) {
 		jsize length = (*env)->GetArrayLength(env, array); \
 		size_t buffer_size = length * sizeof(jtype); \
 		jtype *buffer = (jtype*) malloc(buffer_size); \
-		register_t result = hostInvoke_0_2(cheri_invoke_prim, Get##TYPE##ArrayElements, \
-		                                   get_cap(array, jobject), \
-		                                   cap_buffer_wo(buffer, buffer_size)); \
-		check_cheri_fail_extra(result, NULL, free(buffer)); \
 		\
+		(*env)->Get##TYPE##ArrayRegion(env, array, 0, length, buffer); \
 		if (isCopy != NULL) \
 			*isCopy = JNI_TRUE; \
 		return buffer; \
@@ -160,13 +157,21 @@ static jsize GetArrayLength(JNIEnv *env, jarray array) {
 			free(elems);\
 	} \
 	\
+	static void Get##TYPE##ArrayRegion(JNIEnv *env, jtype##Array array, jsize start, jsize len, jtype *buf) { \
+		size_t buf_size = len * sizeof(jtype); \
+		__capability void *cap_buf = cap_buffer_wo(buf, buf_size); \
+		\
+		register_t result = hostInvoke_2_2(cheri_invoke_prim, Get##TYPE##ArrayRegion, \
+		                                   start, len, get_cap(array, jobject), cap_buf); \
+		check_cheri_fail_void(result); \
+	} \
+	\
 	static void Set##TYPE##ArrayRegion(JNIEnv *env, jtype##Array array, jsize start, jsize len, const jtype *buf) { \
 		size_t buf_size = len * sizeof(jtype); \
 		__capability void *cap_buf = cap_buffer_ro(buf, buf_size); \
 		\
 		register_t result = hostInvoke_2_2(cheri_invoke_prim, Set##TYPE##ArrayRegion, \
-		                                   start, len, get_cap(array, jobject), \
-		                                   cap_buffer_ro(buf, buf_size)); \
+		                                   start, len, get_cap(array, jobject), cap_buf); \
 		check_cheri_fail_void(result); \
 	}
 
@@ -392,14 +397,14 @@ static struct _JNINativeInterface cherijni_JNIEnv_struct = {
 		ReleaseLongArrayElements,
 		ReleaseFloatArrayElements,
 		ReleaseDoubleArrayElements,
-		NULL, // GetBooleanArrayRegion,
-		NULL, // GetByteArrayRegion,
-		NULL, // GetCharArrayRegion,
-		NULL, // GetShortArrayRegion,
-		NULL, // GetIntArrayRegion,
-		NULL, // GetLongArrayRegion,
-		NULL, // GetFloatArrayRegion,
-		NULL, // GetDoubleArrayRegion,
+		GetBooleanArrayRegion,
+		GetByteArrayRegion,
+		GetCharArrayRegion,
+		GetShortArrayRegion,
+		GetIntArrayRegion,
+		GetLongArrayRegion,
+		GetFloatArrayRegion,
+		GetDoubleArrayRegion,
 		SetBooleanArrayRegion,
 		SetByteArrayRegion,
 		SetCharArrayRegion,

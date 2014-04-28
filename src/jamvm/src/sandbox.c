@@ -213,7 +213,13 @@ static inline void revoke_fd(int fd) {
 	FDs[fd]++;
 }
 
-static inline void copyToSandbox(const char *src, __capability char *dest, size_t len) {
+static inline void copyToSandbox(__capability char *dest, const char *src, size_t len) {
+	size_t i;
+	for (i = 0; i < len; i++)
+		dest[i] = src[i];
+}
+
+static inline void copyFromSandbox(char *dest, __capability char *src, size_t len) {
 	size_t i;
 	for (i = 0; i < len; i++)
 		dest[i] = src[i];
@@ -557,7 +563,7 @@ JNI_FUNCTION_PRIM(GetStringUTFChars) {
 		return CHERI_FAIL;
 
 	const char *host_buffer = (*env)->GetStringUTFChars(env, string, NULL);
-	copyToSandbox(host_buffer, sandbox_buffer, str_length + 1);
+	copyToSandbox(sandbox_buffer, host_buffer, str_length + 1);
 	(*env)->ReleaseStringUTFChars(env, string, host_buffer);
 
 	return CHERI_SUCCESS;
@@ -570,34 +576,34 @@ JNI_FUNCTION_PRIM(GetArrayLength) {
 	return (*env)->GetArrayLength(env, array);
 }
 
-#define GET_ARRAY_ELEMENTS(TYPE, jtype, ctype) \
-	JNI_FUNCTION_PRIM(Get##TYPE##ArrayElements) { \
-		pObject array = arg_obj(c1); \
-		if (!checkIsArray(array, ctype)) \
-			return CHERI_FAIL; \
-		uintptr_t length = ARRAY_LEN(array) * sizeof(jtype); \
-		\
-		__capability char *sandbox_buffer = arg_cap(c2, length, w); \
-		if (sandbox_buffer == CNULL) \
-			return CHERI_FAIL; \
-		\
-		const char *host_buffer = ARRAY_DATA(array, const char); \
-		copyToSandbox(host_buffer, sandbox_buffer, length); \
+#define ACCESS_ARRAY_ELEMENTS_COMMON(TYPE, jtype, ctype, perm) \
+	jsize start = (jsize) a1, len = (jsize) a2; \
+	pObject array = arg_obj(c1); \
+	if (!checkIsArray(array, ctype)) \
+		return CHERI_FAIL; \
+	uintptr_t total_length = ARRAY_LEN(array) * sizeof(jtype); \
+	\
+	size_t start_byte = start * sizeof(jtype); \
+	size_t len_bytes = len * sizeof(jtype); \
+	if (start_byte + len_bytes > total_length) \
+		return CHERI_FAIL; \
+	\
+	__capability char *sandbox_buffer = arg_cap(c2, len_bytes, perm); \
+	char *host_buffer = ARRAY_DATA(array, char); \
+	if (sandbox_buffer == CNULL) \
+		return CHERI_FAIL;
+
+
+#define ACCESS_ARRAY_ELEMENTS(TYPE, jtype, ctype) \
+	JNI_FUNCTION_PRIM(Get##TYPE##ArrayRegion) { \
+		ACCESS_ARRAY_ELEMENTS_COMMON(TYPE, jtype, ctype, w) \
+		copyToSandbox(sandbox_buffer, host_buffer + start_byte, len_bytes); \
 		return CHERI_SUCCESS; \
 	} \
 	\
 	JNI_FUNCTION_PRIM(Set##TYPE##ArrayRegion) { \
-		jsize start = (jsize) a1, len = (jsize) a2; \
-		pObject array = arg_obj(c1); \
-		if (!checkIsArray(array, ctype)) \
-			return CHERI_FAIL; \
-		\
-		__capability jtype *sandbox_buffer = arg_cap(c2, len * sizeof(jtype), r); \
-		if (sandbox_buffer == CNULL) \
-			return CHERI_FAIL; \
-		\
-		/* TODO: should use the capability directly! */ \
-		(*env)->Set##TYPE##ArrayRegion(env, array, start, len, (jtype*) sandbox_buffer); \
+		ACCESS_ARRAY_ELEMENTS_COMMON(TYPE, jtype, ctype, r) \
+		copyFromSandbox(host_buffer + start_byte, sandbox_buffer, len_bytes); \
 		return CHERI_SUCCESS; \
 	}
 
@@ -611,7 +617,7 @@ op(Long, jlong, 'J')       \
 op(Float, jfloat, 'F')     \
 op(Double, jdouble, 'D')
 
-ARRAY_METHOD(GET_ARRAY_ELEMENTS)
+ARRAY_METHOD(ACCESS_ARRAY_ELEMENTS)
 
 JNI_FUNCTION_CAP(GetDirectBufferAddress) {
 	pObject buf = arg_obj(c1);
@@ -994,38 +1000,22 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 		break;
 	case CHERIJNI_JNIEnv_NewDoubleArray:
 		break;
-	case CHERIJNI_JNIEnv_GetBooleanArrayElements:
-		CALL_JNI_PRIM(GetBooleanArrayElements)
-	case CHERIJNI_JNIEnv_GetByteArrayElements:
-		CALL_JNI_PRIM(GetByteArrayElements)
-	case CHERIJNI_JNIEnv_GetCharArrayElements:
-		CALL_JNI_PRIM(GetCharArrayElements)
-	case CHERIJNI_JNIEnv_GetShortArrayElements:
-		CALL_JNI_PRIM(GetShortArrayElements)
-	case CHERIJNI_JNIEnv_GetIntArrayElements:
-		CALL_JNI_PRIM(GetIntArrayElements)
-	case CHERIJNI_JNIEnv_GetLongArrayElements:
-		CALL_JNI_PRIM(GetLongArrayElements)
-	case CHERIJNI_JNIEnv_GetFloatArrayElements:
-		CALL_JNI_PRIM(GetFloatArrayElements)
-	case CHERIJNI_JNIEnv_GetDoubleArrayElements:
-		CALL_JNI_PRIM(GetDoubleArrayElements)
 	case CHERIJNI_JNIEnv_GetBooleanArrayRegion:
-		break;
+		CALL_JNI_PRIM(GetBooleanArrayRegion)
 	case CHERIJNI_JNIEnv_GetByteArrayRegion:
-		break;
+		CALL_JNI_PRIM(GetByteArrayRegion)
 	case CHERIJNI_JNIEnv_GetCharArrayRegion:
-		break;
+		CALL_JNI_PRIM(GetCharArrayRegion)
 	case CHERIJNI_JNIEnv_GetShortArrayRegion:
-		break;
+		CALL_JNI_PRIM(GetShortArrayRegion)
 	case CHERIJNI_JNIEnv_GetIntArrayRegion:
-		break;
+		CALL_JNI_PRIM(GetIntArrayRegion)
 	case CHERIJNI_JNIEnv_GetLongArrayRegion:
-		break;
+		CALL_JNI_PRIM(GetLongArrayRegion)
 	case CHERIJNI_JNIEnv_GetFloatArrayRegion:
-		break;
+		CALL_JNI_PRIM(GetFloatArrayRegion)
 	case CHERIJNI_JNIEnv_GetDoubleArrayRegion:
-		break;
+		CALL_JNI_PRIM(GetDoubleArrayRegion)
 	case CHERIJNI_JNIEnv_SetBooleanArrayRegion:
 		CALL_JNI_PRIM(SetBooleanArrayRegion)
 	case CHERIJNI_JNIEnv_SetByteArrayRegion:
