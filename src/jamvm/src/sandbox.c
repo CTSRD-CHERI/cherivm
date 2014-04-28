@@ -7,6 +7,7 @@
 #include <sys/sysctl.h>
 #include <sys/types.h>
 #include <pthread.h>
+#include <fcntl.h>
 
 #include "jam.h"
 #include "symbol.h"
@@ -51,7 +52,8 @@ struct cherijni_sandbox {
         static uintptr_t          type_##NAME;                      \
         static __capability void *sealcap_##NAME;                   \
 
-#define cap_seal(NAME, data)             cherijni_seal(data, sealcap_##NAME)
+#define cap_seal_len(NAME, data, len)    cherijni_seal(data, len, sealcap_##NAME)
+#define cap_seal(NAME, data)             cap_seal_len(NAME, data, sizeof(uintptr_t))
 #define cap_unseal(TYPE, NAME, datacap)  ((TYPE) cherijni_unseal(datacap, sealcap_##NAME))
 #define INIT_SEAL(NAME) sealcap_##NAME = cheri_ptrtype(&type_##NAME, sizeof(uintptr_t), 0); // sets PERMIT_SEAL
 
@@ -62,18 +64,16 @@ DEFINE_SEAL_VARS(FieldID)
 DEFINE_SEAL_VARS(FILE)
 DEFINE_SEAL_VARS(FD)
 
-static char FDs[1 << 16];
-
 #define RETURNTYPE_VOID   1
 #define RETURNTYPE_SINGLE 2
 #define RETURNTYPE_DOUBLE 3
 #define RETURNTYPE_OBJECT 4
 
-static inline __capability void *cherijni_seal(void *data, __capability void *sealcap) {
+static inline __capability void *cherijni_seal(void *data, register_t len, __capability void *sealcap) {
 	if (data == NULL)
 		return CNULL;
 	else
-		return cheri_sealdata(cheri_ptrperm(data, sizeof(uintptr_t), CHERI_PERM_LOAD), sealcap);
+		return cheri_sealdata(cheri_ptrperm(data, len, CHERI_PERM_LOAD), sealcap);
 }
 
 static inline void *cherijni_unseal(__capability void *objcap, __capability void *sealcap) {
@@ -161,7 +161,7 @@ jint cherijni_callOnLoadUnload(void *handle, void *ptr, JavaVM *jvm, void *reser
 
 #define arg_cap(cap, len, perm)            checkSandboxCapability_##perm(cap, len)
 #define arg_ptr(cap, len, perm)            convertSandboxPointer(arg_cap(cap, len, perm))
-#define arg_str(ptr, len, perm)            ((const char*) arg_ptr(ptr, len, perm))
+#define arg_str(ptr, len, perm)            ((const char*) arg_ptr(ptr, len, perm)) // TODO: check it ends with a zero
 #define arg_obj(cap)    cap_unseal(pObject, JavaObject, cap)
 #define arg_class(cap)  checkIsClass(arg_obj(cap))
 #define arg_file(cap)   cap_unseal(pFILE, FILE, cap)
@@ -170,17 +170,46 @@ jint cherijni_callOnLoadUnload(void *handle, void *ptr, JavaVM *jvm, void *reser
 #define return_mid(field)  cap_seal(MethodID, field)
 #define return_fid(field)  cap_seal(FieldID, field)
 #define return_file(file)  cap_seal(FILE, file)
-#define return_fd(desc)    cap_seal(FD, &(FDs[desc]))
 #define return_str(str)    cap_string(str)
 
+#define FD_COUNTER_BITS 48
+#define FD_DESC_BITS    16
+#define FD_COUNT (1 << FD_DESC_BITS)
+
+static register_t FDs[FD_COUNT];
+
+static inline __capability void *return_fd(int fd) {
+	uintptr_t fd_counter = FDs[fd];
+	uintptr_t fd_repr = (fd_counter << FD_DESC_BITS) | fd;
+	uintptr_t fd_repr_max = cheri_getlen(cheri_getdefault()) - 1;
+
+	if (fd_repr >= fd_repr_max) {
+		jam_printf("ERROR: cannot represent FD (id,counter) pair in capability!\n");
+		return CNULL;
+	}
+
+	return cap_seal_len(FD, (void*) (fd_repr + 1), 1);
+}
+
 static inline int arg_fd(__capability void *cap) {
-	uintptr_t fd = cap_unseal(uintptr_t, FD, cap);
-	uintptr_t fd_base = (uintptr_t) FDs;
-	uintptr_t fd_end = fd_base + (1 << 16);
-	if (fd_base <= fd && fd < fd_end)
-		return (int) (fd - fd_base);
-	else
+	uintptr_t fd_repr = cap_unseal(uintptr_t, FD, cap);
+	if (fd_repr == 0)
 		return -1;
+	fd_repr--;
+
+	uintptr_t fd = fd_repr & (FD_COUNT - 1);
+	uintptr_t fd_counter = fd_repr >> FD_DESC_BITS;
+
+	if (FDs[fd] == fd_counter)
+		return fd;
+	else {
+		jam_printf("Warning: sandbox returned a revoked file descriptor\n");
+		return -1;
+	}
+}
+
+static inline void revoke_fd(int fd) {
+	FDs[fd]++;
 }
 
 static inline void copyToSandbox(const char *src, __capability char *dest, size_t len) {
@@ -608,10 +637,43 @@ LIBC_FUNCTION_CAP(GetStream) {
 		return CNULL;
 }
 
+LIBC_FUNCTION_CAP(open) {
+	const char *path = arg_str(c1, 0, r);
+	int flags = a1;
+	__capability int *fileno = arg_cap(c2, sizeof(int), w);
+	if (path == NULL || fileno == CNULL)
+		return CNULL;
+
+	if (flags & O_CREAT) // needs an extra argument
+		return CNULL;
+
+	int fd = open(path, flags);
+	if (fd < 0)
+		return CNULL;
+	else {
+		fileno[0] = fd;
+		return return_fd(fd);
+	}
+}
+
+LIBC_FUNCTION_PRIM(close) {
+	int fd = arg_fd(c1);
+	if (fd < -1)
+		return CHERI_FAIL;
+
+	int res = close(fd);
+	if (res < 0)
+		return CHERI_FAIL;
+	else {
+		revoke_fd(fd);
+		return CHERI_SUCCESS;
+	}
+}
+
 LIBC_FUNCTION_PRIM(write) {
 	int fd = arg_fd(c1);
 	__capability void *buf = arg_cap(c2, 0, r);
-	if (fd == -1 || buf == CNULL)
+	if (fd < 0 || buf == CNULL)
 		return CHERI_FAIL;
 
 	void *buf_ptr = (void*) buf;
@@ -946,6 +1008,10 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 	case CHERIJNI_LIBC_GetStream:
 		CALL_LIBC_CAP(GetStream)
 
+	case CHERIJNI_LIBC_open:
+		CALL_LIBC_CAP(open)
+	case CHERIJNI_LIBC_close:
+		CALL_LIBC_PRIM(close)
 	case CHERIJNI_LIBC_write:
 		CALL_LIBC_PRIM(write)
 
@@ -965,10 +1031,25 @@ void initialiseCheriJNI() {
 	INIT_SEAL(FILE);
 	INIT_SEAL(FD);
 
+	memset(FDs, 0, FD_COUNT * sizeof(uintptr_t));
+
     class_String = findSystemClass0(SYMBOL(java_lang_String));
     class_Buffer = findSystemClass0(SYMBOL(java_nio_Buffer));
     registerStaticClassRef(&class_String);
     registerStaticClassRef(&class_Buffer);
+
+    CHERI_CAP_PRINT(cheri_getdefault());
+
+    int i, j, k;
+    for (i = 123; i < 130; i++) {
+    	for (k = 0; k < 4; k++) {
+			__capability void *cap = return_fd(i);
+			j = arg_fd(cap);
+			if (i != j)
+				printf("ERROR: was %d returned %d\n", i, j);
+			revoke_fd(i);
+    	}
+    }
 }
 
 #endif

@@ -45,8 +45,30 @@ int pipe(int fildes[2])                                      STUB_ERRNO
 /* FILE ACCESS */
 
 int access(const char *path, int mode)                       STUB_ERRNO
-int open(const char *path, int flags, ...)                   STUB_ERRNO
-int close(int fd)                                            STUB_ERRNO
+
+int open(const char *path, int flags, ...) {
+	int fileno;
+	__capability void *cap_fileno = cap_buffer_wo(&fileno, sizeof(fileno));
+	__capability void *cap_path = cap_string(path);
+
+	// TODO: support O_CREAT's extra argument
+
+	__capability void *cap_fd = hostInvoke_1_2(cheri_invoke_cap, open, flags, cap_path, cap_fileno);
+	if (cap_fd == CNULL) {
+		STUB_ERRNO
+	}
+
+	return cherijni_fd_store(cap_fd, fileno);
+}
+
+int close(int fd) {
+	init_cap_fd(fd, ERRNO);
+	register_t res = hostInvoke_0_1(cheri_invoke_prim, close, cap_fd);
+	if (res == CHERI_FAIL)
+		return -1;
+	else
+		return 0;
+}
 
 int chmod(const char *path, mode_t mode)                     STUB_ERRNO
 int utime(const char *file, const struct utimbuf *timep)     STUB_ERRNO
