@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <dlfcn.h>
 #include <sys/param.h>
+#include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/types.h>
 #include <pthread.h>
@@ -611,6 +612,11 @@ JNI_FUNCTION_CAP(GetDirectBufferAddress) {
 	return cheri_ptrperm(base, length, CHERI_PERM_LOAD | CHERI_PERM_STORE);
 }
 
+static inline int allowFileAccess(const char *path) {
+	printf("[ACCESS: Sandbox accessing \"%s\" => ALLOWED]\n", path);
+	return TRUE;
+}
+
 LIBC_FUNCTION_CAP(GetStdinFD) {
 	return return_fd(STDIN_FILENO);
 }
@@ -637,6 +643,46 @@ LIBC_FUNCTION_CAP(GetStream) {
 		return CNULL;
 }
 
+#define STAT_FUNCTION(NAME)                                                  \
+	{                                                                        \
+		const char *path = arg_str(c1, 0, r);                                \
+		__capability struct stat *buf = arg_cap(c2, sizeof(struct stat), w); \
+		if (path == NULL || buf == CNULL)                                    \
+			return CHERI_FAIL;                                               \
+		                                                                     \
+		if (!allowFileAccess(path))                                          \
+			return CHERI_FAIL;                                               \
+		                                                                     \
+		struct stat data;                                                    \
+		int res = NAME(path, &data);                                         \
+		if (res < 0)                                                         \
+			return CHERI_FAIL;                                               \
+		                                                                     \
+		buf[0] = data;                                                       \
+		return CHERI_SUCCESS;                                                \
+	}
+
+LIBC_FUNCTION_PRIM(stat)
+	STAT_FUNCTION(stat)
+
+LIBC_FUNCTION_PRIM(lstat)
+	STAT_FUNCTION(lstat)
+
+LIBC_FUNCTION_PRIM(fstat) {
+	int fd = arg_fd(c1);
+	__capability struct stat *buf = arg_cap(c2, sizeof(struct stat), w);
+	if (fd < 0 || buf == CNULL)
+		return CHERI_FAIL;
+
+	struct stat data;
+	int res = fstat(fd, &data);
+	if (res < 0)
+		return CHERI_FAIL;
+
+	buf[0] = data;
+	return CHERI_SUCCESS;
+}
+
 LIBC_FUNCTION_CAP(open) {
 	const char *path = arg_str(c1, 0, r);
 	int flags = a1;
@@ -645,6 +691,9 @@ LIBC_FUNCTION_CAP(open) {
 		return CNULL;
 
 	if (flags & O_CREAT) // needs an extra argument
+		return CNULL;
+
+	if (!allowFileAccess(path))
 		return CNULL;
 
 	int fd = open(path, flags);
@@ -658,7 +707,7 @@ LIBC_FUNCTION_CAP(open) {
 
 LIBC_FUNCTION_PRIM(close) {
 	int fd = arg_fd(c1);
-	if (fd < -1)
+	if (fd < 0)
 		return CHERI_FAIL;
 
 	int res = close(fd);
@@ -1008,6 +1057,12 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 	case CHERIJNI_LIBC_GetStream:
 		CALL_LIBC_CAP(GetStream)
 
+	case CHERIJNI_LIBC_stat:
+		CALL_LIBC_PRIM(stat)
+	case CHERIJNI_LIBC_lstat:
+		CALL_LIBC_PRIM(lstat)
+	case CHERIJNI_LIBC_fstat:
+		CALL_LIBC_PRIM(fstat)
 	case CHERIJNI_LIBC_open:
 		CALL_LIBC_CAP(open)
 	case CHERIJNI_LIBC_close:
@@ -1037,19 +1092,6 @@ void initialiseCheriJNI() {
     class_Buffer = findSystemClass0(SYMBOL(java_nio_Buffer));
     registerStaticClassRef(&class_String);
     registerStaticClassRef(&class_Buffer);
-
-    CHERI_CAP_PRINT(cheri_getdefault());
-
-    int i, j, k;
-    for (i = 123; i < 130; i++) {
-    	for (k = 0; k < 4; k++) {
-			__capability void *cap = return_fd(i);
-			j = arg_fd(cap);
-			if (i != j)
-				printf("ERROR: was %d returned %d\n", i, j);
-			revoke_fd(i);
-    	}
-    }
 }
 
 #endif

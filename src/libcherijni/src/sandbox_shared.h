@@ -297,8 +297,11 @@ typedef __capability void* (*cheri_invoke_cap)(struct cheri_object, u_int, regis
 #define CHERIJNI_LIBC_GetStdoutFD					(CHERI_SYSTEM_USER_BASE + 502)
 #define CHERIJNI_LIBC_GetStderrFD					(CHERI_SYSTEM_USER_BASE + 503)
 #define CHERIJNI_LIBC_GetStream						(CHERI_SYSTEM_USER_BASE + 504)
-#define CHERIJNI_LIBC_open							(CHERI_SYSTEM_USER_BASE + 505)
-#define CHERIJNI_LIBC_close							(CHERI_SYSTEM_USER_BASE + 506)
-#define CHERIJNI_LIBC_write							(CHERI_SYSTEM_USER_BASE + 507)
+#define CHERIJNI_LIBC_stat							(CHERI_SYSTEM_USER_BASE + 505)
+#define CHERIJNI_LIBC_lstat							(CHERI_SYSTEM_USER_BASE + 506)
+#define CHERIJNI_LIBC_fstat							(CHERI_SYSTEM_USER_BASE + 507)
+#define CHERIJNI_LIBC_open							(CHERI_SYSTEM_USER_BASE + 508)
+#define CHERIJNI_LIBC_close							(CHERI_SYSTEM_USER_BASE + 509)
+#define CHERIJNI_LIBC_write							(CHERI_SYSTEM_USER_BASE + 510)
 
 #endif //__SANDBOX_SHARED_H__

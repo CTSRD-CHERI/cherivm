@@ -98,9 +98,32 @@ int fprintf(FILE * restrict stream, \
 int ioctl(int fd, unsigned long request, ...)                STUB_ERRNO
 off_t lseek(int fildes, off_t offset, int whence)            STUB_ERRNO
 
-int stat(const char *path, struct stat *sb)                  STUB_ERRNO
-int lstat(const char *path, struct stat *sb)                 STUB_ERRNO
-int fstat(int fd, struct stat *sb)                           STUB_ERRNO
+#define STAT_FUNCTION(NAME)                                                           \
+	int NAME(const char *path, struct stat *sb) {                                     \
+		__capability void *cap_path = cap_string(path);                               \
+		__capability void *cap_data = cap_buffer_wo(sb, sizeof(struct stat));         \
+	                                                                                  \
+		register_t res = hostInvoke_0_2(cheri_invoke_prim, NAME, cap_path, cap_data); \
+		if (res == CHERI_FAIL)                                                        \
+			STUB_ERRNO                                                                \
+		else                                                                          \
+			return 0;                                                                 \
+	}
+
+STAT_FUNCTION(stat)
+STAT_FUNCTION(lstat)
+
+int fstat(int fd, struct stat *sb) {
+	init_cap_fd(fd, ERRNO)
+	__capability void *cap_data = cap_buffer_wo(sb, sizeof(struct stat));
+
+	register_t res = hostInvoke_0_2(cheri_invoke_prim, fstat, cap_fd, cap_data);
+	if (res == CHERI_FAIL)
+		STUB_ERRNO
+	else
+		return 0;
+}
+
 int statvfs(const char * restrict path, \
             struct statvfs * restrict buf)                   STUB_ERRNO
 
