@@ -66,8 +66,10 @@ int close(int fd) {
 	register_t res = hostInvoke_0_1(cheri_invoke_prim, close, cap_fd);
 	if (res == CHERI_FAIL)
 		return -1;
-	else
+	else {
+		cherijni_fd_delete(fd);
 		return 0;
+	}
 }
 
 int chmod(const char *path, mode_t mode)                     STUB_ERRNO

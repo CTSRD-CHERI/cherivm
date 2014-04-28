@@ -112,9 +112,9 @@ register_t cherijni_invoke(u_int op,
 			/* return values     */ { }, { }, { }, { });
 		free(signature);
 
-		printf("[SANDBOX: invoke method %s]\n", entry->name);
+//		printf("[SANDBOX: invoke method %s]\n", entry->name);
 		register_t result = ((fn_jni) entry->func)(env, args_this, args_ready[0], args_ready[1], args_ready[2], args_ready[3], args_ready[4], args_ready[5]);
-		printf("[SANDBOX: returning %p]\n", (void*) result);
+//		printf("[SANDBOX: returning %p]\n", (void*) result);
 
 		if (entry->type == FNTYPE_OBJECT) {
 			__capability void *result_cap = get_cap((void*) result, jobject);

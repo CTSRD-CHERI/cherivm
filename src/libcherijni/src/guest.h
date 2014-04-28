@@ -92,5 +92,6 @@ extern int cherijni_fd_store(__capability void *cap, int fd);
 extern pFILE cherijni_pFILE_store(__capability void *cap, short fileno);
 
 extern __capability void *cherijni_fd_load(int fd);
+extern void cherijni_fd_delete(int fd);
 
 #endif //__GUEST_H__

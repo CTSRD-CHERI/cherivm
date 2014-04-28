@@ -1,6 +1,6 @@
 #include "guest.h"
 
-#define DEFAULT_OBJ_COUNT    128
+#define DEFAULT_OBJ_COUNT    2048
 
 #define STORAGE_DEF(NAME)                                                                       \
 	cherijni_objtype_##NAME *storage_##NAME = NULL;                                             \
@@ -93,6 +93,15 @@ __capability void *cherijni_fd_load(int fd) {
 		if (storage_fd[i].fd == fd)
 			return storage_fd[i].cap;
 	return CNULL;
+}
+
+void cherijni_fd_delete(int fd) {
+	size_t i;
+	for (i = 0; i < storage_fd_length; i++)
+		if (storage_fd[i].fd == fd) {
+			storage_fd[i].cap = cheri_zerocap();
+			return;
+		}
 }
 
 pFILE cherijni_pFILE_store(__capability void *cobj, short fileno) {
