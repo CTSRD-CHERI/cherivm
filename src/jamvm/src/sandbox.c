@@ -634,7 +634,6 @@ JNI_FUNCTION_CAP(GetDirectBufferAddress) {
 }
 
 static inline int allowFileAccess(const char *path) {
-	printf("[ACCESS: Sandbox accessing \"%s\" => ALLOWED]\n", path);
 	return TRUE;
 }
 
