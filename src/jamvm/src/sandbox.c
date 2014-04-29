@@ -43,12 +43,12 @@ static void lockSandbox() {
         lockVMLock(cherijni_sandbox_lock, self);
         enableSuspend(self);
     }
-    printf("[LOCK: Thread %p entering sandbox]\n", self);
+//    printf("[LOCK: Thread %p entering sandbox]\n", self);
 }
 
 static void unlockSandbox() {
 	Thread *self = threadSelf();
-    printf("[LOCK: Thread %p leaving sandbox]\n", self);
+//    printf("[LOCK: Thread %p leaving sandbox]\n", self);
     unlockVMLock(cherijni_sandbox_lock, self);
 }
 

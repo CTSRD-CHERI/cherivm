@@ -346,7 +346,6 @@ void setThreadSelf(Thread *thread) {
 }
 
 ExecEnv *getExecEnv() {
-	printf("%s: threadSelf()=%p\n", __func__, threadSelf());
     return threadSelf()->ee;
 }
 
