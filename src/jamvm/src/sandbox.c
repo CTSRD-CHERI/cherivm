@@ -12,6 +12,7 @@
 
 #include "jam.h"
 #include "symbol.h"
+#include "thread.h"
 
 #ifdef JNI_CHERI
 
@@ -32,6 +33,24 @@ extern JNIEnv globalJNIEnv;
 static JNIEnv *env = &globalJNIEnv;
 static pClass class_String;
 static pClass class_Buffer;
+
+static VMLock cherijni_sandbox_lock;
+
+static void lockSandbox() {
+	Thread *self = threadSelf();
+    if(!tryLockVMLock(cherijni_sandbox_lock, self)) {
+        disableSuspend(self);
+        lockVMLock(cherijni_sandbox_lock, self);
+        enableSuspend(self);
+    }
+    printf("[LOCK: Thread %p entering sandbox]\n", self);
+}
+
+static void unlockSandbox() {
+	Thread *self = threadSelf();
+    printf("[LOCK: Thread %p leaving sandbox]\n", self);
+    unlockVMLock(cherijni_sandbox_lock, self);
+}
 
 struct sandbox_object {
 	struct sandbox_class	*sbo_sandbox_classp;
@@ -139,7 +158,9 @@ void *cherijni_open(char *path) {
 
 	/* Run init inside sandbox */
 	struct cheri_object system = sandbox_object_getsystemobject(sandbox->objectp);
+	lockSandbox();
 	register_t result = CInvoke_0_2(sandbox, CHERIJNI_METHOD_INIT, system.co_codecap, system.co_datacap);
+	unlockSandbox();
 	if (result == CHERI_FAIL) {
 		jam_printf("ERROR: sandbox failed to initialize (%s)\n", path);
 		return NULL;
@@ -152,12 +173,17 @@ void *cherijni_open(char *path) {
 // TODO: check the return value? -1 *may* mean that a trap happened inside the sandbox (will be replaced with signals)
 
 void *cherijni_lookup(void *handle, char *methodName) {
-	return (void*) CInvoke_0_1(handle, CHERIJNI_METHOD_LOOKUP, cap_string(methodName));
+	lockSandbox();
+	void *res = (void*) CInvoke_0_1(handle, CHERIJNI_METHOD_LOOKUP, cap_string(methodName));
+	unlockSandbox();
+	return res;
 }
 
 jint cherijni_callOnLoadUnload(void *handle, void *ptr, JavaVM *jvm, void *reserved) {
-	__capability void *cJvm = cheri_ptr(jvm, sizeof(JavaVM));
-	return (jint) CInvoke_1_0(handle, CHERIJNI_METHOD_ONLOAD_ONUNLOAD, ptr);
+	lockSandbox();
+	jint res = (jint) CInvoke_0_0(handle, CHERIJNI_METHOD_ONLOAD_ONUNLOAD);
+	unlockSandbox();
+	return res;
 }
 
 #define arg_cap(cap, len, perm)            checkSandboxCapability_##perm(cap, len)
@@ -295,19 +321,25 @@ static inline int checkIsArray(pObject obj, char type) {
 static __capability void *invoke_returnCap(void *handle, void *native_func, __capability void *cap_signature, __capability void *cap_this, register_t args_prim[], __capability void *args_cap[]) {
 	cheri_invoke_cap func = (cheri_invoke_cap) cheri_invoke;
 	struct cherijni_sandbox *sandbox = (struct cherijni_sandbox*) handle;
-	return (func)(
+	lockSandbox();
+	__capability void *res = (func)(
 			sandbox->objectp->sbo_cheri_object,
 			CHERIJNI_METHOD_RUN, native_func,
 			args_prim[0], args_prim[1], args_prim[2], args_prim[3], args_prim[4], args_prim[5],
             cap_signature, cap_this,
             args_cap[0], args_cap[1], args_cap[2], args_cap[3], args_cap[4], args_cap[5]);
+	unlockSandbox();
+	return res;
 }
 
 static register_t invoke_returnPrim(void *handle, void *native_func, __capability void *cap_signature, __capability void *cap_this, register_t args_prim[], __capability void *args_cap[]) {
-	return CInvoke_7_6(handle, CHERIJNI_METHOD_RUN, native_func,
+	lockSandbox();
+	register_t res = CInvoke_7_6(handle, CHERIJNI_METHOD_RUN, native_func,
 	                   args_prim[0], args_prim[1], args_prim[2], args_prim[3], args_prim[4], args_prim[5],
 	                   cap_signature, cap_this,
 	                   args_cap[0], args_cap[1], args_cap[2], args_cap[3], args_cap[4], args_cap[5]);
+	unlockSandbox();
+	return res;
 }
 
 static void fillArguments(char *sig, uintptr_t *_ostack, register_t *_pPrimitiveArgs, __capability void **_pObjectArgs) {
@@ -634,6 +666,7 @@ JNI_FUNCTION_CAP(GetDirectBufferAddress) {
 }
 
 static inline int allowFileAccess(const char *path) {
+	jam_printf("[ACCESS: %s => ALLOWED]\n", path);
 	return TRUE;
 }
 
@@ -1100,6 +1133,8 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 }
 
 void initialiseCheriJNI() {
+	initVMReentrantLock(cherijni_sandbox_lock);
+
 	cheri_system_user_register_fn(&cherijni_trampoline);
 	INIT_SEAL(JavaObject);
 	INIT_SEAL(Context);

@@ -161,6 +161,15 @@ typedef struct {
 typedef pthread_mutex_t VMLock;
 
 #define initVMLock(lock) pthread_mutex_init(&lock, NULL)
+#define initVMReentrantLock(lock)                                  \
+	{                                                              \
+		pthread_mutexattr_t attr;                                  \
+		pthread_mutexattr_init(&attr);                             \
+		pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE); \
+		pthread_mutex_init(&lock, &attr);                          \
+		pthread_mutexattr_destroy(&attr);                          \
+	}
+
 #define initVMWaitLock(wait_lock) {            \
     pthread_mutex_init(&wait_lock.lock, NULL); \
     pthread_cond_init(&wait_lock.cv, NULL);    \
