@@ -33,6 +33,15 @@ static void ExceptionClear(JNIEnv *env) {
 	check_cheri_fail_void(hostInvoke_0_0(cheri_invoke_prim, ExceptionClear));
 }
 
+static jint PushLocalFrame(JNIEnv *env, jint capacity) {
+	return (jint) hostInvoke_1_0(cheri_invoke_prim, PushLocalFrame, capacity);
+}
+
+static jobject PopLocalFrame(JNIEnv *env, jobject result) {
+	__capability void *res = hostInvoke_0_1(cheri_invoke_cap, PopLocalFrame, get_cap(result, jobject));
+	return cherijni_jobject_store(res, JNI_FALSE);
+}
+
 static void DeleteLocalRef(JNIEnv *env, jobject localRef) {
 	check_cheri_fail_void(hostInvoke_0_1(cheri_invoke_prim, ExceptionClear, get_cap(localRef, jobject)));
 }
@@ -217,8 +226,8 @@ static struct _JNINativeInterface cherijni_JNIEnv_struct = {
 		ExceptionDescribe,
 		ExceptionClear,
 		NULL, // FatalError,
-		NULL, // PushLocalFrame,
-		NULL, // PopLocalFrame,
+		PushLocalFrame,
+		PopLocalFrame,
 		NULL, // NewGlobalRef,
 		NULL, // DeleteGlobalRef,
 		DeleteLocalRef,

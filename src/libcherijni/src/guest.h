@@ -37,9 +37,10 @@ extern __capability void *cherijni_output;
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap()))
 
 #define hostInvoke_3_3(recast, name, a1, a2, a3, c1, c2, c3) hostInvoke_7_5(recast, name, a1, a2, a3, 0, 0, 0, 0, c1, c2, c3, CNULL, CNULL)
-#define hostInvoke_0_3(recast, name, c1, c2, c3)             hostInvoke_3_3(recast, name, 0, 0, 0, c1, c2, c3)
 #define hostInvoke_2_2(recast, name, a1, a2, c1, c2)         hostInvoke_3_3(recast, name, a1, a2, 0, c1, c2, CNULL)
+#define hostInvoke_1_0(recast, name, a1)                     hostInvoke_2_2(recast, name, a1, 0, CNULL, CNULL)
 #define hostInvoke_1_2(recast, name, a1, c1, c2)             hostInvoke_2_2(recast, name, a1, 0, c1, c2)
+#define hostInvoke_0_3(recast, name, c1, c2, c3)             hostInvoke_3_3(recast, name, 0, 0, 0, c1, c2, c3)
 #define hostInvoke_0_2(recast, name, c1, c2)                 hostInvoke_0_3(recast, name, c1, c2, CNULL)
 #define hostInvoke_0_1(recast, name, c1)                     hostInvoke_0_2(recast, name, c1, CNULL)
 #define hostInvoke_0_0(recast, name)                         hostInvoke_0_1(recast, name, CNULL)

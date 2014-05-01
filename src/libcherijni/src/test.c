@@ -3,6 +3,7 @@
 #define TEST_START(name)    printf("[SANDBOX: %s... ", name)
 #define TEST_PASSED			printf("passed]\n")
 #define TEST_FAILED			printf("FAILED]\n")
+#define TEST_FAILED_REASON(reason)			printf("FAILED (%s)]\n", reason)
 
 void cherijni_runTests(JNIEnv *env) {
 	printf("[SANDBOX: Running tests...]\n");
@@ -93,6 +94,26 @@ void cherijni_runTests(JNIEnv *env) {
 			else {
 				(*env)->ReleaseStringUTFChars(env, str, buf);
 				TEST_PASSED;
+			}
+		}
+	} else
+		TEST_FAILED;
+
+	TEST_START("LocalRefs are invalidated");
+	if ((*env)->FindClass && (*env)->PushLocalFrame && (*env)->PopLocalFrame && (*env)->NewStringUTF && (*env)->GetStringUTFLength) {
+		int success = (*env)->PushLocalFrame(env, 16);
+		if (success < 0)
+			TEST_FAILED_REASON("couldn't create local frame");
+		else {
+			jobject str = (*env)->NewStringUTF(env, "Testing...");
+			if (str == NULL)
+				TEST_FAILED_REASON("couldn't create string");
+			else {
+				(*env)->PopLocalFrame(env, NULL);
+				if ((*env)->GetStringUTFLength(env, str) > 0)
+					TEST_FAILED_REASON("old ref accepted");
+				else
+					TEST_PASSED;
 			}
 		}
 	} else

@@ -229,40 +229,40 @@ jint cherijni_callOnLoadUnload(void *handle, void *ptr, JavaVM *jvm, void *reser
 	return res;
 }
 
-static inline __capability void *checkSandboxCapability(__capability void *cap, size_t min_length, register_t perm_mask, int unsealed) {
+static inline __capability int checkSandboxCapability(__capability void *cap, size_t min_length, register_t perm_mask, int unsealed) {
 	if (!cheri_gettag(cap)) {
 		jam_printf("Warning: sandbox provided an invalid capability\n");
-		return CNULL;
+		return FALSE;
 	}
 
 	if (cheri_getunsealed(cap) != unsealed) {
 		jam_printf("Warning: sandbox provided a capability with wrong unsealed tag (expected %d)\n", unsealed);
-		return CNULL;
+		return FALSE;
 	}
 
 	if (min_length > 0 && cheri_getlen(cap) < min_length) {
 		jam_printf("Warning: sandbox provided a pointer capability which is too short\n");
-		return CNULL;
+		return FALSE;
 	}
 
 	register_t perm_cap = cheri_getperm(cap);
 	if ((perm_cap & perm_mask) != perm_mask) {
 		jam_printf("Warning: sandbox provided a pointer capability with insufficient permissions\n");
-		return CNULL;
+		return FALSE;
 	}
 
-	return cap;
+	return TRUE;
 }
 
-static inline __capability void *checkSandboxCapability_r(__capability void *cap, size_t min_length, int unsealed) {
+static inline int checkSandboxCapability_r(__capability void *cap, size_t min_length, int unsealed) {
 	return checkSandboxCapability(cap, min_length, CHERI_PERM_LOAD, unsealed);
 }
 
-static inline __capability void *checkSandboxCapability_w(__capability void *cap, size_t min_length, int unsealed) {
+static inline int checkSandboxCapability_w(__capability void *cap, size_t min_length, int unsealed) {
 	return checkSandboxCapability(cap, min_length, CHERI_PERM_STORE, unsealed);
 }
 
-#define arg_cap(cap, len, perm, u)    checkSandboxCapability_##perm(cap, len, u)
+#define arg_cap(cap, len, perm, u)    (checkSandboxCapability_##perm(cap, len, u) ? cap : CNULL)
 #define arg_ptr(cap, len, perm)       ((void*) arg_cap(cap, len, perm, TRUE))
 #define arg_str(ptr, len, perm)       ((const char*) arg_ptr(ptr, len, perm)) // TODO: check it ends with a zero
 #define arg_class(cap)                checkIsClass(arg_obj(cap))
@@ -293,7 +293,7 @@ static inline __capability void *return_fd(int fd) {
 }
 
 static inline int arg_fd(__capability void *cap) {
-	if (checkSandboxCapability(cap, 0, 0, FALSE) == CNULL)
+	if (cap == CNULL || !checkSandboxCapability(cap, 0, 0, FALSE))
 		return -1;
 
 	uintptr_t type_size = sizeof(FDs[0]);
@@ -339,10 +339,13 @@ static inline __capability void *return_obj(pObject obj) {
 }
 
 static inline pObject arg_obj(__capability void *cap) {
-	if (checkSandboxCapability(cap, 0, 0, FALSE) == CNULL) {
+	if (!checkSandboxCapability(cap, 0, 0, FALSE)) {
 		jam_printf("Warning: sandbox provided an invalid jobject capability\n");
 		return NULL;
 	}
+
+	if (cap == CNULL)
+		return NULL;
 
 	uintptr_t type_cap = cheri_gettype(cap);
 	pObject ref = (pObject) type_cap;
@@ -524,6 +527,17 @@ JNI_FUNCTION_PRIM(ExceptionDescribe) {
 JNI_FUNCTION_PRIM(ExceptionClear) {
 	(*env)->ExceptionClear(env);
 	return CHERI_SUCCESS;
+}
+
+JNI_FUNCTION_PRIM(PushLocalFrame) {
+	jint capacity = a1;
+	return (*env)->PushLocalFrame(env, capacity);
+}
+
+JNI_FUNCTION_CAP(PopLocalFrame) {
+	pObject obj = arg_obj(c1);
+	pObject result = (*env)->PopLocalFrame(env, obj);
+	return return_obj(result);
 }
 
 JNI_FUNCTION_PRIM(DeleteLocalRef) {
@@ -913,9 +927,9 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 	case CHERIJNI_JNIEnv_FatalError:
 		break;
 	case CHERIJNI_JNIEnv_PushLocalFrame:
-		break;
+		CALL_JNI_PRIM(PushLocalFrame)
 	case CHERIJNI_JNIEnv_PopLocalFrame:
-		break;
+		CALL_JNI_CAP(PopLocalFrame)
 	case CHERIJNI_JNIEnv_NewGlobalRef:
 		break;
 	case CHERIJNI_JNIEnv_DeleteGlobalRef:
