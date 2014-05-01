@@ -29,12 +29,23 @@ void cherijni_obj_init() {
 	STORAGE_INIT(pFILE);
 }
 
-#define STORAGE_FIND(NAME)                                                                      \
+#define STORAGE_FIND_COMPARECAP(NAME)                                                           \
 	cherijni_objtype_##NAME *cherijni_obj_##NAME##_find(__capability void *cap) {               \
 		size_t i;                                                                               \
 		for (i = 0; i < storage_##NAME##_length; i++) {                                         \
 			__capability void *cap_slot = storage_##NAME[i].cap;                                \
 			if (cap == cap_slot)                                                                \
+				return &storage_##NAME[i];                                                      \
+		}                                                                                       \
+		return NULL;                                                                            \
+	}                                                                                           \
+
+#define STORAGE_FIND_COMPARETYPE(NAME)                                                          \
+	cherijni_objtype_##NAME *cherijni_obj_##NAME##_find(__capability void *cap) {               \
+		size_t i;                                                                               \
+		for (i = 0; i < storage_##NAME##_length; i++) {                                         \
+			__capability void *cap_slot = storage_##NAME[i].cap;                                \
+			if (cheri_gettype(cap) == cheri_gettype(cap_slot))                                  \
 				return &storage_##NAME[i];                                                      \
 		}                                                                                       \
 		return NULL;                                                                            \
@@ -67,7 +78,7 @@ void cherijni_obj_init() {
 	newslot->cap = cobj;
 
 
-STORAGE_FIND(jobject)
+STORAGE_FIND_COMPARETYPE(jobject)
 STORAGE_EMPTYSLOT(jobject)
 
 jobject cherijni_jobject_store(__capability void *cobj) {
@@ -75,7 +86,7 @@ jobject cherijni_jobject_store(__capability void *cobj) {
 	return newslot;
 }
 
-STORAGE_FIND(jfieldID)
+STORAGE_FIND_COMPARECAP(jfieldID)
 STORAGE_EMPTYSLOT(jfieldID)
 
 jfieldID cherijni_jfieldID_store(__capability void *cobj) {
@@ -83,7 +94,7 @@ jfieldID cherijni_jfieldID_store(__capability void *cobj) {
 	return newslot;
 }
 
-STORAGE_FIND(jmethodID)
+STORAGE_FIND_COMPARECAP(jmethodID)
 STORAGE_EMPTYSLOT(jmethodID)
 
 jmethodID cherijni_jmethodID_store(__capability void *cobj, const char *sig) {
@@ -123,7 +134,7 @@ void cherijni_fd_delete(int fd) {
 		}
 }
 
-STORAGE_FIND(pFILE)
+STORAGE_FIND_COMPARECAP(pFILE)
 STORAGE_EMPTYSLOT(pFILE)
 
 pFILE cherijni_pFILE_store(__capability void *cobj, short fileno) {

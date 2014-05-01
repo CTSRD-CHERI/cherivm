@@ -26,6 +26,7 @@
 #include <cheri/cheri_system.h>
 #include <cheri/cheri_invoke.h>
 
+#include "jni-internal.h"
 #include "sandbox.h"
 #include "sandbox_shared.h"
 
@@ -71,7 +72,7 @@ struct cherijni_sandbox {
 struct cap_counter cap_counter_new() {
 	struct cap_counter counter;
 	counter.base = 1;
-	counter.length = 0;
+	counter.length = 1;
 	return counter;
 }
 
@@ -88,7 +89,7 @@ void cap_counter_inc(struct cap_counter *counter) {
 		counter->length++;
 	else {
 		counter->base++;
-		counter->length = 0;
+		counter->length = 1;
 	}
 }
 
@@ -117,23 +118,25 @@ int cap_counter_compare(struct cap_counter *c1, struct cap_counter *c2) {
 #define cap_unseal(TYPE, NAME, datacap)  ((TYPE) cherijni_unseal(datacap, sealcap_##NAME))
 #define INIT_SEAL(NAME) sealcap_##NAME = cheri_ptrtype(&type_##NAME, sizeof(uintptr_t), 0); // sets PERMIT_SEAL
 
-DEFINE_SEAL_VARS(JavaObject)
 DEFINE_SEAL_VARS(Context)
 DEFINE_SEAL_VARS(MethodID)
 DEFINE_SEAL_VARS(FieldID)
 DEFINE_SEAL_VARS(FILE)
-DEFINE_SEAL_VARS(FD)
 
 #define RETURNTYPE_VOID   1
 #define RETURNTYPE_SINGLE 2
 #define RETURNTYPE_DOUBLE 3
 #define RETURNTYPE_OBJECT 4
 
+static inline __capability void *cherijni_seal_cap(__capability void *datacap, __capability void *sealcap) {
+	return cheri_sealdata(datacap, sealcap);
+}
+
 static inline __capability void *cherijni_seal(void *data, register_t len, __capability void *sealcap) {
 	if (data == NULL)
 		return CNULL;
 	else
-		return cheri_sealdata(cheri_ptrperm(data, len, CHERI_PERM_LOAD), sealcap);
+		return cherijni_seal_cap(cheri_ptrperm(data, len, CHERI_PERM_LOAD), sealcap);
 }
 
 static inline __capability void *cherijni_unseal(__capability void *objcap, __capability void *sealcap) {
@@ -226,31 +229,73 @@ jint cherijni_callOnLoadUnload(void *handle, void *ptr, JavaVM *jvm, void *reser
 	return res;
 }
 
-#define arg_cap(cap, len, perm)       checkSandboxCapability_##perm(cap, len)
-#define arg_ptr(cap, len, perm)       ((void*) arg_cap(cap, len, perm))
+static inline __capability void *checkSandboxCapability(__capability void *cap, size_t min_length, register_t perm_mask, int unsealed) {
+	if (!cheri_gettag(cap)) {
+		jam_printf("Warning: sandbox provided an invalid capability\n");
+		return CNULL;
+	}
+
+	if (cheri_getunsealed(cap) != unsealed) {
+		jam_printf("Warning: sandbox provided a capability with wrong unsealed tag (expected %d)\n", unsealed);
+		return CNULL;
+	}
+
+	if (min_length > 0 && cheri_getlen(cap) < min_length) {
+		jam_printf("Warning: sandbox provided a pointer capability which is too short\n");
+		return CNULL;
+	}
+
+	register_t perm_cap = cheri_getperm(cap);
+	if ((perm_cap & perm_mask) != perm_mask) {
+		jam_printf("Warning: sandbox provided a pointer capability with insufficient permissions\n");
+		return CNULL;
+	}
+
+	return cap;
+}
+
+static inline __capability void *checkSandboxCapability_r(__capability void *cap, size_t min_length, int unsealed) {
+	return checkSandboxCapability(cap, min_length, CHERI_PERM_LOAD, unsealed);
+}
+
+static inline __capability void *checkSandboxCapability_w(__capability void *cap, size_t min_length, int unsealed) {
+	return checkSandboxCapability(cap, min_length, CHERI_PERM_STORE, unsealed);
+}
+
+#define arg_cap(cap, len, perm, u)    checkSandboxCapability_##perm(cap, len, u)
+#define arg_ptr(cap, len, perm)       ((void*) arg_cap(cap, len, perm, TRUE))
 #define arg_str(ptr, len, perm)       ((const char*) arg_ptr(ptr, len, perm)) // TODO: check it ends with a zero
-#define arg_obj(cap)                  cap_unseal(pObject, JavaObject, cap)
 #define arg_class(cap)                checkIsClass(arg_obj(cap))
 #define arg_file(cap)                 cap_unseal(pFILE, FILE, cap)
 #define arg_mid(cap)                  cap_unseal(pMethodBlock, MethodID, cap)
-#define return_obj(obj)               cap_seal(JavaObject, obj)
 #define return_mid(field)             cap_seal(MethodID, field)
 #define return_fid(field)             cap_seal(FieldID, field)
 #define return_file(file)             cap_seal(FILE, file)
 #define return_str(str)               cap_string(str)
 
 #define FD_COUNT (1 << 16)
-
 static struct cap_counter FDs[FD_COUNT];
 
+#define RETURN_FUNC(NAME, param, counter_cmd, ptr)                                                \
+	static inline __capability void *return_##NAME(param) {                                       \
+		struct cap_counter counter = counter_cmd;                                                 \
+		__capability void *sealcap = cheri_ptrtype(ptr, sizeof(uintptr_t), 0);                    \
+		return cherijni_seal((void*) counter.base, counter.length, sealcap);                      \
+	}
+
 static inline __capability void *return_fd(int fd) {
-	struct cap_counter fd_counter = FDs[fd];
+	if (fd < 0)
+		return CNULL;
+
+	struct cap_counter counter = FDs[fd];
 	__capability void *sealcap = cheri_ptrtype(&FDs[fd], sizeof(uintptr_t), 0);
-	__capability void *result = cherijni_seal(fd_counter.base, fd_counter.length, sealcap);
-	return result;
+	return cherijni_seal((void*) counter.base, counter.length, sealcap);
 }
 
 static inline int arg_fd(__capability void *cap) {
+	if (checkSandboxCapability(cap, 0, 0, FALSE) == CNULL)
+		return -1;
+
 	uintptr_t type_size = sizeof(FDs[0]);
 
 	uintptr_t type_start = (uintptr_t) FDs;
@@ -279,6 +324,50 @@ static inline void revoke_fd(int fd) {
 	cap_counter_inc(&FDs[fd]);
 }
 
+RETURN_FUNC(obj_local, pObject obj, obj->cap_counter_local, obj)
+
+static inline __capability void *return_obj(pObject obj) {
+	if (obj == NULL)
+		return CNULL;
+
+	switch (REF_TYPE(obj)) {
+	case LOCAL_REF:
+		return return_obj_local(obj);
+	default:
+		return CNULL;
+	}
+}
+
+static inline pObject arg_obj(__capability void *cap) {
+	if (checkSandboxCapability(cap, 0, 0, FALSE) == CNULL) {
+		jam_printf("Warning: sandbox provided an invalid jobject capability\n");
+		return NULL;
+	}
+
+	uintptr_t type_cap = cheri_gettype(cap);
+	pObject ref = (pObject) type_cap;
+	pObject obj = REF_TO_OBJ(ref);
+
+	if (!isObject(obj)) {
+		jam_printf("Warning: sandbox provided an invalid jobject capability (wrong type)\n");
+		return NULL;
+	}
+
+	struct cap_counter obj_counter = cap_counter_fromcap(cap);
+
+	if (REF_TYPE(ref) == LOCAL_REF) {
+		if (cap_counter_compare(&obj->cap_counter_local, &obj_counter) == 0)
+			return ref;
+		else {
+			jam_printf("Warning: sandbox provided a revoked object capability (obj=%p, counter: %d|%d != %d|%d)\n", obj, obj_counter.base, obj_counter.length, obj->cap_counter_local.base, obj->cap_counter_local.length);
+			return NULL;
+		}
+	}
+
+	jam_printf("Warning: sandbox provided an unsupported type of object capability\n");
+	return NULL;
+}
+
 static inline void copyToSandbox(__capability char *dest, const char *src, size_t len) {
 	size_t i;
 	for (i = 0; i < len; i++)
@@ -289,39 +378,6 @@ static inline void copyFromSandbox(char *dest, __capability char *src, size_t le
 	size_t i;
 	for (i = 0; i < len; i++)
 		dest[i] = src[i];
-}
-
-static inline __capability void *checkSandboxCapability(__capability void *cap, size_t min_length, register_t perm_mask) {
-	if (!cheri_gettag(cap)) {
-		jam_printf("Warning: sandbox provided an invalid capability\n");
-		return CNULL;
-	}
-
-	if (!cheri_getunsealed(cap)) {
-		jam_printf("Warning: sandbox provided a sealed pointer capability\n");
-		return CNULL;
-	}
-
-	if (min_length > 0 && cheri_getlen(cap) < min_length) {
-		jam_printf("Warning: sandbox provided a pointer capability which is too short\n");
-		return CNULL;
-	}
-
-	register_t perm_cap = cheri_getperm(cap);
-	if ((perm_cap & perm_mask) != perm_mask) {
-		jam_printf("Warning: sandbox provided a pointer capability with insufficient permissions\n");
-		return CNULL;
-	}
-
-	return cap;
-}
-
-static inline __capability void *checkSandboxCapability_r(__capability void *cap, size_t min_length) {
-	return checkSandboxCapability(cap, min_length, CHERI_PERM_LOAD);
-}
-
-static inline __capability void *checkSandboxCapability_w(__capability void *cap, size_t min_length) {
-	return checkSandboxCapability(cap, min_length, CHERI_PERM_STORE);
 }
 
 static inline pClass checkIsClass(pObject obj) {
@@ -378,7 +434,7 @@ static void fillArguments(char *sig, uintptr_t *_ostack, register_t *_pPrimitive
 	scanSignature(sig,
 		/* single primitives */ { *(_pPrimitiveArgs++) = *(_ostack++); },
 		/* double primitives */ { *(_pPrimitiveArgs++) = *(_ostack++); _ostack++; },
-		/* objects           */ { *(_pObjectArgs++) = cap_seal(JavaObject, (pObject) *(_ostack++)); },
+		/* objects           */ { *(_pObjectArgs++) = return_obj((pObject) *_ostack); _ostack++; },
 		/* return values     */ { }, { }, { }, { });
 }
 
@@ -402,8 +458,8 @@ uintptr_t *cherijni_callMethod(void* handle, void *native_func, pClass class, ch
 	// TODO: check number of arguments
 
 	/* Prepare arguments */
-	if (class == NULL) cap_this = cap_seal(JavaObject, (pObject) *(_ostack++));
-	else               cap_this = cap_seal(JavaObject, class);
+	if (class == NULL) { cap_this = return_obj((pObject) *_ostack); _ostack++; }
+	else                 cap_this = return_obj(class);
 	fillArguments(sig, _ostack, args_prim, args_cap);
 
 	/* Invoke JNI method */
@@ -516,11 +572,6 @@ static inline jvalue *prepareJniArguments(pMethodBlock mb, register_t a1, regist
 		return NULL;
 
 	jvalue *args = (jvalue*) sysMalloc(sizeof(jvalue) * arg_count);
-	if (args == NULL) {
-		jam_printf("ERROR: out of memory\n");
-		return NULL;
-	}
-
 	register_t args_prim[] = { a1, a2, a3, a4, a5, a6, a7 };
 	__capability void *args_cap[] = { c3, c4, c5 };
 	int args_ready = 0, args_used_prim = 0, args_used_cap = 0;
@@ -622,7 +673,7 @@ JNI_FUNCTION_PRIM(GetStringUTFChars) {
 		return CHERI_FAIL;
 	jsize str_length = (*env)->GetStringUTFLength(env, string);
 
-	__capability char *sandbox_buffer = arg_cap(c2, str_length + 1, w);
+	__capability char *sandbox_buffer = arg_cap(c2, str_length + 1, w, TRUE);
 	if (sandbox_buffer == CNULL)
 		return CHERI_FAIL;
 
@@ -652,7 +703,7 @@ JNI_FUNCTION_PRIM(GetArrayLength) {
 	if (start_byte + len_bytes > total_length) \
 		return CHERI_FAIL; \
 	\
-	__capability char *sandbox_buffer = arg_cap(c2, len_bytes, perm); \
+	__capability char *sandbox_buffer = arg_cap(c2, len_bytes, perm, TRUE); \
 	char *host_buffer = ARRAY_DATA(array, char); \
 	if (sandbox_buffer == CNULL) \
 		return CHERI_FAIL;
@@ -731,7 +782,7 @@ LIBC_FUNCTION_CAP(GetStream) {
 #define STAT_FUNCTION(NAME)                                                  \
 	{                                                                        \
 		const char *path = arg_str(c1, 0, r);                                \
-		__capability struct stat *buf = arg_cap(c2, sizeof(struct stat), w); \
+		__capability struct stat *buf = arg_cap(c2, sizeof(struct stat), w, TRUE); \
 		if (path == NULL || buf == CNULL)                                    \
 			return CHERI_FAIL;                                               \
 		                                                                     \
@@ -755,7 +806,7 @@ LIBC_FUNCTION_PRIM(lstat)
 
 LIBC_FUNCTION_PRIM(fstat) {
 	int fd = arg_fd(c1);
-	__capability struct stat *buf = arg_cap(c2, sizeof(struct stat), w);
+	__capability struct stat *buf = arg_cap(c2, sizeof(struct stat), w, TRUE);
 	if (fd < 0 || buf == CNULL)
 		return CHERI_FAIL;
 
@@ -771,7 +822,7 @@ LIBC_FUNCTION_PRIM(fstat) {
 LIBC_FUNCTION_CAP(open) {
 	const char *path = arg_str(c1, 0, r);
 	int flags = a1;
-	__capability int *fileno = arg_cap(c2, sizeof(int), w);
+	__capability int *fileno = arg_cap(c2, sizeof(int), w, TRUE);
 	if (path == NULL || fileno == CNULL)
 		return CNULL;
 
@@ -782,12 +833,9 @@ LIBC_FUNCTION_CAP(open) {
 		return CNULL;
 
 	int fd = open(path, flags);
-	if (fd < 0)
-		return CNULL;
-	else {
-		fileno[0] = fd;
-		return return_fd(fd);
-	}
+
+	fileno[0] = fd;
+	return return_fd(fd);
 }
 
 LIBC_FUNCTION_PRIM(close) {
@@ -806,7 +854,7 @@ LIBC_FUNCTION_PRIM(close) {
 
 LIBC_FUNCTION_PRIM(read) {
 	int fd = arg_fd(c1);
-	__capability void *buf = arg_cap(c2, 1, w);
+	__capability void *buf = arg_cap(c2, 1, w, TRUE);
 	if (fd < 0 || buf == CNULL)
 		return CHERI_FAIL;
 
@@ -820,7 +868,7 @@ LIBC_FUNCTION_PRIM(read) {
 
 LIBC_FUNCTION_PRIM(write) {
 	int fd = arg_fd(c1);
-	__capability void *buf = arg_cap(c2, 1, r);
+	__capability void *buf = arg_cap(c2, 1, r, TRUE);
 	if (fd < 0 || buf == CNULL)
 		return CHERI_FAIL;
 
@@ -1168,12 +1216,10 @@ void initialiseCheriJNI() {
 	initVMReentrantLock(cherijni_sandbox_lock);
 
 	cheri_system_user_register_fn(&cherijni_trampoline);
-	INIT_SEAL(JavaObject);
 	INIT_SEAL(Context);
 	INIT_SEAL(MethodID);
 	INIT_SEAL(FieldID);
 	INIT_SEAL(FILE);
-	INIT_SEAL(FD);
 
 	int i;
 	for (i = 0; i < FD_COUNT; i++)

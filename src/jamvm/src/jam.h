@@ -36,6 +36,17 @@
 #define         FALSE   0
 #endif
 
+/* capability counter */
+
+#ifdef JNI_CHERI
+
+struct cap_counter {
+	uintptr_t base;
+	uintptr_t length;
+};
+
+#endif
+
 /* These should go in the interpreter file */
 
 #define OPC_NOP                         0
@@ -385,6 +396,9 @@ typedef Object* pObject;
 
 struct object {
    uintptr_t lock;
+#ifdef JNI_CHERI
+   struct cap_counter cap_counter_local;
+#endif
    pClass class;
 };
 
@@ -763,6 +777,7 @@ typedef struct InitArgs {
 
 /* Alloc */
 
+extern int isObject(pObject obj);
 extern void initialiseAlloc(InitArgs *args);
 extern void initialiseGC(InitArgs *args);
 extern pClass allocClass();
@@ -1090,13 +1105,10 @@ extern void getTimeoutRelative(struct timespec *ts, long long millis,
 
 extern int sigElement2Size(char element);
 
-/* capability counter */
+/* cap counter */
 
 #ifdef JNI_CHERI
 
-struct cap_counter {
-	uintptr_t base;
-	uintptr_t length;
-};
+extern struct cap_counter cap_counter_new();
 
 #endif

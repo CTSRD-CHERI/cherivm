@@ -268,6 +268,9 @@ static int sys_page_size;
                         (((char*)ptr) < heaplimit) && \
                         !(((uintptr_t)ptr)&(OBJECT_GRAIN-1))
 
+int isObject(pObject obj) {
+	return IS_OBJECT(obj);
+}
 
 #define MIN_OBJECT_SIZE ((sizeof(Object)+HEADER_SIZE+OBJECT_GRAIN-1)& \
                         ~(OBJECT_GRAIN-1))
@@ -1990,6 +1993,14 @@ got_it:
    
     ret_addr = ((char*)found)+HEADER_SIZE;
     memset(ret_addr, 0, n-HEADER_SIZE);
+
+#ifdef JNI_CHERI
+    // TODO: copy counter from the chunk
+    // TODO: careful with object copying (gcMalloc is used there)
+    pObject new_obj = (pObject) ret_addr;
+    new_obj->cap_counter_local = cap_counter_new();
+#endif
+
     unlockVMLock(heap_lock, self);
 
     return ret_addr;
@@ -2136,7 +2147,15 @@ pObject cloneObject(pObject ob) {
     clone = gcMalloc(size);
 
     if(clone != NULL) {
+#ifdef JNI_CHERI
+    	struct cap_counter new_counter_local = clone->cap_counter_local;
+#endif
+
         memcpy(clone, ob, size);
+
+#ifdef JNI_CHERI
+    	clone->cap_counter_local = new_counter_local;
+#endif
 
         /* We will also have copied the objects lock word */
         clone->lock = 0;
