@@ -93,6 +93,7 @@ register_t cherijni_invoke(u_int op,
 		methodEntry *entry = (methodEntry*) a1;
 		char *signature = cherijni_extractHostString(c1);
 		JNIEnv *env = cherijni_getJNIEnv();
+		cherijni_jobject_clearLocal();
 
 		if (ranTests == JNI_FALSE) {
 			ranTests = JNI_TRUE;
@@ -103,12 +104,12 @@ register_t cherijni_invoke(u_int op,
 		__capability void *args_objs[] = { c3, c4, c5, c6, c7, c8 };
 		size_t args_prim_ready = 0, args_objs_ready = 0;
 
-		register_t args_this = (register_t) cherijni_jobject_store(c2);
+		register_t args_this = (register_t) cherijni_jobject_store(c2, JNI_FALSE);
 		register_t args_ready[6];
 		scanSignature(signature,
 			/* single primitives */ { args_ready[args_prim_ready + args_objs_ready] = args_prim[args_prim_ready]; args_prim_ready++; },
 			/* double primitives */ { args_ready[args_prim_ready + args_objs_ready] = args_prim[args_prim_ready]; args_prim_ready++; },
-			/* objects           */ { args_ready[args_prim_ready + args_objs_ready] = (register_t) cherijni_jobject_store(args_objs[args_objs_ready]); args_objs_ready++; },
+			/* objects           */ { args_ready[args_prim_ready + args_objs_ready] = (register_t) cherijni_jobject_store(args_objs[args_objs_ready], JNI_FALSE); args_objs_ready++; },
 			/* return values     */ { }, { }, { }, { });
 		free(signature);
 

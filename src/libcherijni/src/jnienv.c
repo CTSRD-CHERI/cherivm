@@ -12,7 +12,7 @@ static jclass FindClass(JNIEnv *env, const char *className) {
 	 * pass it as a pointer with the default capability
 	 */
 	__capability void *result = hostInvoke_0_1(cheri_invoke_cap, FindClass, cap_string(className));
-	return (jclass) cherijni_jobject_store(result);
+	return (jclass) cherijni_jobject_store(result, JNI_FALSE);
 }
 
 static jint ThrowNew(JNIEnv *env, jclass clazz, const char *msg) {
@@ -22,7 +22,7 @@ static jint ThrowNew(JNIEnv *env, jclass clazz, const char *msg) {
 
 static jthrowable ExceptionOccurred(JNIEnv *env) {
 	__capability void *result = hostInvoke_0_0(cheri_invoke_cap, ExceptionOccurred);
-	return (jthrowable) cherijni_jobject_store(result);
+	return (jthrowable) cherijni_jobject_store(result, JNI_FALSE);
 }
 
 static void ExceptionDescribe(JNIEnv *env) {
@@ -78,7 +78,7 @@ static jobject CallObjectMethod(JNIEnv *env, jobject obj, jmethodID mid, ...) {
 			args_prim[0], args_prim[1], args_prim[2], args_prim[3], args_prim[4], args_prim[5], args_prim[6],
 			get_cap(obj, jobject), get_cap(mid, jmethodID),
 			args_cap[0], args_cap[1], args_cap[2]);
-	return (jobject) cherijni_jobject_store(result);
+	return (jobject) cherijni_jobject_store(result, JNI_FALSE);
 }
 
 #define CALL_METHOD(access)        \
@@ -106,7 +106,7 @@ static jmethodID GetStaticMethodID(JNIEnv *env, jclass clazz, const char *name, 
 
 static jstring NewStringUTF(JNIEnv *env, const char *bytes) {
 	__capability void *result = hostInvoke_0_1(cheri_invoke_cap, NewStringUTF, cap_string(bytes));
-	return (jstring) cherijni_jobject_store(result);
+	return (jstring) cherijni_jobject_store(result, JNI_FALSE);
 }
 
 static jsize GetStringUTFLength(JNIEnv *env, jstring string) {

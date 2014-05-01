@@ -64,6 +64,7 @@ extern char* cherijni_extractHostString(__capability char* str_cap);
  */
 typedef struct {
 	__capability void *cap;
+	jboolean isGlobal;
 } cherijni_objtype_jobject;
 typedef struct {
 	__capability void *cap;
@@ -85,7 +86,7 @@ typedef struct {
 	__capability void *cap;
 } cherijni_objtype_pFILE;
 
-extern jobject cherijni_jobject_store(__capability void *cap);
+extern jobject cherijni_jobject_store(__capability void *cap, jboolean isGlobal);
 extern jfieldID cherijni_jfieldID_store(__capability void *cap);
 extern jmethodID cherijni_jmethodID_store(__capability void *cap, const char *sig);
 extern void *cherijni_fd_store(__capability void *cap, int fd);
@@ -93,5 +94,7 @@ extern pFILE cherijni_pFILE_store(__capability void *cap, short fileno);
 
 extern __capability void *cherijni_fd_load(int fd);
 extern void cherijni_fd_delete(int fd);
+
+extern void cherijni_jobject_clearLocal();
 
 #endif //__GUEST_H__

@@ -5,12 +5,15 @@
 #define STORAGE_DEF(NAME)                                                                       \
 	cherijni_objtype_##NAME *storage_##NAME = NULL;                                             \
 	size_t                   storage_##NAME##_length = 0;                                       \
+	size_t                   storage_##NAME##_used = 0;
 
 #define STORAGE_INIT(NAME)                                                           \
 	{                                                                                \
 		storage_##NAME = calloc(DEFAULT_OBJ_COUNT, sizeof(cherijni_objtype_##NAME)); \
-		if (storage_##NAME)                                                          \
+		if (storage_##NAME) {                                                        \
 			storage_##NAME##_length = DEFAULT_OBJ_COUNT;                             \
+			storage_##NAME##_used = 0;                                               \
+		}                                                                            \
 		else                                                                         \
 			printf("[SANDBOX ERROR: cannot allocate storage for type %s]\n", #NAME); \
 	}
@@ -32,9 +35,9 @@ void cherijni_obj_init() {
 #define STORAGE_FIND_COMPARECAP(NAME)                                                           \
 	cherijni_objtype_##NAME *cherijni_obj_##NAME##_find(__capability void *cap) {               \
 		size_t i;                                                                               \
-		for (i = 0; i < storage_##NAME##_length; i++) {                                         \
+		for (i = 0; i < storage_##NAME##_used; i++) {                                           \
 			__capability void *cap_slot = storage_##NAME[i].cap;                                \
-			if (cap == cap_slot)                                                                \
+			if (cheri_gettag(cap_slot) && cap == cap_slot)                                      \
 				return &storage_##NAME[i];                                                      \
 		}                                                                                       \
 		return NULL;                                                                            \
@@ -43,9 +46,9 @@ void cherijni_obj_init() {
 #define STORAGE_FIND_COMPARETYPE(NAME)                                                          \
 	cherijni_objtype_##NAME *cherijni_obj_##NAME##_find(__capability void *cap) {               \
 		size_t i;                                                                               \
-		for (i = 0; i < storage_##NAME##_length; i++) {                                         \
+		for (i = 0; i < storage_##NAME##_used; i++) {                                           \
 			__capability void *cap_slot = storage_##NAME[i].cap;                                \
-			if (cheri_gettype(cap) == cheri_gettype(cap_slot))                                  \
+			if (cheri_gettag(cap_slot) && cheri_gettype(cap) == cheri_gettype(cap_slot))        \
 				return &storage_##NAME[i];                                                      \
 		}                                                                                       \
 		return NULL;                                                                            \
@@ -56,8 +59,11 @@ void cherijni_obj_init() {
 		size_t i;                                                                               \
 		for (i = 0; i < storage_##NAME##_length; i++) {                                         \
 			__capability void *cap_slot = storage_##NAME[i].cap;                                \
-			if (!cheri_gettag(cap_slot))                                                        \
+			if (!cheri_gettag(cap_slot)) {                                                      \
+				if (i >= storage_##NAME##_used)                                                 \
+					storage_##NAME##_used = i + 1;                                              \
 				return &storage_##NAME[i];                                                      \
+			}                                                                                   \
 		}                                                                                       \
 		printf("[SANDBOX ERROR: storage for %s is full!]\n", #NAME);                            \
 		return NULL;                                                                            \
@@ -81,9 +87,18 @@ void cherijni_obj_init() {
 STORAGE_FIND_COMPARETYPE(jobject)
 STORAGE_EMPTYSLOT(jobject)
 
-jobject cherijni_jobject_store(__capability void *cobj) {
+jobject cherijni_jobject_store(__capability void *cobj, jboolean isGlobal) {
 	STORAGE_STORE_COMMON(jobject)
+	newslot->isGlobal = isGlobal;
 	return newslot;
+}
+
+void cherijni_jobject_clearLocal() {
+	size_t i;
+	for (i = 0; i < storage_jobject_used; i++) {
+		if (storage_jobject[i].isGlobal == JNI_FALSE)
+			storage_jobject[i].cap = cheri_zerocap();
+	}
 }
 
 STORAGE_FIND_COMPARECAP(jfieldID)
