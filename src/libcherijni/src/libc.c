@@ -58,7 +58,10 @@ int open(const char *path, int flags, ...) {
 		STUB_ERRNO
 	}
 
-	return cherijni_fd_store(cap_fd, fileno);
+	if (cherijni_fd_store(cap_fd, fileno))
+		return fileno;
+	else
+		return -1;
 }
 
 int close(int fd) {

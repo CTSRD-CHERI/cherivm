@@ -1089,3 +1089,14 @@ extern void getTimeoutRelative(struct timespec *ts, long long millis,
 /* sig */
 
 extern int sigElement2Size(char element);
+
+/* capability counter */
+
+#ifdef JNI_CHERI
+
+struct cap_counter {
+	uintptr_t base;
+	uintptr_t length;
+};
+
+#endif

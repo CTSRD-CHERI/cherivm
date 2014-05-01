@@ -68,6 +68,46 @@ struct cherijni_sandbox {
         struct sandbox_object   *objectp;
 };
 
+struct cap_counter cap_counter_new() {
+	struct cap_counter counter;
+	counter.base = 1;
+	counter.length = 0;
+	return counter;
+}
+
+struct cap_counter cap_counter_fromcap(__capability void *cap) {
+	struct cap_counter counter;
+	counter.base = cheri_getbase(cap);
+	counter.length = cheri_getlen(cap);
+	return counter;
+}
+
+void cap_counter_inc(struct cap_counter *counter) {
+	uintptr_t max_length = cheri_getlen(cheri_getdefault());
+	if (counter->base + counter->length < max_length)
+		counter->length++;
+	else {
+		counter->base++;
+		counter->length = 0;
+	}
+}
+
+int cap_counter_compare(struct cap_counter *c1, struct cap_counter *c2) {
+	if (c1->base > c2->base)
+		return 1;
+
+	if (c1->base < c2->base)
+		return -1;
+
+	if (c1->length > c2->length)
+		return 1;
+
+	if (c1->length < c2->length)
+		return -1;
+
+	return 0;
+}
+
 #define DEFINE_SEAL_VARS(NAME)                                \
         static uintptr_t          type_##NAME;                      \
         static __capability void *sealcap_##NAME;                   \
@@ -96,7 +136,7 @@ static inline __capability void *cherijni_seal(void *data, register_t len, __cap
 		return cheri_sealdata(cheri_ptrperm(data, len, CHERI_PERM_LOAD), sealcap);
 }
 
-static inline void *cherijni_unseal(__capability void *objcap, __capability void *sealcap) {
+static inline __capability void *cherijni_unseal(__capability void *objcap, __capability void *sealcap) {
 	if (objcap == CNULL)
 		return NULL;
 
@@ -118,8 +158,8 @@ static inline void *cherijni_unseal(__capability void *objcap, __capability void
 		return NULL;
 	}
 
-	// unseal, convert to a pointer, return
-	return (void*) cheri_unseal(objcap, sealcap);
+	// unseal, return
+	return cheri_unseal(objcap, sealcap);
 }
 
 char *cherijni_libName(char *name) {
@@ -186,57 +226,57 @@ jint cherijni_callOnLoadUnload(void *handle, void *ptr, JavaVM *jvm, void *reser
 	return res;
 }
 
-#define arg_cap(cap, len, perm)            checkSandboxCapability_##perm(cap, len)
-#define arg_ptr(cap, len, perm)            convertSandboxPointer(arg_cap(cap, len, perm))
-#define arg_str(ptr, len, perm)            ((const char*) arg_ptr(ptr, len, perm)) // TODO: check it ends with a zero
-#define arg_obj(cap)    cap_unseal(pObject, JavaObject, cap)
-#define arg_class(cap)  checkIsClass(arg_obj(cap))
-#define arg_file(cap)   cap_unseal(pFILE, FILE, cap)
-#define arg_mid(cap)    cap_unseal(pMethodBlock, MethodID, cap)
-#define return_obj(obj)    cap_seal(JavaObject, obj)
-#define return_mid(field)  cap_seal(MethodID, field)
-#define return_fid(field)  cap_seal(FieldID, field)
-#define return_file(file)  cap_seal(FILE, file)
-#define return_str(str)    cap_string(str)
+#define arg_cap(cap, len, perm)       checkSandboxCapability_##perm(cap, len)
+#define arg_ptr(cap, len, perm)       ((void*) arg_cap(cap, len, perm))
+#define arg_str(ptr, len, perm)       ((const char*) arg_ptr(ptr, len, perm)) // TODO: check it ends with a zero
+#define arg_obj(cap)                  cap_unseal(pObject, JavaObject, cap)
+#define arg_class(cap)                checkIsClass(arg_obj(cap))
+#define arg_file(cap)                 cap_unseal(pFILE, FILE, cap)
+#define arg_mid(cap)                  cap_unseal(pMethodBlock, MethodID, cap)
+#define return_obj(obj)               cap_seal(JavaObject, obj)
+#define return_mid(field)             cap_seal(MethodID, field)
+#define return_fid(field)             cap_seal(FieldID, field)
+#define return_file(file)             cap_seal(FILE, file)
+#define return_str(str)               cap_string(str)
 
-#define FD_COUNTER_BITS 48
-#define FD_DESC_BITS    16
-#define FD_COUNT (1 << FD_DESC_BITS)
+#define FD_COUNT (1 << 16)
 
-static register_t FDs[FD_COUNT];
+static struct cap_counter FDs[FD_COUNT];
 
 static inline __capability void *return_fd(int fd) {
-	uintptr_t fd_counter = FDs[fd];
-	uintptr_t fd_repr = (fd_counter << FD_DESC_BITS) | fd;
-	uintptr_t fd_repr_max = cheri_getlen(cheri_getdefault()) - 1;
-
-	if (fd_repr >= fd_repr_max) {
-		jam_printf("ERROR: cannot represent FD (id,counter) pair in capability!\n");
-		return CNULL;
-	}
-
-	return cap_seal_len(FD, (void*) (fd_repr + 1), 1);
+	struct cap_counter fd_counter = FDs[fd];
+	__capability void *sealcap = cheri_ptrtype(&FDs[fd], sizeof(uintptr_t), 0);
+	__capability void *result = cherijni_seal(fd_counter.base, fd_counter.length, sealcap);
+	return result;
 }
 
 static inline int arg_fd(__capability void *cap) {
-	uintptr_t fd_repr = cap_unseal(uintptr_t, FD, cap);
-	if (fd_repr == 0)
+	uintptr_t type_size = sizeof(FDs[0]);
+
+	uintptr_t type_start = (uintptr_t) FDs;
+	uintptr_t type_end = type_start + type_size * FD_COUNT;
+
+	uintptr_t type_cap = cheri_gettype(cap);
+	uintptr_t type_cap_offset = type_cap - type_start;
+
+	if (type_cap < type_start || type_cap >= type_end || (type_cap_offset % type_size) != 0) {
+		jam_printf("Warning: sandbox provided an invalid file-descriptor capability (wrong type)");
 		return -1;
-	fd_repr--;
+	}
 
-	uintptr_t fd = fd_repr & (FD_COUNT - 1);
-	uintptr_t fd_counter = fd_repr >> FD_DESC_BITS;
+	int fd = type_cap_offset / type_size;
+	struct cap_counter fd_counter = cap_counter_fromcap(cap);
 
-	if (FDs[fd] == fd_counter)
+	if (cap_counter_compare(&FDs[fd], &fd_counter) == 0)
 		return fd;
 	else {
-		jam_printf("Warning: sandbox provided a revoked file descriptor (fd=%d, counter: %d < %d)\n", fd, fd_counter, FDs[fd]);
+		jam_printf("Warning: sandbox provided a revoked file descriptor (fd=%d, counter: %d|%d != %d|%d)\n", fd, fd_counter.base, fd_counter.length, FDs[fd].base, FDs[fd].length);
 		return -1;
 	}
 }
 
 static inline void revoke_fd(int fd) {
-	FDs[fd]++;
+	cap_counter_inc(&FDs[fd]);
 }
 
 static inline void copyToSandbox(__capability char *dest, const char *src, size_t len) {
@@ -274,14 +314,6 @@ static inline __capability void *checkSandboxCapability(__capability void *cap, 
 	}
 
 	return cap;
-}
-
-static inline void *convertSandboxPointer(__capability void *cap) {
-	// NULL capability?
-	if (cap == CNULL)
-		return NULL;
-
-	return (void*) cap;
 }
 
 static inline __capability void *checkSandboxCapability_r(__capability void *cap, size_t min_length) {
@@ -1143,7 +1175,9 @@ void initialiseCheriJNI() {
 	INIT_SEAL(FILE);
 	INIT_SEAL(FD);
 
-	memset(FDs, 0, FD_COUNT * sizeof(uintptr_t));
+	int i;
+	for (i = 0; i < FD_COUNT; i++)
+		FDs[i] = cap_counter_new();
 
     class_String = findSystemClass0(SYMBOL(java_lang_String));
     class_Buffer = findSystemClass0(SYMBOL(java_nio_Buffer));

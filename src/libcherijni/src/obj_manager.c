@@ -1,31 +1,10 @@
 #include "guest.h"
 
-#define DEFAULT_OBJ_COUNT    2048
+#define DEFAULT_OBJ_COUNT    128
 
 #define STORAGE_DEF(NAME)                                                                       \
 	cherijni_objtype_##NAME *storage_##NAME = NULL;                                             \
 	size_t                   storage_##NAME##_length = 0;                                       \
-	                                                                                            \
-	cherijni_objtype_##NAME *cherijni_obj_##NAME##_find(__capability void *cap) {               \
-		size_t i;                                                                               \
-		for (i = 0; i < storage_##NAME##_length; i++) {                                         \
-			__capability void *cap_slot = storage_##NAME[i].cap;                                \
-			if (cap == cap_slot)                                                                \
-				return &storage_##NAME[i];                                                      \
-		}                                                                                       \
-		return NULL;                                                                            \
-	}                                                                                           \
-	                                                                                            \
-	cherijni_objtype_##NAME *cherijni_obj_##NAME##_emptyslot() {                                \
-		size_t i;                                                                               \
-		for (i = 0; i < storage_##NAME##_length; i++) {                                         \
-			__capability void *cap_slot = storage_##NAME[i].cap;                                \
-			if (!cheri_gettag(cap_slot))                                                        \
-				return &storage_##NAME[i];                                                      \
-		}                                                                                       \
-		printf("[SANDBOX ERROR: storage for %s is full!]\n", #NAME);                            \
-		return NULL;                                                                            \
-	}
 
 #define STORAGE_INIT(NAME)                                                           \
 	{                                                                                \
@@ -50,6 +29,29 @@ void cherijni_obj_init() {
 	STORAGE_INIT(pFILE);
 }
 
+#define STORAGE_FIND(NAME)                                                                      \
+	cherijni_objtype_##NAME *cherijni_obj_##NAME##_find(__capability void *cap) {               \
+		size_t i;                                                                               \
+		for (i = 0; i < storage_##NAME##_length; i++) {                                         \
+			__capability void *cap_slot = storage_##NAME[i].cap;                                \
+			if (cap == cap_slot)                                                                \
+				return &storage_##NAME[i];                                                      \
+		}                                                                                       \
+		return NULL;                                                                            \
+	}                                                                                           \
+
+#define STORAGE_EMPTYSLOT(NAME)                                                                 \
+	cherijni_objtype_##NAME *cherijni_obj_##NAME##_emptyslot() {                                \
+		size_t i;                                                                               \
+		for (i = 0; i < storage_##NAME##_length; i++) {                                         \
+			__capability void *cap_slot = storage_##NAME[i].cap;                                \
+			if (!cheri_gettag(cap_slot))                                                        \
+				return &storage_##NAME[i];                                                      \
+		}                                                                                       \
+		printf("[SANDBOX ERROR: storage for %s is full!]\n", #NAME);                            \
+		return NULL;                                                                            \
+	}
+
 #define STORAGE_STORE_COMMON(NAME)                                             \
 	if (!cheri_gettag(cobj) || cobj == CNULL)                                  \
 		return NULL;                                                           \
@@ -65,15 +67,24 @@ void cherijni_obj_init() {
 	newslot->cap = cobj;
 
 
+STORAGE_FIND(jobject)
+STORAGE_EMPTYSLOT(jobject)
+
 jobject cherijni_jobject_store(__capability void *cobj) {
 	STORAGE_STORE_COMMON(jobject)
 	return newslot;
 }
 
+STORAGE_FIND(jfieldID)
+STORAGE_EMPTYSLOT(jfieldID)
+
 jfieldID cherijni_jfieldID_store(__capability void *cobj) {
 	STORAGE_STORE_COMMON(jfieldID)
 	return newslot;
 }
+
+STORAGE_FIND(jmethodID)
+STORAGE_EMPTYSLOT(jmethodID)
 
 jmethodID cherijni_jmethodID_store(__capability void *cobj, const char *sig) {
 	STORAGE_STORE_COMMON(jmethodID)
@@ -81,17 +92,25 @@ jmethodID cherijni_jmethodID_store(__capability void *cobj, const char *sig) {
 	return newslot;
 }
 
-int cherijni_fd_store(__capability void *cobj, int fd) {
+cherijni_objtype_fd *cherijni_obj_fd_find(__capability void *cap) {
+	/* open() should always return a fresh capability */
+	return NULL;
+}
+
+STORAGE_EMPTYSLOT(fd)
+
+void *cherijni_fd_store(__capability void *cobj, int fd) {
 	STORAGE_STORE_COMMON(fd)
 	newslot->fd = fd;
-	return fd;
+	return newslot;
 }
 
 __capability void *cherijni_fd_load(int fd) {
 	size_t i;
-	for (i = 0; i < storage_fd_length; i++)
+	for (i = 0; i < storage_fd_length; i++) {
 		if (storage_fd[i].fd == fd)
 			return storage_fd[i].cap;
+	}
 	return CNULL;
 }
 
@@ -103,6 +122,9 @@ void cherijni_fd_delete(int fd) {
 			return;
 		}
 }
+
+STORAGE_FIND(pFILE)
+STORAGE_EMPTYSLOT(pFILE)
 
 pFILE cherijni_pFILE_store(__capability void *cobj, short fileno) {
 	STORAGE_STORE_COMMON(pFILE)

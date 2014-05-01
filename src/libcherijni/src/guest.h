@@ -88,7 +88,7 @@ typedef struct {
 extern jobject cherijni_jobject_store(__capability void *cap);
 extern jfieldID cherijni_jfieldID_store(__capability void *cap);
 extern jmethodID cherijni_jmethodID_store(__capability void *cap, const char *sig);
-extern int cherijni_fd_store(__capability void *cap, int fd);
+extern void *cherijni_fd_store(__capability void *cap, int fd);
 extern pFILE cherijni_pFILE_store(__capability void *cap, short fileno);
 
 extern __capability void *cherijni_fd_load(int fd);
