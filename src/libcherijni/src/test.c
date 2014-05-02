@@ -110,9 +110,29 @@ void cherijni_runTests(JNIEnv *env) {
 				TEST_FAILED_REASON("couldn't create string");
 			else {
 				(*env)->PopLocalFrame(env, NULL);
-				(*env)->PopLocalFrame(env, NULL);
 				if ((*env)->GetStringUTFLength(env, str) > 0)
 					TEST_FAILED_REASON("old ref accepted");
+				else
+					TEST_PASSED;
+			}
+		}
+	} else
+		TEST_FAILED;
+
+	TEST_START("Remaining LocalRefs are not invalidated");
+	if ((*env)->FindClass && (*env)->PushLocalFrame && (*env)->PopLocalFrame && (*env)->NewLocalRef && (*env)->NewStringUTF && (*env)->GetStringUTFLength) {
+		jobject str = (*env)->NewStringUTF(env, "Testing...");
+		if (str == NULL)
+			TEST_FAILED_REASON("couldn't create string");
+		else {
+			int success = (*env)->PushLocalFrame(env, 16);
+			if (success < 0)
+				TEST_FAILED_REASON("couldn't create local frame");
+			else {
+				jobject str2 = (*env)->NewLocalRef(env, str2);
+				(*env)->PopLocalFrame(env, NULL);
+				if ((*env)->GetStringUTFLength(env, str) == 0)
+					TEST_FAILED_REASON("old ref not accepted");
 				else
 					TEST_PASSED;
 			}

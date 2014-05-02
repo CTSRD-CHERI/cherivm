@@ -324,6 +324,8 @@ static inline void revoke_fd(int fd) {
 	cap_counter_inc(&FDs[fd]);
 }
 
+// TODO: rename this to REF, it's not an object!!!
+
 RETURN_FUNC(obj_local, pObject obj, obj->cap_counter_local, obj)
 
 static inline __capability void *return_obj(pObject obj) {
@@ -369,6 +371,18 @@ static inline pObject arg_obj(__capability void *cap) {
 
 	jam_printf("Warning: sandbox provided an unsupported type of object capability\n");
 	return NULL;
+}
+
+static inline void revoke_obj(jobject ref) {
+	pObject obj = REF_TO_OBJ(ref);
+	if (obj == NULL)
+		return;
+
+	switch (REF_TYPE(ref)) {
+	case LOCAL_REF:
+		cap_counter_inc(&obj->cap_counter_local);
+		break;
+	}
 }
 
 static inline void copyToSandbox(__capability char *dest, const char *src, size_t len) {
@@ -491,13 +505,30 @@ uintptr_t *cherijni_callMethod(void* handle, void *native_func, pClass class, ch
 #define FRAMETYPE_JAVA  1
 #define FRAMETYPE_JNI   2
 
-int getFrameType(Frame *frame) {
+static int getFrameType(Frame *frame) {
 	if (frame->mb == NULL)
 		return FRAMETYPE_DUMMY;
 	else if (frame->mb->access_flags & ACC_NATIVE)
 		return FRAMETYPE_JNI;
 	else
 		return FRAMETYPE_JAVA;
+}
+
+static int lrefValidAfterPop(pObject obj) {
+	JNIFrame *frame = (JNIFrame*) getExecEnv()->last_frame;
+	pObject *lref;
+
+	while (frame->depth > 0) {
+		// retrieve previous JNI Lref frame
+		frame = (JNIFrame*)frame->lrefs - 1;
+
+		// walk its lrefs, return TRUE if it has the object
+	    for(lref = frame->lrefs; lref < frame->next_ref; lref++)
+	        if(*lref == obj)
+	        	return TRUE;
+	}
+
+	return FALSE;
 }
 
 #define JNI_FUNCTION_PRIM(NAME)     static register_t          JNI_##NAME (register_t a1, register_t a2, register_t a3, register_t a4, register_t a5, register_t a6, register_t a7, __capability void *c1, __capability void *c2, __capability void *c3, __capability void *c4, __capability void *c5)
@@ -553,10 +584,17 @@ JNI_FUNCTION_PRIM(PushLocalFrame) {
 }
 
 JNI_FUNCTION_CAP(PopLocalFrame) {
-	if (getExecEnv()->last_frame->depth == 0) {
+	JNIFrame *frame = getExecEnv()->last_frame;
+	pObject *lref;
+
+	if (frame->depth == 0) {
 		jam_printf("Warning: sandbox attempted to pop the root JNI frame\n");
 		return CNULL;
 	}
+
+    for(lref = frame->lrefs; lref < frame->next_ref; lref++)
+    	if (!lrefValidAfterPop(*lref))
+    		revoke_obj(*lref);
 
 	pObject obj = arg_obj(c1);
 	pObject result = (*env)->PopLocalFrame(env, obj);
