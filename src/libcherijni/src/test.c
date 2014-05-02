@@ -110,6 +110,7 @@ void cherijni_runTests(JNIEnv *env) {
 				TEST_FAILED_REASON("couldn't create string");
 			else {
 				(*env)->PopLocalFrame(env, NULL);
+				(*env)->PopLocalFrame(env, NULL);
 				if ((*env)->GetStringUTFLength(env, str) > 0)
 					TEST_FAILED_REASON("old ref accepted");
 				else

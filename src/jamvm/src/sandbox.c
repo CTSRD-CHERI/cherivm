@@ -465,6 +465,9 @@ uintptr_t *cherijni_callMethod(void* handle, void *native_func, pClass class, ch
 	else                 cap_this = return_obj(class);
 	fillArguments(sig, _ostack, args_prim, args_cap);
 
+	/* Set JNI frame depth to zero */
+	getExecEnv()->last_frame->depth = 0;
+
 	/* Invoke JNI method */
 
 	if (returnType == RETURNTYPE_OBJECT) {
@@ -482,6 +485,19 @@ uintptr_t *cherijni_callMethod(void* handle, void *native_func, pClass class, ch
 	}
 
 	return ostack;
+}
+
+#define FRAMETYPE_DUMMY 0
+#define FRAMETYPE_JAVA  1
+#define FRAMETYPE_JNI   2
+
+int getFrameType(Frame *frame) {
+	if (frame->mb == NULL)
+		return FRAMETYPE_DUMMY;
+	else if (frame->mb->access_flags & ACC_NATIVE)
+		return FRAMETYPE_JNI;
+	else
+		return FRAMETYPE_JAVA;
 }
 
 #define JNI_FUNCTION_PRIM(NAME)     static register_t          JNI_##NAME (register_t a1, register_t a2, register_t a3, register_t a4, register_t a5, register_t a6, register_t a7, __capability void *c1, __capability void *c2, __capability void *c3, __capability void *c4, __capability void *c5)
@@ -531,10 +547,17 @@ JNI_FUNCTION_PRIM(ExceptionClear) {
 
 JNI_FUNCTION_PRIM(PushLocalFrame) {
 	jint capacity = a1;
-	return (*env)->PushLocalFrame(env, capacity);
+	jint result = (*env)->PushLocalFrame(env, capacity);
+	getExecEnv()->last_frame->depth++;
+    return result;
 }
 
 JNI_FUNCTION_CAP(PopLocalFrame) {
+	if (getExecEnv()->last_frame->depth == 0) {
+		jam_printf("Warning: sandbox attempted to pop the root JNI frame\n");
+		return CNULL;
+	}
+
 	pObject obj = arg_obj(c1);
 	pObject result = (*env)->PopLocalFrame(env, obj);
 	return return_obj(result);

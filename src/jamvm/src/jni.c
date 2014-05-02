@@ -189,6 +189,9 @@ JNIFrame *pushJNILrefFrame(int cap) {
     new_frame->ostack = (uintptr_t*)(new_frame + 1);
     new_frame->prev = frame->prev;
     new_frame->mb = frame->mb;
+#ifdef JNI_CHERI
+    new_frame->depth = frame->depth;
+#endif
 
     memset(frame + 1, 0, cap * sizeof(pObject));
     ee->last_frame = (Frame*)new_frame;

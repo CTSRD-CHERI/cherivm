@@ -623,6 +623,9 @@ typedef struct frame {
    uintptr_t *lvars;
    uintptr_t *ostack;
    pMethodBlock mb;
+#ifdef JNI_CHERI
+   uintptr_t depth;
+#endif
    struct frame *prev;
 } Frame;
 
@@ -631,6 +634,9 @@ typedef struct jni_frame {
    pObject *lrefs;
    uintptr_t *ostack;
    pMethodBlock mb;
+#ifdef JNI_CHERI
+   uintptr_t depth;
+#endif
    struct frame *prev;
 } JNIFrame;
 
