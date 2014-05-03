@@ -434,8 +434,36 @@ static inline jobject arg_jniref(__capability void *cap) {
 }
 
 static inline void revoke_ref(pRef ref) {
-	if (ref != NULL)
-		ref->counter--;
+	if (ref == NULL)
+		return;
+
+	if (ref->counter == 0) {
+		jam_printf("[ERROR: Asked to revoke an already revoked reference]\n");
+		exitVM(1);
+	}
+
+//	printf("[REVOKE: ref %s @ %p | %lu => %lu]\n", CLASS_CB(REF_TO_OBJ(ref->jni_ref)->class)->name, ref->jni_ref, ref->counter, ref->counter - 1);
+	ref->counter--;
+}
+
+static inline void revoke_jniref(jobject jniref) {
+	size_t i;
+	pRef slot;
+	GET_SANDBOX_HANDLE()
+
+	if (jniref == NULL)
+		return;
+
+	// check if the reference has a slot
+	for (i = 0, slot = sandbox->refs; i < sandbox->refs_size; i++, slot++) {
+		if (slot->jni_ref == jniref) {
+			revoke_ref(slot);
+			return;
+		}
+	}
+
+	jam_printf("[ERROR: Asked to revoke non-existent JNI reference %p]\n", jniref);
+	exitVM(1);
 }
 
 static inline void copyToSandbox(__capability char *dest, const char *src, size_t len) {
@@ -488,33 +516,12 @@ static int getFrameType(Frame *frame) {
 		return FRAMETYPE_JAVA;
 }
 
-//static int lrefValidAfterPop(pObject obj) {
-//	JNIFrame *frame = (JNIFrame*) getExecEnv()->last_frame;
-//	pObject *lref;
-//
-//	while (frame->depth > 0) {
-//		// retrieve previous JNI Lref frame
-//		frame = (JNIFrame*)frame->lrefs - 1;
-//
-//		// walk its lrefs, return TRUE if it has the object
-//	    for(lref = frame->lrefs; lref < frame->next_ref; lref++)
-//	        if(*lref == obj)
-//	        	return TRUE;
-//	}
-//
-//	return FALSE;
-//}
-
-//static void revokeLrefsInFrame() {
-//	JNIFrame *frame = getExecEnv()->last_frame;
-//	pObject *lref;
-//
-//    for(lref = frame->lrefs; lref < frame->next_ref; lref++)
-//    	if (!lrefValidAfterPop(*lref)) {
-//    		printf("[REVOKE: %p]\n", *lref);
-//    		revoke_obj(*lref);
-//    	}
-//}
+static void revokeLrefsInFrame(JNIFrame *frame) {
+	pObject *lref;
+//	printf("[REVOKE FRAME: lrefs=%p next_ref=%p len=%lu]\n", frame->lrefs, frame->next_ref, ((uintptr_t)frame->next_ref - (uintptr_t)frame->lrefs) / sizeof(jobject));
+	for(lref = frame->lrefs; lref < frame->next_ref; lref++)
+		revoke_jniref(*lref);
+}
 
 /*
  * XXX: HACKISH!!! Bypassing cheri_sandbox_cinvoke
@@ -543,15 +550,18 @@ static register_t invoke_returnPrim(void *handle, void *native_func, __capabilit
 	return res;
 }
 
-static void fillArguments(char *sig, uintptr_t *_ostack, register_t *_pPrimitiveArgs, __capability void **_pObjectArgs, int ref_type) {
+static void fillArguments(char *sig, uintptr_t *_ostack, register_t *_pPrimitiveArgs, __capability void **_pObjectArgs) {
 	scanSignature(sig,
 		/* single primitives */ { *(_pPrimitiveArgs++) = *(_ostack++); },
 		/* double primitives */ { *(_pPrimitiveArgs++) = *(_ostack++); _ostack++; },
-		/* objects           */ { *(_pObjectArgs++) = return_jniref(OBJ_TO_REF((jobject) *_ostack, ref_type)); _ostack++; },
+		/* objects           */ { jobject newref = OBJ_TO_REF((jobject) *_ostack, LOCAL_REF);
+		                          *(_pObjectArgs++) = return_jniref(newref);
+		                          (*env)->NewLocalRef(env, newref);
+		                          _ostack++; },
 		/* return values     */ { }, { }, { }, { });
 }
 
-uintptr_t *cherijni_callMethod(void* handle, void *native_func, pClass class, char *sig, uintptr_t *ostack) {
+uintptr_t *cherijni_callMethod(pMethodBlock mb, pClass class, uintptr_t *ostack) {
 	__capability void *cap_this;
 	uintptr_t *_ostack = ostack;
 	size_t cPrimitiveArgs = 0, cObjectArgs = 0, returnType;
@@ -559,7 +569,7 @@ uintptr_t *cherijni_callMethod(void* handle, void *native_func, pClass class, ch
 	__capability void *args_cap [6] = {CNULL, CNULL, CNULL, CNULL, CNULL, CNULL};
 
 	/* Count the arguments */
-	scanSignature(sig,
+	scanSignature(mb->type,
 		/* single primitives */ { (cPrimitiveArgs++); },
 		/* double primitives */ { (cPrimitiveArgs++); },
 		/* objects           */ { (cObjectArgs++); },
@@ -570,22 +580,28 @@ uintptr_t *cherijni_callMethod(void* handle, void *native_func, pClass class, ch
 
 	// TODO: check number of arguments
 
+	/* Set JNI frame depth to zero */
+	if ((*env)->PushLocalFrame(env, 16) == JNI_ERR) {
+		jam_printf("[ERROR: Could not a new frame for CheriJNI call. Exiting...]\n");
+		exitVM(1);
+	}
+	getExecEnv()->last_frame->depth = 0;
+
 	/* Prepare arguments */
 	if (class == NULL) { cap_this = return_jniref(OBJ_TO_REF((jobject) *_ostack, LOCAL_REF)); _ostack++; }
 	else                 cap_this = return_jniref(OBJ_TO_REF(class, LOCAL_REF));
-	fillArguments(sig, _ostack, args_prim, args_cap, LOCAL_REF);
-
-	/* Set JNI frame depth to zero */
-	getExecEnv()->last_frame->depth = 0;
+	fillArguments(mb->type, _ostack, args_prim, args_cap);
 
 	/* Invoke JNI method */
 
+	void *handle = mb->sandbox_handle;
+	void *native_func = mb->code;
 	if (returnType == RETURNTYPE_OBJECT) {
-		__capability void *cap_result = invoke_returnCap(handle, native_func, cap_string(sig), cap_this, args_prim, args_cap);
+		__capability void *cap_result = invoke_returnCap(handle, native_func, cap_string(mb->type), cap_this, args_prim, args_cap);
 		pObject result_obj = REF_TO_OBJ(arg_jniref(cap_result));
 		*(ostack++) = (uintptr_t) result_obj;
 	} else {
-		register_t result = invoke_returnPrim(handle, native_func, cap_string(sig), cap_this, args_prim, args_cap);
+		register_t result = invoke_returnPrim(handle, native_func, cap_string(mb->type), cap_this, args_prim, args_cap);
 		if (returnType == RETURNTYPE_SINGLE)
 			*(ostack++) = result;
 		else if (returnType == RETURNTYPE_DOUBLE) {
@@ -594,8 +610,14 @@ uintptr_t *cherijni_callMethod(void* handle, void *native_func, pClass class, ch
 		}
 	}
 
-	// TODO: walk all the JNI frames, don't care about validAfterPop (that would make it N^2)
-	// revokeLrefsInFrame();
+	while(TRUE) {
+		JNIFrame *frame = (JNIFrame*) getExecEnv()->last_frame;
+		revokeLrefsInFrame(frame);
+		if (frame->depth == 0)
+			break;
+		else
+			(*env)->PopLocalFrame(env, NULL);
+	}
 
 	return ostack;
 }
@@ -659,9 +681,10 @@ JNI_FUNCTION_CAP(PopLocalFrame) {
 		return CNULL;
 	}
 
-	// revokeLrefsInFrame();
 	jobject ref = arg_jniref(c1);
+	revokeLrefsInFrame(frame);
 	jobject result = (*env)->PopLocalFrame(env, ref);
+	// TODO: should it increase the counter?
 	return return_jniref(result);
 }
 
@@ -670,11 +693,17 @@ JNI_FUNCTION_PRIM(DeleteLocalRef) {
 	if (localRef == NULL || localRef->jni_ref == NULL || REF_TYPE(localRef->jni_ref) != LOCAL_REF)
 		return CHERI_FAIL;
 
-	// TODO: fix DeleteLocalRef
-	(*env)->DeleteLocalRef(env, localRef->jni_ref);
-	revoke_ref(localRef);
-
-	return CHERI_SUCCESS;
+	/*
+	 * Attempt to delete a local ref from the current frame.
+	 * If successful, decrement the reference counter.
+	 */
+	if (delJNILref(localRef->jni_ref)) {
+		revoke_ref(localRef);
+		return CHERI_SUCCESS;
+	} else {
+		jam_printf("Warning: sandbox requested to delete a local ref not present in its current frame\n");
+		return CHERI_FAIL;
+	}
 }
 
 JNI_FUNCTION_PRIM(IsInstanceOf) {

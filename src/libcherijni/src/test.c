@@ -99,27 +99,22 @@ void cherijni_runTests(JNIEnv *env) {
 	} else
 		TEST_FAILED;
 
-	TEST_START("LocalRefs are invalidated");
-	if ((*env)->FindClass && (*env)->PushLocalFrame && (*env)->PopLocalFrame && (*env)->NewStringUTF && (*env)->GetStringUTFLength) {
-		int success = (*env)->PushLocalFrame(env, 16);
-		if (success < 0)
-			TEST_FAILED_REASON("couldn't create local frame");
+	TEST_START("DeleteLocalRef");
+	if ((*env)->FindClass && (*env)->DeleteLocalRef && (*env)->NewStringUTF && (*env)->GetStringUTFLength) {
+		jobject str = (*env)->NewStringUTF(env, "Testing...");
+		if (str == NULL)
+			TEST_FAILED_REASON("couldn't create string");
 		else {
-			jobject str = (*env)->NewStringUTF(env, "Testing...");
-			if (str == NULL)
-				TEST_FAILED_REASON("couldn't create string");
-			else {
-				(*env)->PopLocalFrame(env, NULL);
-				if ((*env)->GetStringUTFLength(env, str) > 0)
-					TEST_FAILED_REASON("old ref accepted");
-				else
-					TEST_PASSED;
-			}
-		}
-	} else
-		TEST_FAILED;
+			(*env)->DeleteLocalRef(env, str);
+			if ((*env)->GetStringUTFLength(env, str) > 0)
+				TEST_FAILED_REASON("old ref accepted");
+			else
+				TEST_PASSED;
+	 		}
+	 	} else
+	 		TEST_FAILED;
 
-	TEST_START("Remaining LocalRefs are not invalidated");
+	TEST_START("PopLocalFrame (more refs)");
 	if ((*env)->FindClass && (*env)->PushLocalFrame && (*env)->PopLocalFrame && (*env)->NewLocalRef && (*env)->NewStringUTF && (*env)->GetStringUTFLength) {
 		jobject str = (*env)->NewStringUTF(env, "Testing...");
 		if (str == NULL)
@@ -133,6 +128,26 @@ void cherijni_runTests(JNIEnv *env) {
 				(*env)->PopLocalFrame(env, NULL);
 				if ((*env)->GetStringUTFLength(env, str) == 0)
 					TEST_FAILED_REASON("old ref not accepted");
+				else
+					TEST_PASSED;
+			}
+		}
+	} else
+		TEST_FAILED;
+
+	TEST_START("PopLocalFrame (last ref)");
+	if ((*env)->FindClass && (*env)->PushLocalFrame && (*env)->PopLocalFrame && (*env)->NewStringUTF && (*env)->GetStringUTFLength) {
+		int success = (*env)->PushLocalFrame(env, 16);
+		if (success < 0)
+			TEST_FAILED_REASON("couldn't create local frame");
+		else {
+			jobject str = (*env)->NewStringUTF(env, "Testing...");
+			if (str == NULL)
+				TEST_FAILED_REASON("couldn't create string");
+			else {
+				(*env)->PopLocalFrame(env, NULL);
+				if ((*env)->GetStringUTFLength(env, str) > 0)
+					TEST_FAILED_REASON("old ref accepted");
 				else
 					TEST_PASSED;
 			}

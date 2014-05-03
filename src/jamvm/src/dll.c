@@ -490,8 +490,7 @@ uintptr_t *callJNIWrapper(pClass class, pMethodBlock mb, uintptr_t *ostack) {
 
 #ifdef JNI_CHERI
     if (mb->sandbox_handle != NULL)
-    	new_ostack = cherijni_callMethod(mb->sandbox_handle, mb->code,
-    	                                 call_class, mb->type, ostack);
+    	new_ostack = cherijni_callMethod(mb, call_class, ostack);
     else
 #endif
     new_ostack = callJNIMethod(&globalJNIEnv, call_class, mb->type, mb->native_extra_arg,
