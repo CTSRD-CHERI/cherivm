@@ -64,11 +64,6 @@ struct sandbox_object {
 	struct sandbox_object_stat	*sbo_sandbox_object_statp;
 };
 
-struct cherijni_sandbox {
-        struct sandbox_class    *classp;
-        struct sandbox_object   *objectp;
-};
-
 struct cap_counter cap_counter_new() {
 	struct cap_counter counter;
 	counter.base = 1;
@@ -109,6 +104,22 @@ int cap_counter_compare(struct cap_counter *c1, struct cap_counter *c2) {
 	return 0;
 }
 
+typedef struct cherijni_reference {
+	jobject jni_ref;
+	uintptr_t counter;
+} cherijni_ref;
+
+typedef cherijni_ref *pRef;
+
+#define SANDBOX_REFS_SIZE       128
+
+struct cherijni_sandbox {
+	struct sandbox_class       *classp;
+	struct sandbox_object      *objectp;
+	cherijni_ref                refs[SANDBOX_REFS_SIZE];
+	size_t                      refs_size;
+};
+
 #define DEFINE_SEAL_VARS(NAME)                                \
         static uintptr_t          type_##NAME;                      \
         static __capability void *sealcap_##NAME;                   \
@@ -118,7 +129,7 @@ int cap_counter_compare(struct cap_counter *c1, struct cap_counter *c2) {
 #define cap_unseal(TYPE, NAME, datacap)  ((TYPE) cherijni_unseal(datacap, sealcap_##NAME))
 #define INIT_SEAL(NAME) sealcap_##NAME = cheri_ptrtype(&type_##NAME, sizeof(uintptr_t), 0); // sets PERMIT_SEAL
 
-DEFINE_SEAL_VARS(Context)
+DEFINE_SEAL_VARS(Reference)
 DEFINE_SEAL_VARS(MethodID)
 DEFINE_SEAL_VARS(FieldID)
 DEFINE_SEAL_VARS(FILE)
@@ -199,6 +210,10 @@ void *cherijni_open(char *path) {
 		return NULL;
 	}
 
+	/* Setup reference array */
+	sandbox->refs_size = SANDBOX_REFS_SIZE;
+	memset(sandbox->refs, 0, sandbox->refs_size * sizeof(cherijni_ref));
+
 	/* Run init inside sandbox */
 	struct cheri_object system = sandbox_object_getsystemobject(sandbox->objectp);
 	lockSandbox();
@@ -265,7 +280,7 @@ static inline int checkSandboxCapability_w(__capability void *cap, size_t min_le
 #define arg_cap(cap, len, perm, u)    (checkSandboxCapability_##perm(cap, len, u) ? cap : CNULL)
 #define arg_ptr(cap, len, perm)       ((void*) arg_cap(cap, len, perm, TRUE))
 #define arg_str(ptr, len, perm)       ((const char*) arg_ptr(ptr, len, perm)) // TODO: check it ends with a zero
-#define arg_class(cap)                checkIsClass(arg_obj(cap))
+#define arg_class(cap)                checkIsClass(arg_jniref(cap))
 #define arg_file(cap)                 cap_unseal(pFILE, FILE, cap)
 #define arg_mid(cap)                  cap_unseal(pMethodBlock, MethodID, cap)
 #define return_mid(field)             cap_seal(MethodID, field)
@@ -324,65 +339,100 @@ static inline void revoke_fd(int fd) {
 	cap_counter_inc(&FDs[fd]);
 }
 
-// TODO: rename this to REF, it's not an object!!!
+#define GET_SANDBOX_HANDLE(error_return)                                     \
+		struct cherijni_sandbox *sandbox;                                    \
+		Frame *frame = getExecEnv()->last_frame;                             \
+		if (frame->mb != NULL && frame->mb->sandbox_handle != NULL)          \
+			sandbox = (struct cherijni_sandbox *) frame->mb->sandbox_handle; \
+		else {                                                               \
+			jam_printf("[ERROR: cannot find sandbox handle]\n");             \
+			return error_return;                                             \
+		}
 
-RETURN_FUNC(obj_local, pObject obj, obj->cap_counter_local, obj)
-
-static inline __capability void *return_obj(pObject obj) {
-	if (obj == NULL)
+static inline __capability void *return_ref(pRef ref) {
+	if (ref == NULL)
 		return CNULL;
-
-	switch (REF_TYPE(obj)) {
-	case LOCAL_REF:
-		return return_obj_local(obj);
-	default:
-		return CNULL;
+	else {
+		ref->counter++;
+		if (ref->counter == 0) {
+			// buffer has overflown
+			jam_printf("[ERROR: Reference counter overflow. Exitting...]\n");
+			exitVM(1);
+		}
+		return cap_seal(Reference, ref);
 	}
 }
 
-static inline pObject arg_obj(__capability void *cap) {
+static inline __capability void *return_jniref(jobject jniref) {
+	size_t i;
+	pRef slot;
+	GET_SANDBOX_HANDLE(CNULL)
+
+	if (jniref == NULL)
+		return return_ref(NULL);
+
+	// check if the reference has a slot
+	for (i = 0, slot = sandbox->refs; i < sandbox->refs_size; i++, slot++) {
+		if (slot->jni_ref == jniref)
+			return return_ref(slot);
+	}
+
+	// reference doesn't exist, create it
+	for (i = 0, slot = sandbox->refs; i < sandbox->refs_size; i++, slot++) {
+		if (slot->jni_ref == NULL) {
+			slot->jni_ref = jniref;
+			slot->counter = 0;
+			return return_ref(slot);
+		}
+	}
+
+	jam_printf("[ERROR: Sandbox requested too many references. Exitting...]\n");
+	return CNULL;
+}
+
+static inline pRef arg_ref(__capability void *cap) {
+	uintptr_t offset_ref, offset_start, offset_end;
+	GET_SANDBOX_HANDLE(NULL)
+
+	if (cap == CNULL)
+		return NULL;
+
 	if (!checkSandboxCapability(cap, 0, 0, FALSE)) {
 		jam_printf("Warning: sandbox provided an invalid jobject capability\n");
 		return NULL;
 	}
 
-	if (cap == CNULL)
-		return NULL;
+	pRef ref = cap_unseal(pRef, Reference, cap);
 
-	uintptr_t type_cap = cheri_gettype(cap);
-	pObject ref = (pObject) type_cap;
-	pObject obj = REF_TO_OBJ(ref);
+	offset_ref = (uintptr_t) ref;
+	offset_start = (uintptr_t) sandbox->refs;
+	offset_end = offset_start + sandbox->refs_size * sizeof(cherijni_ref);
+	if (offset_start > offset_ref || offset_ref >= offset_end ||
+		(offset_ref - offset_start) % sizeof(cherijni_ref) != 0) {
 
-	if (!isObject(obj)) {
-		jam_printf("Warning: sandbox provided an invalid jobject capability (wrong type)\n");
+		jam_printf("Warning: sandbox provided a reference outside the reference table\n");
 		return NULL;
 	}
 
-	struct cap_counter obj_counter = cap_counter_fromcap(cap);
-
-	if (REF_TYPE(ref) == LOCAL_REF) {
-		if (cap_counter_compare(&obj->cap_counter_local, &obj_counter) == 0)
-			return ref;
-		else {
-			jam_printf("Warning: sandbox provided a revoked object capability (obj=%p, counter: %d|%d != %d|%d)\n", obj, obj_counter.base, obj_counter.length, obj->cap_counter_local.base, obj->cap_counter_local.length);
-			return NULL;
-		}
+	if (ref->jni_ref == NULL || ref->counter == 0) {
+		jam_printf("Warning: sandbox provided a revoked reference\n");
+		return NULL;
 	}
 
-	jam_printf("Warning: sandbox provided an unsupported type of object capability\n");
-	return NULL;
+	return ref;
 }
 
-static inline void revoke_obj(jobject ref) {
-	pObject obj = REF_TO_OBJ(ref);
-	if (obj == NULL)
-		return;
+static inline jobject arg_jniref(__capability void *cap) {
+	pRef ref = arg_ref(cap);
+	if (ref == NULL)
+		return NULL;
+	else
+		return ref->jni_ref;
+}
 
-	switch (REF_TYPE(ref)) {
-	case LOCAL_REF:
-		cap_counter_inc(&obj->cap_counter_local);
-		break;
-	}
+static inline void revoke_ref(pRef ref) {
+	if (ref != NULL)
+		ref->counter--;
 }
 
 static inline void copyToSandbox(__capability char *dest, const char *src, size_t len) {
@@ -397,7 +447,8 @@ static inline void copyFromSandbox(char *dest, __capability char *src, size_t le
 		dest[i] = src[i];
 }
 
-static inline pClass checkIsClass(pObject obj) {
+static inline pClass checkIsClass(jobject jniref) {
+	pObject obj = REF_TO_OBJ(jniref);
 	if (obj == NULL)
 		return NULL;
 	else if (IS_CLASS(obj))
@@ -408,9 +459,10 @@ static inline pClass checkIsClass(pObject obj) {
 	}
 }
 
-#define checkIsValid(obj, NAME) ((obj != NULL) && isInstanceOf(obj->class, class_##NAME))
+#define checkIsValid(obj, NAME) ((obj != NULL) && isInstanceOf(REF_TO_OBJ(obj)->class, class_##NAME))
 
-static inline int checkIsArray(pObject obj, char type) {
+static inline int checkIsArray(jobject ref, char type) {
+	pObject obj = REF_TO_OBJ(ref);
 	if (obj == NULL)
 		return FALSE;
 
@@ -433,33 +485,33 @@ static int getFrameType(Frame *frame) {
 		return FRAMETYPE_JAVA;
 }
 
-static int lrefValidAfterPop(pObject obj) {
-	JNIFrame *frame = (JNIFrame*) getExecEnv()->last_frame;
-	pObject *lref;
+//static int lrefValidAfterPop(pObject obj) {
+//	JNIFrame *frame = (JNIFrame*) getExecEnv()->last_frame;
+//	pObject *lref;
+//
+//	while (frame->depth > 0) {
+//		// retrieve previous JNI Lref frame
+//		frame = (JNIFrame*)frame->lrefs - 1;
+//
+//		// walk its lrefs, return TRUE if it has the object
+//	    for(lref = frame->lrefs; lref < frame->next_ref; lref++)
+//	        if(*lref == obj)
+//	        	return TRUE;
+//	}
+//
+//	return FALSE;
+//}
 
-	while (frame->depth > 0) {
-		// retrieve previous JNI Lref frame
-		frame = (JNIFrame*)frame->lrefs - 1;
-
-		// walk its lrefs, return TRUE if it has the object
-	    for(lref = frame->lrefs; lref < frame->next_ref; lref++)
-	        if(*lref == obj)
-	        	return TRUE;
-	}
-
-	return FALSE;
-}
-
-static void revokeLrefsInFrame() {
-	JNIFrame *frame = getExecEnv()->last_frame;
-	pObject *lref;
-
-    for(lref = frame->lrefs; lref < frame->next_ref; lref++)
-    	if (!lrefValidAfterPop(*lref)) {
-    		printf("[REVOKE: %p]\n", *lref);
-    		revoke_obj(*lref);
-    	}
-}
+//static void revokeLrefsInFrame() {
+//	JNIFrame *frame = getExecEnv()->last_frame;
+//	pObject *lref;
+//
+//    for(lref = frame->lrefs; lref < frame->next_ref; lref++)
+//    	if (!lrefValidAfterPop(*lref)) {
+//    		printf("[REVOKE: %p]\n", *lref);
+//    		revoke_obj(*lref);
+//    	}
+//}
 
 /*
  * XXX: HACKISH!!! Bypassing cheri_sandbox_cinvoke
@@ -488,11 +540,11 @@ static register_t invoke_returnPrim(void *handle, void *native_func, __capabilit
 	return res;
 }
 
-static void fillArguments(char *sig, uintptr_t *_ostack, register_t *_pPrimitiveArgs, __capability void **_pObjectArgs) {
+static void fillArguments(char *sig, uintptr_t *_ostack, register_t *_pPrimitiveArgs, __capability void **_pObjectArgs, int ref_type) {
 	scanSignature(sig,
 		/* single primitives */ { *(_pPrimitiveArgs++) = *(_ostack++); },
 		/* double primitives */ { *(_pPrimitiveArgs++) = *(_ostack++); _ostack++; },
-		/* objects           */ { *(_pObjectArgs++) = return_obj((pObject) *_ostack); _ostack++; },
+		/* objects           */ { *(_pObjectArgs++) = return_jniref(OBJ_TO_REF((jobject) *_ostack, ref_type)); _ostack++; },
 		/* return values     */ { }, { }, { }, { });
 }
 
@@ -516,9 +568,9 @@ uintptr_t *cherijni_callMethod(void* handle, void *native_func, pClass class, ch
 	// TODO: check number of arguments
 
 	/* Prepare arguments */
-	if (class == NULL) { cap_this = return_obj((pObject) *_ostack); _ostack++; }
-	else                 cap_this = return_obj(class);
-	fillArguments(sig, _ostack, args_prim, args_cap);
+	if (class == NULL) { cap_this = return_jniref(OBJ_TO_REF((jobject) *_ostack, LOCAL_REF)); _ostack++; }
+	else                 cap_this = return_jniref(OBJ_TO_REF(class, LOCAL_REF));
+	fillArguments(sig, _ostack, args_prim, args_cap, LOCAL_REF);
 
 	/* Set JNI frame depth to zero */
 	getExecEnv()->last_frame->depth = 0;
@@ -527,7 +579,7 @@ uintptr_t *cherijni_callMethod(void* handle, void *native_func, pClass class, ch
 
 	if (returnType == RETURNTYPE_OBJECT) {
 		__capability void *cap_result = invoke_returnCap(handle, native_func, cap_string(sig), cap_this, args_prim, args_cap);
-		pObject result_obj = arg_obj(cap_result);
+		pObject result_obj = REF_TO_OBJ(arg_jniref(cap_result));
 		*(ostack++) = (uintptr_t) result_obj;
 	} else {
 		register_t result = invoke_returnPrim(handle, native_func, cap_string(sig), cap_this, args_prim, args_cap);
@@ -540,7 +592,7 @@ uintptr_t *cherijni_callMethod(void* handle, void *native_func, pClass class, ch
 	}
 
 	// TODO: walk all the JNI frames, don't care about validAfterPop (that would make it N^2)
-	revokeLrefsInFrame();
+	// revokeLrefsInFrame();
 
 	return ostack;
 }
@@ -564,7 +616,7 @@ JNI_FUNCTION_CAP(FindClass) {
 	if (className == NULL)
 		return CNULL;
 
-	return return_obj((*env)->FindClass(env, className));
+	return return_jniref((*env)->FindClass(env, className));
 }
 
 JNI_FUNCTION_PRIM(ThrowNew) {
@@ -577,7 +629,7 @@ JNI_FUNCTION_PRIM(ThrowNew) {
 }
 
 JNI_FUNCTION_CAP(ExceptionOccurred) {
-	return return_obj((*env)->ExceptionOccurred(env));
+	return return_jniref((*env)->ExceptionOccurred(env));
 }
 
 JNI_FUNCTION_PRIM(ExceptionDescribe) {
@@ -604,22 +656,26 @@ JNI_FUNCTION_CAP(PopLocalFrame) {
 		return CNULL;
 	}
 
-	revokeLrefsInFrame();
-	pObject obj = arg_obj(c1);
-	pObject result = (*env)->PopLocalFrame(env, obj);
-	return return_obj(result);
+	// revokeLrefsInFrame();
+	jobject ref = arg_jniref(c1);
+	jobject result = (*env)->PopLocalFrame(env, ref);
+	return return_jniref(result);
 }
 
 JNI_FUNCTION_PRIM(DeleteLocalRef) {
-	pObject localRef = arg_obj(c1);
-	if (localRef == NULL)
+	pRef localRef = arg_ref(c1);
+	if (localRef == NULL || localRef->jni_ref == NULL || REF_TYPE(localRef->jni_ref) != LOCAL_REF)
 		return CHERI_FAIL;
-	(*env)->DeleteLocalRef(env, localRef);
+
+	// TODO: fix DeleteLocalRef
+	(*env)->DeleteLocalRef(env, localRef->jni_ref);
+	revoke_ref(localRef);
+
 	return CHERI_SUCCESS;
 }
 
 JNI_FUNCTION_PRIM(IsInstanceOf) {
-	pObject obj = arg_obj(c1);
+	jobject obj = arg_jniref(c1);
 	pClass clazz = arg_class(c2);
 	if (clazz == NULL)
 		return CHERI_FAIL;
@@ -662,17 +718,17 @@ static inline jvalue *prepareJniArguments(pMethodBlock mb, register_t a1, regist
 	scanSignature(mb->type,
 	/* single primitives */ { args[arg_count++].i = args_prim[args_used_prim++]; },
 	/* double primitives */ { args[arg_count++].j = args_prim[args_used_prim++]; },
-	/* objects           */ { args[arg_count++].l = arg_obj(args_cap[args_used_cap]); args_used_cap++; },
+	/* objects           */ { args[arg_count++].l = arg_jniref(args_cap[args_used_cap]); args_used_cap++; },
 	/* return values     */ { }, { }, { }, { });
 
 	return args;
 }
 
-#define VIRTUAL_METHOD_COMMON(failReturn)                                                                     \
-	pObject obj = arg_obj(c1);                                                                                \
-	pMethodBlock mb = arg_mid(c2);                                                                            \
-	if (obj == NULL || mb == NULL)                                                                            \
-		return failReturn;                                                                                    \
+#define VIRTUAL_METHOD_COMMON(failReturn)                                            \
+	jobject obj = arg_jniref(c1);                                                    \
+	pMethodBlock mb = arg_mid(c2);                                                   \
+	if (obj == NULL || mb == NULL)                                                   \
+		return failReturn;                                                           \
 	jvalue *args = prepareJniArguments(mb, a1, a2, a3, a4, a5, a6, a7, c3, c4, c5);
 
 #define VIRTUAL_METHOD_PRIM(TYPE, jtype)                                \
@@ -695,8 +751,8 @@ CALL_METHOD(VIRTUAL)
 
 JNI_FUNCTION_CAP(CallObjectMethod) {
 	VIRTUAL_METHOD_COMMON(CNULL)
-	pObject result = (*env)->CallObjectMethodA(env, obj, mb, args);
-	return return_obj(result);
+	jobject result = (*env)->CallObjectMethodA(env, obj, mb, args);
+	return return_jniref(result);
 }
 
 JNI_FUNCTION_CAP(GetFieldID) {
@@ -738,11 +794,11 @@ JNI_FUNCTION_CAP(NewStringUTF) {
 	if (bytes == NULL)
 		return CNULL;
 
-	return return_obj((*env)->NewStringUTF(env, bytes));
+	return return_jniref((*env)->NewStringUTF(env, bytes));
 }
 
 JNI_FUNCTION_PRIM(GetStringUTFLength) {
-	pObject string = arg_obj(c1);
+	jobject string = arg_jniref(c1);
 	if (string == NULL)
 		return CHERI_FAIL;
 
@@ -752,7 +808,7 @@ JNI_FUNCTION_PRIM(GetStringUTFLength) {
 }
 
 JNI_FUNCTION_PRIM(GetStringUTFChars) {
-	pObject string = arg_obj(c1);
+	jobject string = arg_jniref(c1);
 	if (!checkIsValid(string, String))
 		return CHERI_FAIL;
 	jsize str_length = (*env)->GetStringUTFLength(env, string);
@@ -769,7 +825,7 @@ JNI_FUNCTION_PRIM(GetStringUTFChars) {
 }
 
 JNI_FUNCTION_PRIM(GetArrayLength) {
-	pObject array = arg_obj(c1);
+	jobject array = arg_jniref(c1);
 	if (!checkIsArray(array, 0))
 		return CHERI_FAIL;
 	return (*env)->GetArrayLength(env, array);
@@ -777,10 +833,11 @@ JNI_FUNCTION_PRIM(GetArrayLength) {
 
 #define ACCESS_ARRAY_ELEMENTS_COMMON(TYPE, jtype, ctype, perm) \
 	jsize start = (jsize) a1, len = (jsize) a2; \
-	pObject array = arg_obj(c1); \
-	if (!checkIsArray(array, ctype)) \
+	jobject array_ref = arg_jniref(c1); \
+	pObject array_obj = REF_TO_OBJ(array_ref); \
+	if (!checkIsArray(array_ref, ctype)) \
 		return CHERI_FAIL; \
-	uintptr_t total_length = ARRAY_LEN(array) * sizeof(jtype); \
+	uintptr_t total_length = ARRAY_LEN(array_obj) * sizeof(jtype); \
 	\
 	size_t start_byte = start * sizeof(jtype); \
 	size_t len_bytes = len * sizeof(jtype); \
@@ -788,7 +845,7 @@ JNI_FUNCTION_PRIM(GetArrayLength) {
 		return CHERI_FAIL; \
 	\
 	__capability char *sandbox_buffer = arg_cap(c2, len_bytes, perm, TRUE); \
-	char *host_buffer = ARRAY_DATA(array, char); \
+	char *host_buffer = ARRAY_DATA(array_obj, char); \
 	if (sandbox_buffer == CNULL) \
 		return CHERI_FAIL;
 
@@ -819,7 +876,7 @@ op(Double, jdouble, 'D')
 ARRAY_METHOD(ACCESS_ARRAY_ELEMENTS)
 
 JNI_FUNCTION_CAP(GetDirectBufferAddress) {
-	pObject buf = arg_obj(c1);
+	jobject buf = arg_jniref(c1);
 	if (!checkIsValid(buf, Buffer))
 		return CNULL;
 
@@ -1300,7 +1357,7 @@ void initialiseCheriJNI() {
 	initVMReentrantLock(cherijni_sandbox_lock);
 
 	cheri_system_user_register_fn(&cherijni_trampoline);
-	INIT_SEAL(Context);
+	INIT_SEAL(Reference);
 	INIT_SEAL(MethodID);
 	INIT_SEAL(FieldID);
 	INIT_SEAL(FILE);

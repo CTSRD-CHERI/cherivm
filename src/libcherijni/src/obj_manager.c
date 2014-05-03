@@ -84,7 +84,7 @@ void cherijni_obj_init() {
 	newslot->cap = cobj;
 
 
-STORAGE_FIND_COMPARETYPE(jobject)
+STORAGE_FIND_COMPARECAP(jobject)
 STORAGE_EMPTYSLOT(jobject)
 
 jobject cherijni_jobject_store(__capability void *cobj, jboolean isGlobal) {

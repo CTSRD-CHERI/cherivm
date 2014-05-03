@@ -396,9 +396,6 @@ typedef Object* pObject;
 
 struct object {
    uintptr_t lock;
-#ifdef JNI_CHERI
-   struct cap_counter cap_counter_local;
-#endif
    pClass class;
 };
 
@@ -1110,11 +1107,3 @@ extern void getTimeoutRelative(struct timespec *ts, long long millis,
 /* sig */
 
 extern int sigElement2Size(char element);
-
-/* cap counter */
-
-#ifdef JNI_CHERI
-
-extern struct cap_counter cap_counter_new();
-
-#endif
