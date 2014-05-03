@@ -163,7 +163,7 @@ jobject addJNILref(pObject ref) {
     return *frame->next_ref++ = ref;
 }
 
-void delJNILref(pObject ref) {
+int delJNILref(pObject ref) {
     ExecEnv *ee = getExecEnv();
     JNIFrame *frame = (JNIFrame*)ee->last_frame;
     pObject *opntr = frame->lrefs;
@@ -171,8 +171,9 @@ void delJNILref(pObject ref) {
     for(; opntr < frame->next_ref; opntr++)
         if(*opntr == ref) {
             *opntr = NULL;
-            return;
+            return TRUE;
         }
+    return FALSE;
 }
  
 JNIFrame *pushJNILrefFrame(int cap) {

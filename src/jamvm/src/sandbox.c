@@ -387,6 +387,7 @@ static inline __capability void *return_jniref(jobject jniref) {
 	}
 
 	jam_printf("[ERROR: Sandbox requested too many references. Exitting...]\n");
+	exitVM(1);
 	return CNULL;
 }
 
@@ -524,7 +525,7 @@ static __capability void *invoke_returnCap(void *handle, void *native_func, __ca
 	lockSandbox();
 	__capability void *res = (func)(
 			sandbox->objectp->sbo_cheri_object,
-			CHERIJNI_METHOD_RUN, native_func,
+			CHERIJNI_METHOD_RUN, (register_t) native_func,
 			args_prim[0], args_prim[1], args_prim[2], args_prim[3], args_prim[4], args_prim[5],
             cap_signature, cap_this,
             args_cap[0], args_cap[1], args_cap[2], args_cap[3], args_cap[4], args_cap[5]);
@@ -652,7 +653,7 @@ JNI_FUNCTION_PRIM(PushLocalFrame) {
 }
 
 JNI_FUNCTION_CAP(PopLocalFrame) {
-	JNIFrame *frame = getExecEnv()->last_frame;
+	JNIFrame *frame = (JNIFrame*) getExecEnv()->last_frame;
 	if (frame->depth == 0) {
 		jam_printf("Warning: sandbox attempted to pop the root JNI frame\n");
 		return CNULL;

@@ -1035,13 +1035,18 @@ extern void *getJNIInterface();
 extern void markJNIGlobalRefs();
 extern void scanJNIWeakGlobalRefs();
 extern void markJNIClearedWeakRefs();
+extern int delJNILref(pObject ref);
 
 /* CheriJNI */
 
 #ifdef JNI_CHERI
-	#if !__has_feature(capabilities)
-	#error "This code requires a CHERI-aware compiler"
-	#endif
+
+#if !__has_feature(capabilities)
+#error "This code requires a CHERI-aware compiler"
+#endif
+
+extern void initialiseCheriJNI();
+
 #endif
 
 /* properties */

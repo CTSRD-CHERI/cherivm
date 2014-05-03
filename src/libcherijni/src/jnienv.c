@@ -43,7 +43,7 @@ static jobject PopLocalFrame(JNIEnv *env, jobject result) {
 }
 
 static void DeleteLocalRef(JNIEnv *env, jobject localRef) {
-	check_cheri_fail_void(hostInvoke_0_1(cheri_invoke_prim, ExceptionClear, get_cap(localRef, jobject)));
+	check_cheri_fail_void(hostInvoke_0_1(cheri_invoke_prim, DeleteLocalRef, get_cap(localRef, jobject)));
 }
 
 static jboolean IsInstanceOf(JNIEnv *env, jobject obj, jclass clazz) {

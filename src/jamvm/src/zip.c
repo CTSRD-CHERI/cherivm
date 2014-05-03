@@ -37,6 +37,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <unistd.h>
 
 /* Common definitions needed for hashtable */
 #define HASHTABSZE 1<<8
