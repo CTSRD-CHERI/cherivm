@@ -420,6 +420,47 @@ static inline int checkIsArray(pObject obj, char type) {
 	return type == 0 || CLASS_CB(obj->class)->name[1] == type;
 }
 
+#define FRAMETYPE_DUMMY 0
+#define FRAMETYPE_JAVA  1
+#define FRAMETYPE_JNI   2
+
+static int getFrameType(Frame *frame) {
+	if (frame->mb == NULL)
+		return FRAMETYPE_DUMMY;
+	else if (frame->mb->access_flags & ACC_NATIVE)
+		return FRAMETYPE_JNI;
+	else
+		return FRAMETYPE_JAVA;
+}
+
+static int lrefValidAfterPop(pObject obj) {
+	JNIFrame *frame = (JNIFrame*) getExecEnv()->last_frame;
+	pObject *lref;
+
+	while (frame->depth > 0) {
+		// retrieve previous JNI Lref frame
+		frame = (JNIFrame*)frame->lrefs - 1;
+
+		// walk its lrefs, return TRUE if it has the object
+	    for(lref = frame->lrefs; lref < frame->next_ref; lref++)
+	        if(*lref == obj)
+	        	return TRUE;
+	}
+
+	return FALSE;
+}
+
+static void revokeLrefsInFrame() {
+	JNIFrame *frame = getExecEnv()->last_frame;
+	pObject *lref;
+
+    for(lref = frame->lrefs; lref < frame->next_ref; lref++)
+    	if (!lrefValidAfterPop(*lref)) {
+    		printf("[REVOKE: %p]\n", *lref);
+    		revoke_obj(*lref);
+    	}
+}
+
 /*
  * XXX: HACKISH!!! Bypassing cheri_sandbox_cinvoke
  */
@@ -498,37 +539,10 @@ uintptr_t *cherijni_callMethod(void* handle, void *native_func, pClass class, ch
 		}
 	}
 
+	// TODO: walk all the JNI frames, don't care about validAfterPop (that would make it N^2)
+	revokeLrefsInFrame();
+
 	return ostack;
-}
-
-#define FRAMETYPE_DUMMY 0
-#define FRAMETYPE_JAVA  1
-#define FRAMETYPE_JNI   2
-
-static int getFrameType(Frame *frame) {
-	if (frame->mb == NULL)
-		return FRAMETYPE_DUMMY;
-	else if (frame->mb->access_flags & ACC_NATIVE)
-		return FRAMETYPE_JNI;
-	else
-		return FRAMETYPE_JAVA;
-}
-
-static int lrefValidAfterPop(pObject obj) {
-	JNIFrame *frame = (JNIFrame*) getExecEnv()->last_frame;
-	pObject *lref;
-
-	while (frame->depth > 0) {
-		// retrieve previous JNI Lref frame
-		frame = (JNIFrame*)frame->lrefs - 1;
-
-		// walk its lrefs, return TRUE if it has the object
-	    for(lref = frame->lrefs; lref < frame->next_ref; lref++)
-	        if(*lref == obj)
-	        	return TRUE;
-	}
-
-	return FALSE;
 }
 
 #define JNI_FUNCTION_PRIM(NAME)     static register_t          JNI_##NAME (register_t a1, register_t a2, register_t a3, register_t a4, register_t a5, register_t a6, register_t a7, __capability void *c1, __capability void *c2, __capability void *c3, __capability void *c4, __capability void *c5)
@@ -585,17 +599,12 @@ JNI_FUNCTION_PRIM(PushLocalFrame) {
 
 JNI_FUNCTION_CAP(PopLocalFrame) {
 	JNIFrame *frame = getExecEnv()->last_frame;
-	pObject *lref;
-
 	if (frame->depth == 0) {
 		jam_printf("Warning: sandbox attempted to pop the root JNI frame\n");
 		return CNULL;
 	}
 
-    for(lref = frame->lrefs; lref < frame->next_ref; lref++)
-    	if (!lrefValidAfterPop(*lref))
-    		revoke_obj(*lref);
-
+	revokeLrefsInFrame();
 	pObject obj = arg_obj(c1);
 	pObject result = (*env)->PopLocalFrame(env, obj);
 	return return_obj(result);
