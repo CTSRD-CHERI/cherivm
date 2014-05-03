@@ -390,8 +390,16 @@ static inline __capability void *return_jniref(jobject jniref) {
 	return CNULL;
 }
 
+static inline int checkIsReference(uintptr_t offset_ref, struct cherijni_sandbox *sandbox) {
+	uintptr_t offset_start, offset_end;
+	offset_start = (uintptr_t) sandbox->refs;
+	offset_end = offset_start + sandbox->refs_size * sizeof(cherijni_ref);
+	return (offset_start <= offset_ref) &&
+	       (offset_ref < offset_end) &&
+	       ((offset_ref - offset_start) % sizeof(cherijni_ref) == 0);
+}
+
 static inline pRef arg_ref(__capability void *cap) {
-	uintptr_t offset_ref, offset_start, offset_end;
 	GET_SANDBOX_HANDLE(NULL)
 
 	if (cap == CNULL)
@@ -403,13 +411,7 @@ static inline pRef arg_ref(__capability void *cap) {
 	}
 
 	pRef ref = cap_unseal(pRef, Reference, cap);
-
-	offset_ref = (uintptr_t) ref;
-	offset_start = (uintptr_t) sandbox->refs;
-	offset_end = offset_start + sandbox->refs_size * sizeof(cherijni_ref);
-	if (offset_start > offset_ref || offset_ref >= offset_end ||
-		(offset_ref - offset_start) % sizeof(cherijni_ref) != 0) {
-
+	if (!checkIsReference((uintptr_t) ref, sandbox)) {
 		jam_printf("Warning: sandbox provided a reference outside the reference table\n");
 		return NULL;
 	}
