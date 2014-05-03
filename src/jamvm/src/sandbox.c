@@ -719,9 +719,9 @@ static inline jvalue *prepareJniArguments(pMethodBlock mb, register_t a1, regist
 	__capability void *args_cap[] = { c3, c4, c5 };
 	int args_ready = 0, args_used_prim = 0, args_used_cap = 0;
 	scanSignature(mb->type,
-	/* single primitives */ { args[arg_count++].i = args_prim[args_used_prim++]; },
-	/* double primitives */ { args[arg_count++].j = args_prim[args_used_prim++]; },
-	/* objects           */ { args[arg_count++].l = arg_jniref(args_cap[args_used_cap]); args_used_cap++; },
+	/* single primitives */ { args[args_ready++].i = args_prim[args_used_prim++]; },
+	/* double primitives */ { args[args_ready++].j = args_prim[args_used_prim++]; },
+	/* objects           */ { args[args_ready++].l = arg_jniref(args_cap[args_used_cap]); args_used_cap++; },
 	/* return values     */ { }, { }, { }, { });
 
 	return args;
@@ -737,7 +737,9 @@ static inline jvalue *prepareJniArguments(pMethodBlock mb, register_t a1, regist
 #define VIRTUAL_METHOD_PRIM(TYPE, jtype)                                \
 	JNI_FUNCTION_PRIM(Call##TYPE##Method) {                             \
 		VIRTUAL_METHOD_COMMON(CHERI_FAIL)                               \
-		return (jtype) (*env)->Call##TYPE##MethodA(env, obj, mb, args); \
+		jtype result = (jtype) (*env)->Call##TYPE##MethodA(env, obj, mb, args); \
+		if (args) sysFree(args); \
+		return result; \
 	}
 
 #define CALL_METHOD(access)             \
@@ -755,6 +757,7 @@ CALL_METHOD(VIRTUAL)
 JNI_FUNCTION_CAP(CallObjectMethod) {
 	VIRTUAL_METHOD_COMMON(CNULL)
 	jobject result = (*env)->CallObjectMethodA(env, obj, mb, args);
+	if (args) sysFree(args);
 	return return_jniref(result);
 }
 
