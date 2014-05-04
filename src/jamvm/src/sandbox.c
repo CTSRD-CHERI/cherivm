@@ -111,11 +111,16 @@ typedef struct cherijni_reference {
 
 typedef cherijni_ref *pRef;
 
+#define IS_REVOKED(ref)    (ref == NULL || (ref->jni_ref != NULL && ref->counter == 0))
+#define IS_VALID(ref)      (ref != NULL && ref->jni_ref != NULL && ref->counter != 0)
+
 #define SANDBOX_REFS_SIZE       128
 
 struct cherijni_sandbox {
 	struct sandbox_class       *classp;
 	struct sandbox_object      *objectp;
+	uintptr_t                   mem_start;
+	uintptr_t                   mem_end;
 	cherijni_ref                refs[SANDBOX_REFS_SIZE];
 	size_t                      refs_size;
 };
@@ -127,6 +132,7 @@ struct cherijni_sandbox {
 #define cap_seal_len(NAME, data, len)    cherijni_seal(data, len, sealcap_##NAME)
 #define cap_seal(NAME, data)             cap_seal_len(NAME, data, sizeof(uintptr_t))
 #define cap_unseal(TYPE, NAME, datacap)  ((TYPE) cherijni_unseal(datacap, sealcap_##NAME))
+#define cap_is_type(NAME, datacap)       cherijni_isType(datacap, sealcap_##NAME)
 #define INIT_SEAL(NAME) sealcap_##NAME = cheri_ptrtype(&type_##NAME, sizeof(uintptr_t), 0); // sets PERMIT_SEAL
 
 DEFINE_SEAL_VARS(Reference)
@@ -150,25 +156,28 @@ static inline __capability void *cherijni_seal(void *data, register_t len, __cap
 		return cherijni_seal_cap(cheri_ptrperm(data, len, CHERI_PERM_LOAD), sealcap);
 }
 
+static inline int cherijni_isType(__capability void *datacap, __capability void *sealcap) {
+	// is it a valid capability?
+	if (!cheri_gettag(datacap))
+		return FALSE;
+
+	// is it sealed?
+	if (cheri_getunsealed(datacap))
+		return FALSE;
+
+	// is it of the correct type?
+	if (cheri_gettype(datacap) != cheri_gettype(sealcap))
+		return FALSE;
+
+	return TRUE;
+}
+
 static inline __capability void *cherijni_unseal(__capability void *objcap, __capability void *sealcap) {
 	if (objcap == CNULL)
 		return NULL;
 
-	// is it a valid capability?
-	if (!cheri_gettag(objcap)) {
-		jam_printf("Warning: provided cap cannot be unsealed (tag not set)\n");
-		return NULL;
-	}
-
-	// is it sealed?
-	if (cheri_getunsealed(objcap)) {
-		jam_printf("Warning: provided cap cannot be unsealed (not sealed)\n");
-		return NULL;
-	}
-
-	// is it of the correct type?
-	if (cheri_gettype(objcap) != cheri_gettype(sealcap)) {
-		jam_printf("Warning: provided cap cannot be unsealed (wrong type)\n");
+	if (!cherijni_isType(objcap, sealcap)) {
+		jam_printf("Warning: provided cap cannot be unsealed\n");
 		return NULL;
 	}
 
@@ -209,6 +218,10 @@ void *cherijni_open(char *path) {
 		sysFree(sandbox);
 		return NULL;
 	}
+
+	/* Store memory space limits */
+	sandbox->mem_start = (uintptr_t) sandbox_object_getbase(sandbox->objectp);
+	sandbox->mem_end = sandbox->mem_start + sandbox_class_getlength(sandbox->classp);
 
 	/* Setup reference array */
 	sandbox->refs_size = SANDBOX_REFS_SIZE;
@@ -400,7 +413,7 @@ static inline int checkIsReference(uintptr_t offset_ref, struct cherijni_sandbox
 	       ((offset_ref - offset_start) % sizeof(cherijni_ref) == 0);
 }
 
-static inline pRef arg_ref(__capability void *cap) {
+static inline pRef arg_ref_allowRevoked(__capability void *cap) {
 	GET_SANDBOX_HANDLE(NULL)
 
 	if (cap == CNULL)
@@ -417,7 +430,13 @@ static inline pRef arg_ref(__capability void *cap) {
 		return NULL;
 	}
 
-	if (ref->jni_ref == NULL || ref->counter == 0) {
+	return ref;
+}
+
+static inline pRef arg_ref(__capability void *cap) {
+	pRef ref = arg_ref_allowRevoked(cap);
+
+	if (!IS_VALID(ref)) {
 		jam_printf("Warning: sandbox provided a revoked reference\n");
 		return NULL;
 	}
@@ -439,7 +458,7 @@ static inline void revoke_ref(pRef ref) {
 
 	if (ref->counter == 0) {
 		jam_printf("[ERROR: Asked to revoke an already revoked reference]\n");
-		exitVM(1);
+		return;
 	}
 
 //	printf("[REVOKE: ref %s @ %p | %lu => %lu]\n", CLASS_CB(REF_TO_OBJ(ref->jni_ref)->class)->name, ref->jni_ref, ref->counter, ref->counter - 1);
@@ -464,6 +483,45 @@ static inline void revoke_jniref(jobject jniref) {
 
 	jam_printf("[ERROR: Asked to revoke non-existent JNI reference %p]\n", jniref);
 	exitVM(1);
+}
+
+static void scrubMemory_region(uintptr_t start, uintptr_t end) {
+	__capability void *slot_cap, **slot_ptr;
+	slot_ptr = (__capability void **) start;
+	for (; (uintptr_t) slot_ptr < end; slot_ptr++) {
+		slot_cap = *slot_ptr;
+		if (cheri_gettag(slot_cap) && cap_is_type(Reference, slot_cap)) {
+			pRef ref = arg_ref_allowRevoked(slot_cap);
+			if (IS_REVOKED(ref)) {
+//				printf("[SCRUB: erasing revoked cap to %s @ %p]\n", CLASS_CB(REF_TO_OBJ(ref->jni_ref)->class)->name, ref->jni_ref);
+				*slot_ptr = cheri_zerocap();
+			}
+		}
+	}
+}
+
+#define	STACK_SIZE	(32*PAGE_SIZE)
+
+static void scrubMemory(struct cherijni_sandbox *sandbox) {
+	uintptr_t start_stack, start_heap, end_stack, end_heap;
+	pRef ref_slot;
+	size_t i;
+
+	/* Compute memory intervals */
+	end_stack = sandbox->mem_end;
+	start_stack = end_stack - STACK_SIZE;
+
+	start_heap = sandbox->mem_start + sandbox->objectp->sbo_heapbase;
+	end_heap = start_heap + sandbox->objectp->sbo_heaplen;
+
+	/* Scrub the memory */
+	scrubMemory_region(start_stack, end_stack);
+	scrubMemory_region(start_heap, end_heap);
+
+	/* Walk through the revocation table and free revoked caps */
+	for (i = 0, ref_slot = sandbox->refs; i < sandbox->refs_size; i++, ref_slot++)
+		if (IS_REVOKED(ref_slot))
+			ref_slot->jni_ref = NULL;
 }
 
 static inline void copyToSandbox(__capability char *dest, const char *src, size_t len) {
@@ -594,7 +652,7 @@ uintptr_t *cherijni_callMethod(pMethodBlock mb, pClass class, uintptr_t *ostack)
 
 	/* Invoke JNI method */
 
-	void *handle = mb->sandbox_handle;
+	struct cherijni_sandbox *handle = (struct cherijni_sandbox *) mb->sandbox_handle;
 	void *native_func = mb->code;
 	if (returnType == RETURNTYPE_OBJECT) {
 		__capability void *cap_result = invoke_returnCap(handle, native_func, cap_string(mb->type), cap_this, args_prim, args_cap);
@@ -618,6 +676,8 @@ uintptr_t *cherijni_callMethod(pMethodBlock mb, pClass class, uintptr_t *ostack)
 		else
 			(*env)->PopLocalFrame(env, NULL);
 	}
+
+	scrubMemory(handle);
 
 	return ostack;
 }
