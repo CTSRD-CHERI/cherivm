@@ -113,6 +113,8 @@ typedef cherijni_ref *pRef;
 
 #define IS_REVOKED(ref)    (ref == NULL || (ref->jni_ref != NULL && ref->counter == 0))
 #define IS_VALID(ref)      (ref != NULL && ref->jni_ref != NULL && ref->counter != 0)
+#define FREE_REF(ref)      (ref->jni_ref = NULL)
+#define IS_FREE(ref)       (ref->jni_ref == NULL)
 
 #define SANDBOX_REFS_SIZE       128
 
@@ -376,6 +378,8 @@ static inline __capability void *return_ref(pRef ref) {
 	}
 }
 
+static void scrubMemory(struct cherijni_sandbox *sandbox);
+
 static inline __capability void *return_jniref(jobject jniref) {
 	size_t i;
 	pRef slot;
@@ -390,17 +394,27 @@ static inline __capability void *return_jniref(jobject jniref) {
 			return return_ref(slot);
 	}
 
-	// reference doesn't exist, create it
-	for (i = 0, slot = sandbox->refs; i < sandbox->refs_size; i++, slot++) {
-		if (slot->jni_ref == NULL) {
-			slot->jni_ref = jniref;
-			slot->counter = 0;
-			return return_ref(slot);
+	int scrubbedMemory = FALSE;
+	while (TRUE) {
+
+		// reference doesn't exist, create it
+		for (i = 0, slot = sandbox->refs; i < sandbox->refs_size; i++, slot++) {
+			if (IS_FREE(slot)) {
+				slot->jni_ref = jniref;
+				slot->counter = 0;
+				return return_ref(slot);
+			}
+		}
+
+		if (scrubbedMemory) {
+			jam_printf("[ERROR: Sandbox requested too many references. Exiting...]\n");
+			exitVM(1);
+		} else {
+			scrubbedMemory = TRUE;
+			scrubMemory(sandbox);
 		}
 	}
 
-	jam_printf("[ERROR: Sandbox requested too many references. Exitting...]\n");
-	exitVM(1);
 	return CNULL;
 }
 
@@ -676,8 +690,6 @@ uintptr_t *cherijni_callMethod(pMethodBlock mb, pClass class, uintptr_t *ostack)
 		else
 			(*env)->PopLocalFrame(env, NULL);
 	}
-
-	scrubMemory(handle);
 
 	return ostack;
 }
