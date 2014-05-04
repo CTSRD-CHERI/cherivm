@@ -52,6 +52,11 @@ static jboolean IsInstanceOf(JNIEnv *env, jobject obj, jclass clazz) {
 	return res;
 }
 
+static jobject NewLocalRef(JNIEnv *env, jobject ref) {
+	__capability void *new_ref = hostInvoke_0_1(cheri_invoke_cap, NewLocalRef, get_cap(ref, jobject));
+	return cherijni_jobject_store(new_ref, JNI_FALSE);
+}
+
 static jmethodID GetMethodID(JNIEnv *env, jclass clazz, const char *name, const char *sig) {
 	__capability void *result = hostInvoke_0_3(cheri_invoke_cap, GetMethodID, get_cap(clazz, jobject), cap_string(name), cap_string(sig));
 	return (jmethodID) cherijni_jmethodID_store(result, sig);
@@ -232,7 +237,7 @@ static struct _JNINativeInterface cherijni_JNIEnv_struct = {
 		NULL, // DeleteGlobalRef,
 		DeleteLocalRef,
 		NULL, // IsSameObject,
-		NULL, // NewLocalRef,
+		NewLocalRef,
 		NULL, // EnsureLocalCapacity,
 		NULL, // AllocObject,
 		NULL, // NewObject,

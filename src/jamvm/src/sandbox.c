@@ -12,6 +12,8 @@
 
 #include "jam.h"
 #include "symbol.h"
+#include "alloc.h"
+#include "jni-internal.h"
 #include "thread.h"
 
 #ifdef JNI_CHERI
@@ -26,7 +28,6 @@
 #include <cheri/cheri_system.h>
 #include <cheri/cheri_invoke.h>
 
-#include "jni-internal.h"
 #include "sandbox.h"
 #include "sandbox_shared.h"
 
@@ -496,7 +497,7 @@ static inline void revoke_ref(pRef ref) {
 		return;
 	}
 
-//	printf("[REVOKE: ref %s @ %p | %lu => %lu]\n", CLASS_CB(REF_TO_OBJ(ref->jni_ref)->class)->name, ref->jni_ref, ref->counter, ref->counter - 1);
+//	printf("[REVOKE: ref %s @ %p | %lu => %lu]\n", CLASS_CB(REF_TO_OBJ_WEAK_NULL_CHECK(ref->jni_ref)->class)->name, ref->jni_ref, ref->counter, ref->counter - 1);
 	ref->counter--;
 }
 
@@ -528,7 +529,7 @@ static void scrubMemory_region(uintptr_t start, uintptr_t end, struct cherijni_s
 		if (cheri_gettag(slot_cap) && cap_is_type(Reference, slot_cap)) {
 			pRef ref = arg_ref_allowRevoked(slot_cap, sandbox);
 			if (IS_REVOKED(ref)) {
-//				printf("[SCRUB: erasing revoked cap to %s @ %p]\n", CLASS_CB(REF_TO_OBJ(ref->jni_ref)->class)->name, ref->jni_ref);
+//				printf("[SCRUB: erasing revoked cap to %s @ %p]\n", CLASS_CB(REF_TO_OBJ_WEAK_NULL_CHECK(ref->jni_ref)->class)->name, ref->jni_ref);
 				*slot_ptr = cheri_zerocap();
 			}
 		}
@@ -572,7 +573,7 @@ static inline void copyFromSandbox(char *dest, __capability char *src, size_t le
 }
 
 static inline pClass checkIsClass(jobject jniref) {
-	pObject obj = REF_TO_OBJ(jniref);
+	pObject obj = REF_TO_OBJ_WEAK_NULL_CHECK(jniref);
 	if (obj == NULL)
 		return NULL;
 	else if (IS_CLASS(obj))
@@ -583,10 +584,10 @@ static inline pClass checkIsClass(jobject jniref) {
 	}
 }
 
-#define checkIsValid(obj, NAME) ((obj != NULL) && isInstanceOf(REF_TO_OBJ(obj)->class, class_##NAME))
+#define checkIsValid(obj, NAME) ((obj != NULL) && isInstanceOf(REF_TO_OBJ_WEAK_NULL_CHECK(obj)->class, class_##NAME))
 
 static inline int checkIsArray(jobject ref, char type) {
-	pObject obj = REF_TO_OBJ(ref);
+	pObject obj = REF_TO_OBJ_WEAK_NULL_CHECK(ref);
 	if (obj == NULL)
 		return FALSE;
 
@@ -691,7 +692,7 @@ uintptr_t *cherijni_callMethod(pMethodBlock mb, pClass class, uintptr_t *ostack)
 	void *native_func = mb->code;
 	if (returnType == RETURNTYPE_OBJECT) {
 		__capability void *cap_result = invoke_returnCap(handle, native_func, cap_string(mb->type), cap_this, args_prim, args_cap);
-		pObject result_obj = REF_TO_OBJ(arg_jniref(cap_result));
+		pObject result_obj = REF_TO_OBJ_WEAK_NULL_CHECK(arg_jniref(cap_result));
 		*(ostack++) = (uintptr_t) result_obj;
 	} else {
 		register_t result = invoke_returnPrim(handle, native_func, cap_string(mb->type), cap_this, args_prim, args_cap);
@@ -797,6 +798,15 @@ JNI_FUNCTION_PRIM(DeleteLocalRef) {
 		jam_printf("Warning: sandbox requested to delete a local ref not present in its current frame\n");
 		return CHERI_FAIL;
 	}
+}
+
+JNI_FUNCTION_CAP(NewLocalRef) {
+	jobject ref = arg_jniref(c1);
+	if (ref == NULL)
+		return CNULL;
+
+	jobject result = (*env)->NewLocalRef(env, ref);
+	return return_jniref(result);
 }
 
 JNI_FUNCTION_PRIM(IsInstanceOf) {
@@ -962,7 +972,7 @@ JNI_FUNCTION_PRIM(GetArrayLength) {
 #define ACCESS_ARRAY_ELEMENTS_COMMON(TYPE, jtype, ctype, perm) \
 	jsize start = (jsize) a1, len = (jsize) a2; \
 	jobject array_ref = arg_jniref(c1); \
-	pObject array_obj = REF_TO_OBJ(array_ref); \
+	pObject array_obj = REF_TO_OBJ_WEAK_NULL_CHECK(array_ref); \
 	if (!checkIsArray(array_ref, ctype)) \
 		return CHERI_FAIL; \
 	uintptr_t total_length = ARRAY_LEN(array_obj) * sizeof(jtype); \
@@ -1194,7 +1204,7 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 	case CHERIJNI_JNIEnv_IsSameObject:
 		break;
 	case CHERIJNI_JNIEnv_NewLocalRef:
-		break;
+		CALL_JNI_CAP(NewLocalRef)
 	case CHERIJNI_JNIEnv_EnsureLocalCapacity:
 		break;
 	case CHERIJNI_JNIEnv_AllocObject:
