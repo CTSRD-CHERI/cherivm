@@ -34,6 +34,10 @@
 #include "symbol.h"
 #include "excep.h"
 
+#ifdef JNI_CHERI
+#include "sandbox.h"
+#endif
+
 /* Trace GC heap mark/sweep phases - useful for debugging heap
  * corruption */
 #ifdef TRACEGC
@@ -1603,11 +1607,23 @@ unsigned long gc0(int mark_soft_refs, int compact) {
         largest = compact ? doCompact() : doSweep(self);
         scan_time = endTime(&start)/1000000.0;
 
+#ifndef JNI_CHERI
         jam_printf("<GC: Mark took %f seconds, %s took %f seconds>\n",
                            mark_time, compact ? "compact" : "scan", scan_time);
+#else
+        float scrub_time;
+        getTime(&start);
+        cherijni_scrubMemory();
+        scrub_time = endTime(&start)/1000000.0;
+        jam_printf("<GC: Mark took %f seconds, %s took %f seconds, scrub took %f seconds>\n",
+                           mark_time, compact ? "compact" : "scan", scan_time, scrub_time);
+#endif
     } else {
         doMark(self, mark_soft_refs);
         largest = compact ? doCompact() : doSweep(self);
+#ifdef JNI_CHERI
+        cherijni_scrubMemory();
+#endif
     }
 
     /* Restart the world */

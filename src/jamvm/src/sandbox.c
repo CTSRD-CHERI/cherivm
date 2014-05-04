@@ -127,6 +127,8 @@ struct cherijni_sandbox {
 	size_t                      refs_size;
 };
 
+static void scrubMemory(struct cherijni_sandbox *sandbox);
+
 #define DEFINE_SEAL_VARS(NAME)                                \
         static uintptr_t          type_##NAME;                      \
         static __capability void *sealcap_##NAME;                   \
@@ -207,6 +209,13 @@ char *cherijni_libName(char *name) {
 #define CInvoke_0_1(handle, op, c5)              CInvoke_1_1(handle, op, 0, c5)
 #define CInvoke_0_0(handle, op)                  CInvoke_1_1(handle, op, 0, CNULL)
 
+struct sandbox_list {
+	struct cherijni_sandbox *handle;
+	struct sandbox_list *next;
+};
+
+static struct sandbox_list *sandboxes = NULL;
+
 void *cherijni_open(char *path) {
 	struct cherijni_sandbox *sandbox = sysMalloc(sizeof(struct cherijni_sandbox));
 
@@ -236,10 +245,24 @@ void *cherijni_open(char *path) {
 	unlockSandbox();
 	if (result == CHERI_FAIL) {
 		jam_printf("ERROR: sandbox failed to initialize (%s)\n", path);
+		sysFree(sandbox);
 		return NULL;
 	}
 
+	struct sandbox_list *new_entry = sysMalloc(sizeof(struct sandbox_list));
+	new_entry->handle = sandbox;
+	new_entry->next = sandboxes;
+	sandboxes = new_entry;
+
 	return sandbox;
+}
+
+void cherijni_scrubMemory() {
+	struct sandbox_list *entry = sandboxes;
+	while (entry != NULL) {
+		scrubMemory(entry->handle);
+		entry = entry->next;
+	}
 }
 
 // TODO: make sure only one thread ever enters the sandbox !!!
@@ -378,8 +401,6 @@ static inline __capability void *return_ref(pRef ref) {
 	}
 }
 
-static void scrubMemory(struct cherijni_sandbox *sandbox);
-
 static inline __capability void *return_jniref(jobject jniref) {
 	size_t i;
 	pRef slot;
@@ -427,9 +448,7 @@ static inline int checkIsReference(uintptr_t offset_ref, struct cherijni_sandbox
 	       ((offset_ref - offset_start) % sizeof(cherijni_ref) == 0);
 }
 
-static inline pRef arg_ref_allowRevoked(__capability void *cap) {
-	GET_SANDBOX_HANDLE(NULL)
-
+static inline pRef arg_ref_allowRevoked(__capability void *cap, struct cherijni_sandbox *sandbox) {
 	if (cap == CNULL)
 		return NULL;
 
@@ -448,7 +467,9 @@ static inline pRef arg_ref_allowRevoked(__capability void *cap) {
 }
 
 static inline pRef arg_ref(__capability void *cap) {
-	pRef ref = arg_ref_allowRevoked(cap);
+	GET_SANDBOX_HANDLE(NULL)
+
+	pRef ref = arg_ref_allowRevoked(cap, sandbox);
 
 	if (!IS_VALID(ref)) {
 		jam_printf("Warning: sandbox provided a revoked reference\n");
@@ -499,13 +520,13 @@ static inline void revoke_jniref(jobject jniref) {
 	exitVM(1);
 }
 
-static void scrubMemory_region(uintptr_t start, uintptr_t end) {
+static void scrubMemory_region(uintptr_t start, uintptr_t end, struct cherijni_sandbox *sandbox) {
 	__capability void *slot_cap, **slot_ptr;
 	slot_ptr = (__capability void **) start;
 	for (; (uintptr_t) slot_ptr < end; slot_ptr++) {
 		slot_cap = *slot_ptr;
 		if (cheri_gettag(slot_cap) && cap_is_type(Reference, slot_cap)) {
-			pRef ref = arg_ref_allowRevoked(slot_cap);
+			pRef ref = arg_ref_allowRevoked(slot_cap, sandbox);
 			if (IS_REVOKED(ref)) {
 //				printf("[SCRUB: erasing revoked cap to %s @ %p]\n", CLASS_CB(REF_TO_OBJ(ref->jni_ref)->class)->name, ref->jni_ref);
 				*slot_ptr = cheri_zerocap();
@@ -529,8 +550,8 @@ static void scrubMemory(struct cherijni_sandbox *sandbox) {
 	end_heap = start_heap + sandbox->objectp->sbo_heaplen;
 
 	/* Scrub the memory */
-	scrubMemory_region(start_stack, end_stack);
-	scrubMemory_region(start_heap, end_heap);
+	scrubMemory_region(start_stack, end_stack, sandbox);
+	scrubMemory_region(start_heap, end_heap, sandbox);
 
 	/* Walk through the revocation table and free revoked caps */
 	for (i = 0, ref_slot = sandbox->refs; i < sandbox->refs_size; i++, ref_slot++)
