@@ -694,6 +694,9 @@ static void doMark(Thread *self, int mark_soft_refs) {
     if(oom) MARK(oom, HARD_MARK);
     markBootClasses();
     markJNIGlobalRefs();
+#ifdef JNI_CHERI
+    cherijni_markValidRefs();
+#endif
     scanThreads();
 
     /* All roots should now be marked.  Scan the heap and recursively

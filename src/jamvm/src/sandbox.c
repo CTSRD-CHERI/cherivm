@@ -266,6 +266,26 @@ void cherijni_scrubMemory() {
 	}
 }
 
+void cherijni_markValidRefs() {
+	size_t ref_count, i;
+	pRef ref_slot;
+
+	struct sandbox_list *entry = sandboxes;
+	while (entry != NULL) {
+		ref_count = entry->handle->refs_size;
+		ref_slot = entry->handle->refs;
+
+		for (i = 0; i < ref_count; i++, ref_slot++) {
+			if (IS_VALID(ref_slot)) {
+				// printf("[CHERI: marked %s @ %p (%d)]\n", CLASS_CB(REF_TO_OBJ_WEAK_NULL_CHECK(ref_slot->jni_ref)->class)->name, ref_slot->jni_ref, REF_TYPE(ref_slot->jni_ref));
+				markConservativeRoot(REF_TO_OBJ_WEAK_NULL_CHECK(ref_slot->jni_ref));
+			}
+		}
+
+		entry = entry->next;
+	}
+}
+
 // TODO: make sure only one thread ever enters the sandbox !!!
 // TODO: check the return value? -1 *may* mean that a trap happened inside the sandbox (will be replaced with signals)
 
