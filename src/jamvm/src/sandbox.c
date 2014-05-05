@@ -1214,6 +1214,24 @@ LIBC_FUNCTION_PRIM(write) {
 	return (ssize_t) write(fd, buf_ptr, buf_len);
 }
 
+LIBC_FUNCTION_CAP(socket) {
+	int domain = (int) a1;
+	int type = (int) a2;
+	int protocol = (int) a3;
+
+	__capability int *fileno = arg_cap(c1, sizeof(int), w, TRUE);
+
+	if (fileno == CNULL)
+		return CNULL;
+
+	int fd = socket(domain, type, protocol);
+
+	printf("[SOCKET: opened new socket with fd=%d]\n", fd);
+
+	fileno[0] = fd;
+	return return_fd(fd);
+}
+
 register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a2, register_t a3, register_t a4, register_t a5, register_t a6, register_t a7, struct cheri_object system_object, __capability void *c1, __capability void *c2, __capability void *c3, __capability void *c4, __capability void *c5) __attribute__((cheri_ccall)) {
 	switch(methodnum) {
 	case CHERIJNI_JNIEnv_GetVersion:
@@ -1538,6 +1556,9 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 		CALL_LIBC_PRIM(read)
 	case CHERIJNI_LIBC_write:
 		CALL_LIBC_PRIM(write)
+
+	case CHERIJNI_LIBC_socket:
+		CALL_LIBC_CAP(socket)
 
 	default:
 		break;

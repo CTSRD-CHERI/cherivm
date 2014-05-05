@@ -201,7 +201,21 @@ int rmdir(const char *path)                                  STUB_ERRNO
 
 /* SOCKETS */
 
-int socket(int domain, int type, int protocol)               STUB_ERRNO
+int socket(int domain, int type, int protocol) {
+	int fileno;
+	__capability void *cap_fileno = cap_buffer_wo(&fileno, sizeof(fileno));
+
+	__capability void *cap_fd = hostInvoke_3_1(cheri_invoke_cap, socket, domain, type, protocol, cap_fileno);
+	if (cap_fd == CNULL) {
+		STUB_ERRNO
+	}
+
+	if (cherijni_fd_store(cap_fd, fileno))
+		return fileno;
+	else
+		return -1;
+}
+
 int bind(int s, const struct sockaddr *addr, \
          socklen_t addrlen)                                  STUB_ERRNO
 int listen(int s, int backlog)                               STUB_ERRNO
