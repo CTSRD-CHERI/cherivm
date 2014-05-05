@@ -782,6 +782,34 @@ JNI_FUNCTION_CAP(PopLocalFrame) {
 	return return_jniref(result);
 }
 
+JNI_FUNCTION_CAP(NewGlobalRef) {
+	jobject ref = arg_jniref(c1);
+	if (ref == NULL)
+		return CNULL;
+
+	jobject result = (*env)->NewGlobalRef(env, ref);
+	return return_jniref(result);
+}
+
+JNI_FUNCTION_PRIM(DeleteGlobalRef) {
+	pRef globalRef = arg_ref(c1);
+	if (!IS_VALID(globalRef) || REF_TYPE(globalRef->jni_ref) != GLOBAL_REF)
+		return CHERI_FAIL;
+
+	/*
+	* Attempt to delete a global ref from the table.
+	* If successful, decrement the reference counter.
+	*/
+	if (delJNIGref(REF_TO_OBJ(globalRef->jni_ref), GLOBAL_REF)) {
+		revoke_ref(globalRef);
+		return CHERI_SUCCESS;
+	} else {
+		jam_printf("Warning: sandbox requested to delete a global ref not present in its current frame\n");
+		return CHERI_FAIL;
+	}
+}
+
+
 JNI_FUNCTION_PRIM(DeleteLocalRef) {
 	pRef localRef = arg_ref(c1);
 	if (localRef == NULL || localRef->jni_ref == NULL || REF_TYPE(localRef->jni_ref) != LOCAL_REF)
@@ -798,6 +826,13 @@ JNI_FUNCTION_PRIM(DeleteLocalRef) {
 		jam_printf("Warning: sandbox requested to delete a local ref not present in its current frame\n");
 		return CHERI_FAIL;
 	}
+}
+
+JNI_FUNCTION_PRIM(IsSameObject) {
+	jobject ref1 = arg_jniref(c1);
+	jobject ref2 = arg_jniref(c2);
+
+	return (*env)->IsSameObject(env, ref1, ref2);
 }
 
 JNI_FUNCTION_CAP(NewLocalRef) {
@@ -1196,13 +1231,13 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 	case CHERIJNI_JNIEnv_PopLocalFrame:
 		CALL_JNI_CAP(PopLocalFrame)
 	case CHERIJNI_JNIEnv_NewGlobalRef:
-		break;
+		CALL_JNI_CAP(NewGlobalRef)
 	case CHERIJNI_JNIEnv_DeleteGlobalRef:
-		break;
+		CALL_JNI_PRIM(DeleteGlobalRef)
 	case CHERIJNI_JNIEnv_DeleteLocalRef:
 		CALL_JNI_PRIM(DeleteLocalRef)
 	case CHERIJNI_JNIEnv_IsSameObject:
-		break;
+		CALL_JNI_PRIM(IsSameObject)
 	case CHERIJNI_JNIEnv_NewLocalRef:
 		CALL_JNI_CAP(NewLocalRef)
 	case CHERIJNI_JNIEnv_EnsureLocalCapacity:

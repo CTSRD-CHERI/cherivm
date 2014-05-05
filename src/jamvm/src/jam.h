@@ -1035,6 +1035,7 @@ extern void *getJNIInterface();
 extern void markJNIGlobalRefs();
 extern void scanJNIWeakGlobalRefs();
 extern void markJNIClearedWeakRefs();
+extern int delJNIGref(pObject ref, int ref_type);
 extern int delJNILref(pObject ref);
 
 /* CheriJNI */

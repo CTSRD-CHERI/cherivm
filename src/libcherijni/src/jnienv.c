@@ -42,12 +42,21 @@ static jobject PopLocalFrame(JNIEnv *env, jobject result) {
 	return cherijni_jobject_store(res, JNI_FALSE);
 }
 
+static jobject NewGlobalRef(JNIEnv *env, jobject ref) {
+	__capability void *new_ref = hostInvoke_0_1(cheri_invoke_cap, NewGlobalRef, get_cap(ref, jobject));
+	return cherijni_jobject_store(new_ref, JNI_TRUE);
+}
+
+static void DeleteGlobalRef(JNIEnv *env, jobject globalRef) {
+	check_cheri_fail_void(hostInvoke_0_1(cheri_invoke_prim, DeleteGlobalRef, get_cap(globalRef, jobject)));
+}
+
 static void DeleteLocalRef(JNIEnv *env, jobject localRef) {
 	check_cheri_fail_void(hostInvoke_0_1(cheri_invoke_prim, DeleteLocalRef, get_cap(localRef, jobject)));
 }
 
-static jboolean IsInstanceOf(JNIEnv *env, jobject obj, jclass clazz) {
-	register_t res = hostInvoke_0_2(cheri_invoke_prim, IsInstanceOf, get_cap(obj, jobject), get_cap(clazz, jobject));
+static jboolean IsSameObject(JNIEnv *env, jobject ref1, jobject ref2) {
+	register_t res = hostInvoke_0_2(cheri_invoke_prim, IsSameObject, get_cap(ref1, jobject), get_cap(ref2, jobject));
 	check_cheri_fail(res, JNI_FALSE);
 	return res;
 }
@@ -55,6 +64,12 @@ static jboolean IsInstanceOf(JNIEnv *env, jobject obj, jclass clazz) {
 static jobject NewLocalRef(JNIEnv *env, jobject ref) {
 	__capability void *new_ref = hostInvoke_0_1(cheri_invoke_cap, NewLocalRef, get_cap(ref, jobject));
 	return cherijni_jobject_store(new_ref, JNI_FALSE);
+}
+
+static jboolean IsInstanceOf(JNIEnv *env, jobject obj, jclass clazz) {
+	register_t res = hostInvoke_0_2(cheri_invoke_prim, IsInstanceOf, get_cap(obj, jobject), get_cap(clazz, jobject));
+	check_cheri_fail(res, JNI_FALSE);
+	return res;
 }
 
 static jmethodID GetMethodID(JNIEnv *env, jclass clazz, const char *name, const char *sig) {
@@ -233,10 +248,10 @@ static struct _JNINativeInterface cherijni_JNIEnv_struct = {
 		NULL, // FatalError,
 		PushLocalFrame,
 		PopLocalFrame,
-		NULL, // NewGlobalRef,
-		NULL, // DeleteGlobalRef,
+		NewGlobalRef,
+		DeleteGlobalRef,
 		DeleteLocalRef,
-		NULL, // IsSameObject,
+		IsSameObject,
 		NewLocalRef,
 		NULL, // EnsureLocalCapacity,
 		NULL, // AllocObject,

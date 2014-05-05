@@ -288,7 +288,7 @@ static jobject addJNIGref(pObject ref, int type) {
     }
 }
 
-static int delJNIGref(pObject ref, int type) {
+int delJNIGref(pObject ref, int type) {
     Thread *self = threadSelf();
     int i;
 
