@@ -95,10 +95,10 @@ register_t cherijni_invoke(u_int op,
 		JNIEnv *env = cherijni_getJNIEnv();
 		cherijni_jobject_clearLocal();
 
-		if (ranTests == JNI_FALSE) {
-			ranTests = JNI_TRUE;
-			cherijni_runTests(env);
-		}
+//		if (ranTests == JNI_FALSE) {
+//			ranTests = JNI_TRUE;
+//			cherijni_runTests(env);
+//		}
 
 		register_t args_prim[] = { a2, a3, a4, a5, a6, a7 };
 		__capability void *args_objs[] = { c3, c4, c5, c6, c7, c8 };
