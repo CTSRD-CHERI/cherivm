@@ -3,8 +3,10 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <dlfcn.h>
+#include <errno.h>
 #include <sys/param.h>
 #include <sys/stat.h>
+#include <sys/ioctl.h>
 #include <sys/sysctl.h>
 #include <sys/types.h>
 #include <pthread.h>
@@ -1126,15 +1128,15 @@ LIBC_FUNCTION_CAP(GetStream) {
 		const char *path = arg_str(c1, 0, r);                                \
 		__capability struct stat *buf = arg_cap(c2, sizeof(struct stat), w, TRUE); \
 		if (path == NULL || buf == CNULL)                                    \
-			return CHERI_FAIL;                                               \
+			return -ECAPMODE;                                                \
 		                                                                     \
 		if (!allowFileAccess(path))                                          \
-			return CHERI_FAIL;                                               \
+			return -EACCES;                                                  \
 		                                                                     \
 		struct stat data;                                                    \
 		int res = NAME(path, &data);                                         \
 		if (res < 0)                                                         \
-			return CHERI_FAIL;                                               \
+			return -errno;                                                   \
 		                                                                     \
 		buf[0] = data;                                                       \
 		return CHERI_SUCCESS;                                                \
@@ -1148,33 +1150,49 @@ LIBC_FUNCTION_PRIM(lstat)
 
 LIBC_FUNCTION_PRIM(fstat) {
 	int fd = arg_fd(c1);
+	if (fd < 0)
+		return -EBADF;
+
 	__capability struct stat *buf = arg_cap(c2, sizeof(struct stat), w, TRUE);
-	if (fd < 0 || buf == CNULL)
-		return CHERI_FAIL;
+	if (buf == CNULL)
+		return -EFAULT;
 
 	struct stat data;
 	int res = fstat(fd, &data);
 	if (res < 0)
-		return CHERI_FAIL;
+		return -errno;
 
 	buf[0] = data;
 	return CHERI_SUCCESS;
 }
 
 LIBC_FUNCTION_CAP(open) {
+	__capability int *fileno = arg_cap(c2, sizeof(int), w, TRUE);
+	if (fileno == CNULL)
+		return CNULL;
+
 	const char *path = arg_str(c1, 0, r);
 	int flags = a1;
-	__capability int *fileno = arg_cap(c2, sizeof(int), w, TRUE);
-	if (path == NULL || fileno == CNULL)
+	if (path == NULL) {
+		fileno[0] = EFAULT;
 		return CNULL;
+	}
 
-	if (flags & O_CREAT) // needs an extra argument
+	if (flags & O_CREAT) { // needs an extra argument
+		fileno[0] = EIO;
 		return CNULL;
+	}
 
-	if (!allowFileAccess(path))
+	if (!allowFileAccess(path)) {
+		fileno[0] = EACCES;
 		return CNULL;
+	}
 
 	int fd = open(path, flags);
+	if (fd < 0) {
+		fileno[0] = errno;
+		return CNULL;
+	}
 
 	fileno[0] = fd;
 	return return_fd(fd);
@@ -1239,6 +1257,29 @@ LIBC_FUNCTION_CAP(socket) {
 	fileno[0] = fd;
 	return return_fd(fd);
 }
+
+LIBC_FUNCTION_PRIM(ioctl) {
+	int fd = arg_fd(c1);
+	if (fd < 0)
+		return -EBADF;
+
+	int request = a1;
+	if (request == FIONREAD || request == FIONWRITE || request == FIONSPACE) {
+
+		__capability int *cap_argp = arg_cap(c2, sizeof(int), w, TRUE);
+		int argp, res;
+
+		res = ioctl(fd, request, &argp);
+		if (res < 0)
+			return -errno;
+
+		cap_argp[0] = argp;
+		return CHERI_SUCCESS;
+
+	} else
+		return -EINVAL;
+}
+
 
 register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a2, register_t a3, register_t a4, register_t a5, register_t a6, register_t a7, struct cheri_object system_object, __capability void *c1, __capability void *c2, __capability void *c3, __capability void *c4, __capability void *c5) __attribute__((cheri_ccall)) {
 	switch(methodnum) {
@@ -1564,9 +1605,10 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 		CALL_LIBC_PRIM(read)
 	case CHERIJNI_LIBC_write:
 		CALL_LIBC_PRIM(write)
-
 	case CHERIJNI_LIBC_socket:
 		CALL_LIBC_CAP(socket)
+	case CHERIJNI_LIBC_ioctl:
+		CALL_LIBC_CAP(ioctl)
 
 	default:
 		break;

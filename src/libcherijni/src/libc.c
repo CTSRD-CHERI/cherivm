@@ -62,7 +62,7 @@ int pipe(int fildes[2])                                      STUB_ERRNO
 int access(const char *path, int mode)                       STUB_ERRNO
 
 int open(const char *path, int flags, ...) {
-	int fileno;
+	int fileno = EIO;
 	__capability void *cap_fileno = cap_buffer_wo(&fileno, sizeof(fileno));
 	__capability void *cap_path = cap_string(path);
 
@@ -70,7 +70,8 @@ int open(const char *path, int flags, ...) {
 
 	__capability void *cap_fd = hostInvoke_1_2(cheri_invoke_cap, open, flags, cap_path, cap_fileno);
 	if (cap_fd == CNULL) {
-		STUB_ERRNO
+		errno = fileno;
+		return -1;
 	}
 
 	if (cherijni_fd_store(cap_fd, fileno))
@@ -128,7 +129,35 @@ int ftruncate(int fd, off_t length)                          STUB_ERRNO
 int fprintf(FILE * restrict stream, \
             const char * restrict format, ...)               STUB_ERRNO
 
-int ioctl(int fd, unsigned long request, ...)                STUB_ERRNO
+int ioctl(int fd, unsigned long request, ...) {
+	init_cap_fd(fd, ERRNO)
+
+	if (request == FIONREAD || request == FIONWRITE || request == FIONSPACE) {
+		int arg, res;
+
+		res = hostInvoke_1_2(cheri_invoke_prim, ioctl, request, cap_fd, cap_buffer_wo(&arg, sizeof(int)));
+		if (res == CHERI_SUCCESS) {
+			int *arg_res;
+			va_list varargs;
+
+			va_start(varargs, request);
+			arg_res = va_arg(varargs, int*);
+			va_end(varargs);
+
+			*arg_res = arg;
+			return 0;
+		} else {
+			errno = -res;
+			return -1;
+		}
+
+	} else {
+		printf("[SANDBOX ERROR: %s - unsupported operation]\n", __func__);
+		errno = EINVAL;
+		return -1;
+	}
+}
+
 off_t lseek(int fildes, off_t offset, int whence)            STUB_ERRNO
 
 #define STAT_FUNCTION(NAME)                                                           \
@@ -137,9 +166,10 @@ off_t lseek(int fildes, off_t offset, int whence)            STUB_ERRNO
 		__capability void *cap_data = cap_buffer_wo(sb, sizeof(struct stat));         \
 	                                                                                  \
 		register_t res = hostInvoke_0_2(cheri_invoke_prim, NAME, cap_path, cap_data); \
-		if (res == CHERI_FAIL)                                                        \
-			STUB_ERRNO                                                                \
-		else                                                                          \
+		if (res < 0) {                                                                \
+			errno = -res;                                                             \
+			return -1;                                                                \
+		} else                                                                        \
 			return 0;                                                                 \
 	}
 
@@ -151,9 +181,10 @@ int fstat(int fd, struct stat *sb) {
 	__capability void *cap_data = cap_buffer_wo(sb, sizeof(struct stat));
 
 	register_t res = hostInvoke_0_2(cheri_invoke_prim, fstat, cap_fd, cap_data);
-	if (res == CHERI_FAIL)
-		STUB_ERRNO
-	else
+	if (res < 0) {
+		errno = -res;
+		return -1;
+	} else
 		return 0;
 }
 
