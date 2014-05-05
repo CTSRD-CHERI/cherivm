@@ -1024,6 +1024,13 @@ JNI_FUNCTION_PRIM(GetArrayLength) {
 	return (*env)->GetArrayLength(env, array);
 }
 
+#define NEW_ARRAY(TYPE, jtype, ctype)                          \
+	JNI_FUNCTION_CAP(New##TYPE##Array) {                       \
+		jsize length = (jsize) a1;                             \
+		jobject array = (*env)->New##TYPE##Array(env, length); \
+		return return_jniref(array);                           \
+	}
+
 #define ACCESS_ARRAY_ELEMENTS_COMMON(TYPE, jtype, ctype, perm) \
 	jsize start = (jsize) a1, len = (jsize) a2; \
 	jobject array_ref = arg_jniref(c1); \
@@ -1066,6 +1073,7 @@ op(Long, jlong, 'J')       \
 op(Float, jfloat, 'F')     \
 op(Double, jdouble, 'D')
 
+ARRAY_METHOD(NEW_ARRAY)
 ARRAY_METHOD(ACCESS_ARRAY_ELEMENTS)
 
 JNI_FUNCTION_CAP(GetDirectBufferAddress) {
@@ -1449,21 +1457,21 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 	case CHERIJNI_JNIEnv_SetObjectArrayElement:
 		break;
 	case CHERIJNI_JNIEnv_NewBooleanArray:
-		break;
+		CALL_JNI_CAP(NewBooleanArray)
 	case CHERIJNI_JNIEnv_NewByteArray:
-		break;
+		CALL_JNI_CAP(NewByteArray)
 	case CHERIJNI_JNIEnv_NewCharArray:
-		break;
+		CALL_JNI_CAP(NewCharArray)
 	case CHERIJNI_JNIEnv_NewShortArray:
-		break;
+		CALL_JNI_CAP(NewShortArray)
 	case CHERIJNI_JNIEnv_NewIntArray:
-		break;
+		CALL_JNI_CAP(NewIntArray)
 	case CHERIJNI_JNIEnv_NewLongArray:
-		break;
+		CALL_JNI_CAP(NewLongArray)
 	case CHERIJNI_JNIEnv_NewFloatArray:
-		break;
+		CALL_JNI_CAP(NewFloatArray)
 	case CHERIJNI_JNIEnv_NewDoubleArray:
-		break;
+		CALL_JNI_CAP(NewDoubleArray)
 	case CHERIJNI_JNIEnv_GetBooleanArrayRegion:
 		CALL_JNI_PRIM(GetBooleanArrayRegion)
 	case CHERIJNI_JNIEnv_GetByteArrayRegion:

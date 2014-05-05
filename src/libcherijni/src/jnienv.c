@@ -164,44 +164,49 @@ static jsize GetArrayLength(JNIEnv *env, jarray array) {
 	return (jsize) hostInvoke_0_1(cheri_invoke_prim, GetArrayLength, get_cap(array, jobject));
 }
 
-#define ARRAY_METHOD(TYPE, jtype, ctype) \
-	static jtype *Get##TYPE##ArrayElements(JNIEnv *env, jtype##Array array, jboolean *isCopy) { \
-		jsize length = (*env)->GetArrayLength(env, array); \
-		size_t buffer_size = length * sizeof(jtype); \
-		jtype *buffer = (jtype*) malloc(buffer_size); \
-		\
-		(*env)->Get##TYPE##ArrayRegion(env, array, 0, length, buffer); \
-		if (isCopy != NULL) \
-			*isCopy = JNI_TRUE; \
-		return buffer; \
-	} \
-	\
-	static void Release##TYPE##ArrayElements(JNIEnv *env, jtype##Array array, jtype *elems, jint mode) { \
-		if (mode != JNI_ABORT) { \
-			jsize length = (*env)->GetArrayLength(env, array); \
-			(*env)->Set##TYPE##ArrayRegion(env, array, 0, length, elems); \
-		} \
-		\
-		if (mode != JNI_COMMIT) \
-			free(elems);\
-	} \
-	\
-	static void Get##TYPE##ArrayRegion(JNIEnv *env, jtype##Array array, jsize start, jsize len, jtype *buf) { \
-		size_t buf_size = len * sizeof(jtype); \
-		__capability void *cap_buf = cap_buffer_wo(buf, buf_size); \
-		\
-		register_t result = hostInvoke_2_2(cheri_invoke_prim, Get##TYPE##ArrayRegion, \
-		                                   start, len, get_cap(array, jobject), cap_buf); \
-		check_cheri_fail_void(result); \
-	} \
-	\
+#define ARRAY_METHOD(TYPE, jtype, ctype)                                                                            \
+	static jtype##Array New##TYPE##Array(JNIEnv *env, jsize length) {                                               \
+		__capability void *result = hostInvoke_1_0(cheri_invoke_cap, New##TYPE##Array, length);                     \
+		return (jtype##Array) cherijni_jobject_store(result, JNI_FALSE);                                            \
+	}                                                                                                               \
+	                                                                                                                \
+	static jtype *Get##TYPE##ArrayElements(JNIEnv *env, jtype##Array array, jboolean *isCopy) {                     \
+		jsize length = (*env)->GetArrayLength(env, array);                                                          \
+		size_t buffer_size = length * sizeof(jtype);                                                                \
+		jtype *buffer = (jtype*) malloc(buffer_size);                                                               \
+		                                                                                                            \
+		(*env)->Get##TYPE##ArrayRegion(env, array, 0, length, buffer);                                              \
+		if (isCopy != NULL)                                                                                         \
+			*isCopy = JNI_TRUE;                                                                                     \
+		return buffer;                                                                                              \
+	}                                                                                                               \
+	                                                                                                                \
+	static void Release##TYPE##ArrayElements(JNIEnv *env, jtype##Array array, jtype *elems, jint mode) {            \
+		if (mode != JNI_ABORT) {                                                                                    \
+			jsize length = (*env)->GetArrayLength(env, array);                                                      \
+			(*env)->Set##TYPE##ArrayRegion(env, array, 0, length, elems);                                           \
+		}                                                                                                           \
+		                                                                                                            \
+		if (mode != JNI_COMMIT)                                                                                     \
+			free(elems);                                                                                            \
+	}                                                                                                               \
+	                                                                                                                \
+	static void Get##TYPE##ArrayRegion(JNIEnv *env, jtype##Array array, jsize start, jsize len, jtype *buf) {       \
+		size_t buf_size = len * sizeof(jtype);                                                                      \
+		__capability void *cap_buf = cap_buffer_wo(buf, buf_size);                                                  \
+		                                                                                                            \
+		register_t result = hostInvoke_2_2(cheri_invoke_prim, Get##TYPE##ArrayRegion,                               \
+		                                   start, len, get_cap(array, jobject), cap_buf);                           \
+		check_cheri_fail_void(result);                                                                              \
+	}                                                                                                               \
+	                                                                                                                \
 	static void Set##TYPE##ArrayRegion(JNIEnv *env, jtype##Array array, jsize start, jsize len, const jtype *buf) { \
-		size_t buf_size = len * sizeof(jtype); \
-		__capability void *cap_buf = cap_buffer_ro(buf, buf_size); \
-		\
-		register_t result = hostInvoke_2_2(cheri_invoke_prim, Set##TYPE##ArrayRegion, \
-		                                   start, len, get_cap(array, jobject), cap_buf); \
-		check_cheri_fail_void(result); \
+		size_t buf_size = len * sizeof(jtype);                                                                      \
+		__capability void *cap_buf = cap_buffer_ro(buf, buf_size);                                                  \
+		                                                                                                            \
+		register_t result = hostInvoke_2_2(cheri_invoke_prim, Set##TYPE##ArrayRegion,                               \
+		                                   start, len, get_cap(array, jobject), cap_buf);                           \
+		check_cheri_fail_void(result);                                                                              \
 	}
 
 ARRAY_METHOD(Boolean, jboolean, 'Z')
@@ -402,14 +407,14 @@ static struct _JNINativeInterface cherijni_JNIEnv_struct = {
 		NULL, // NewObjectArray,
 		NULL, // GetObjectArrayElement,
 		NULL, // SetObjectArrayElement,
-		NULL, // NewBooleanArray,
-		NULL, // NewByteArray,
-		NULL, // NewCharArray,
-		NULL, // NewShortArray,
-		NULL, // NewIntArray,
-		NULL, // NewLongArray,
-		NULL, // NewFloatArray,
-		NULL, // NewDoubleArray,
+		NewBooleanArray,
+		NewByteArray,
+		NewCharArray,
+		NewShortArray,
+		NewIntArray,
+		NewLongArray,
+		NewFloatArray,
+		NewDoubleArray,
 		GetBooleanArrayElements,
 		GetByteArrayElements,
 		GetCharArrayElements,
