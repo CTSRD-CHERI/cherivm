@@ -1201,11 +1201,11 @@ LIBC_FUNCTION_CAP(open) {
 LIBC_FUNCTION_PRIM(close) {
 	int fd = arg_fd(c1);
 	if (fd < 0)
-		return CHERI_FAIL;
+		return -EBADF;
 
 	int res = close(fd);
 	if (res < 0)
-		return CHERI_FAIL;
+		return -errno;
 	else {
 		revoke_fd(fd);
 		return CHERI_SUCCESS;
@@ -1214,9 +1214,12 @@ LIBC_FUNCTION_PRIM(close) {
 
 LIBC_FUNCTION_PRIM(read) {
 	int fd = arg_fd(c1);
+	if (fd < 0)
+		return -EBADF;
+
 	__capability void *buf = arg_cap(c2, 1, w, TRUE);
-	if (fd < 0 || buf == CNULL)
-		return CHERI_FAIL;
+	if (buf == CNULL)
+		return -EINVAL;
 
 	// TODO: should write directly into the capability
 
@@ -1228,9 +1231,12 @@ LIBC_FUNCTION_PRIM(read) {
 
 LIBC_FUNCTION_PRIM(write) {
 	int fd = arg_fd(c1);
+	if (fd < 0)
+		return -EBADF;
+
 	__capability void *buf = arg_cap(c2, 1, r, TRUE);
-	if (fd < 0 || buf == CNULL)
-		return CHERI_FAIL;
+	if (buf == CNULL)
+		return -EINVAL;
 
 	// TODO: should read directly from the capability
 
@@ -1251,9 +1257,12 @@ LIBC_FUNCTION_CAP(socket) {
 		return CNULL;
 
 	int fd = socket(domain, type, protocol);
+	if (fd < 0) {
+		fileno[0] = -errno;
+		return CNULL;
+	}
 
 	printf("[SOCKET: opened new socket with fd=%d]\n", fd);
-
 	fileno[0] = fd;
 	return return_fd(fd);
 }

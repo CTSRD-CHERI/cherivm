@@ -85,11 +85,12 @@ __weak_reference(open, _open);
 int close(int fd) {
 	init_cap_fd(fd, ERRNO);
 	register_t res = hostInvoke_0_1(cheri_invoke_prim, close, cap_fd);
-	if (res == CHERI_FAIL)
-		return -1;
-	else {
+	if (res == CHERI_SUCCESS) {
 		cherijni_fd_delete(fd);
 		return 0;
+	} else {
+		errno = -res;
+		return -1;
 	}
 }
 
@@ -103,7 +104,14 @@ int unlink(const char *path)                                 STUB_ERRNO
 ssize_t read(int fd, void *buf, size_t nbytes) {
 	init_cap_fd(fd, ERRNO)
 	__capability void *cap_buf = cap_buffer_wo(buf, nbytes);
-	return (ssize_t) hostInvoke_0_2(cheri_invoke_prim, read, cap_fd, cap_buf);
+	register_t res = hostInvoke_0_2(cheri_invoke_prim, read, cap_fd, cap_buf);
+
+	if (res >= 0)
+		return (ssize_t) res;
+	else {
+		errno = -res;
+		return -1;
+	}
 }
 
 __weak_reference(read, _read);
@@ -113,7 +121,14 @@ ssize_t readv(int fd, const struct iovec *iov, int iovcnt)   STUB_ERRNO
 ssize_t write(int fd, const void *buf, size_t nbytes) {
 	init_cap_fd(fd, ERRNO)
 	__capability void *cap_buf = cap_buffer_ro(buf, nbytes);
-	return (ssize_t) hostInvoke_0_2(cheri_invoke_prim, write, cap_fd, cap_buf);
+	register_t res = hostInvoke_0_2(cheri_invoke_prim, write, cap_fd, cap_buf);
+
+	if (res >= 0)
+		return (ssize_t) res;
+	else {
+		errno = -res;
+		return -1;
+	}
 }
 
 __weak_reference(write, _write);
@@ -238,7 +253,8 @@ int socket(int domain, int type, int protocol) {
 
 	__capability void *cap_fd = hostInvoke_3_1(cheri_invoke_cap, socket, domain, type, protocol, cap_fileno);
 	if (cap_fd == CNULL) {
-		STUB_ERRNO
+		errno = -fileno;
+		return -1;
 	}
 
 	if (cherijni_fd_store(cap_fd, fileno))
