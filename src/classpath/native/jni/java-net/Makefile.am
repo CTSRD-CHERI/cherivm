@@ -1,4 +1,4 @@
-nativeexeclib_LTLIBRARIES = libjavanet.la
+noinst_PROGRAMS = javanet
 
 if ENABLE_LOCAL_SOCKETS
 local_sources = gnu_java_net_local_LocalSocketImpl.c \
@@ -8,17 +8,32 @@ else
 local_sources = gnu_java_net_local_LocalSocketImpl.c
 endif
 
-libjavanet_la_SOURCES = javanet.c \
+javanet_SOURCES = javanet.c \
 			javanet.h \
 			java_net_VMInetAddress.c \
 			java_net_VMNetworkInterface.c \
 			java_net_VMURLConnection.c \
-                        gnu_java_net_VMPlainSocketImpl.c \
+			gnu_java_net_VMPlainSocketImpl.c \
+			cherijni_names.c \
 			$(local_sources)
 
-libjavanet_la_LIBADD = $(top_builddir)/native/jni/classpath/jcl.lo \
+javanet_LDADD = $(top_builddir)/native/jni/classpath/jcl.lo \
 		       $(top_builddir)/native/jni/native-lib/libclasspathnative.la \
-		       $(LIBMAGIC)
+		       $(LIBMAGIC) -lz \
+		       $(top_srcdir)/../libcherijni/src/libcherijni.a \
+		       $(top_srcdir)/../libcherijni/src/libc_cheri.a \
+		       chsbrt.o
+
+javanet_LDFLAGS = -all-static -nostdlib -Wl,--script=sandbox.ld
+
+chsbrt.o:
+	ln -s ../sandbox/chsbrt.o .
+
+libjavanet.so: javanet
+	${OBJCOPY} -S -O binary javanet libjavanet.so 
+
+install-exec-local: libjavanet.so
+	cp -v libjavanet.so ${libdir}/classpath/
 
 AM_LDFLAGS = @CLASSPATH_MODULE@
 AM_CPPFLAGS = @CLASSPATH_INCLUDES@

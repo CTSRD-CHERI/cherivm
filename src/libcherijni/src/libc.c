@@ -7,24 +7,33 @@
 #include <sys/socket.h>
 #include <sys/statvfs.h>
 #include <sys/time.h>
+#include <sys/types.h>
 #include <sys/uio.h>
 #include <sys/event.h>
 #include <sys/wait.h>
+
+#include <net/if.h>
 
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <iconv.h>
+#include <ifaddrs.h>
+#include <netdb.h>
+#include <signal.h>
+#include <time.h>
 #include <unistd.h>
 #include <utime.h>
-#include <signal.h>
 
 #define hostInvoke_name(name) CHERIJNI_LIBC_ ## name
 
 #define STUB_ERRNO        { printf("[SANDBOX error: %s\n", __func__); errno = ECAPMODE; return (-1); }
+#define STUB_ZERO         { printf("[SANDBOX error: %s\n", __func__); errno = ECAPMODE; return 0; }
 #define STUB_SIZET        { printf("[SANDBOX error: %s\n", __func__); errno = ECAPMODE; return ((size_t) - 1); }
-#define STUB_NULL         { printf("[SANDBOX error: %s\n", __func__); return NULL; }
+#define STUB_NULL         { printf("[SANDBOX error: %s\n", __func__); errno = ECAPMODE; return NULL; }
+#define STUB_EOF          { printf("[SANDBOX error: %s\n", __func__); errno = ECAPMODE; return EOF; }
 #define STUB_MAPFAILED    { printf("[SANDBOX error: %s\n", __func__); errno = ECAPMODE; return MAP_FAILED; }
+#define STUB_VOID         { printf("[SANDBOX error: %s\n", __func__); errno = ECAPMODE; }
 
 #define init_cap_fd(fd, err) \
 	__capability void* cap_##fd = cherijni_fd_load(fd); \
@@ -33,6 +42,12 @@
 /* CONSTANTS */
 
 int __isthreaded = 0;
+int __local_h_errno = 0;
+const char *__progname = "CheriJNI Sandbox";
+
+int *__h_errno() {
+	return &__local_h_errno;
+}
 
 /* STANDARD STREAMS */
 
@@ -64,6 +79,8 @@ int open(const char *path, int flags, ...) {
 		return -1;
 }
 
+__weak_reference(open, _open);
+
 int close(int fd) {
 	init_cap_fd(fd, ERRNO);
 	register_t res = hostInvoke_0_1(cheri_invoke_prim, close, cap_fd);
@@ -74,6 +91,8 @@ int close(int fd) {
 		return 0;
 	}
 }
+
+__weak_reference(close, _close);
 
 int chmod(const char *path, mode_t mode)                     STUB_ERRNO
 int utime(const char *file, const struct utimbuf *timep)     STUB_ERRNO
@@ -86,6 +105,8 @@ ssize_t read(int fd, void *buf, size_t nbytes) {
 	return (ssize_t) hostInvoke_0_2(cheri_invoke_prim, read, cap_fd, cap_buf);
 }
 
+__weak_reference(read, _read);
+
 ssize_t readv(int fd, const struct iovec *iov, int iovcnt)   STUB_ERRNO
 
 ssize_t write(int fd, const void *buf, size_t nbytes) {
@@ -93,6 +114,8 @@ ssize_t write(int fd, const void *buf, size_t nbytes) {
 	__capability void *cap_buf = cap_buffer_ro(buf, nbytes);
 	return (ssize_t) hostInvoke_0_2(cheri_invoke_prim, write, cap_fd, cap_buf);
 }
+
+__weak_reference(write, _write);
 
 ssize_t writev(int fd, const struct iovec *iov, int iovcnt)  STUB_ERRNO
 
@@ -134,6 +157,8 @@ int fstat(int fd, struct stat *sb) {
 		return 0;
 }
 
+__weak_reference(fstat, _fstat);
+
 int statvfs(const char * restrict path, \
             struct statvfs * restrict buf)                   STUB_ERRNO
 
@@ -141,6 +166,29 @@ int select(int nfds, fd_set *readfds, fd_set *writefds, \
            fd_set *exceptfds, struct timeval *timeout)       STUB_ERRNO
 ssize_t readlink(const char *restrict path, \
                  char *restrict buf, size_t bufsiz)          STUB_ERRNO
+
+int mkstemp(char *template)                                  STUB_ERRNO
+
+/* FILE STREAMS */
+
+FILE *fopen(const char * restrict path, \
+            const char * restrict mode)                      STUB_NULL
+int fclose(FILE *stream)                                     STUB_EOF
+size_t fread(void * restrict ptr, size_t size, \
+             size_t nmemb, FILE * restrict stream)           STUB_ZERO
+size_t fwrite(const void * restrict ptr, size_t size, \
+              size_t nmemb, FILE * restrict stream)          STUB_ZERO
+int fprintf_l(FILE * restrict stream, locale_t loc, \
+              const char * restrict format, ...)             STUB_ZERO
+int vfprintf(FILE * restrict stream, \
+             const char * restrict format, va_list ap)       STUB_ERRNO
+int fputc(int c, FILE *stream)                               STUB_EOF
+int fflush(FILE *stream)                                     STUB_EOF
+void rewind(FILE *stream)                                    STUB_VOID
+
+ssize_t getline(char ** restrict linep, \
+                size_t * restrict linecapp, \
+                FILE * restrict stream)                      STUB_ERRNO
 
 /* DIRECTORY OPERATIONS */
 
@@ -154,23 +202,46 @@ int rmdir(const char *path)                                  STUB_ERRNO
 /* SOCKETS */
 
 int socket(int domain, int type, int protocol)               STUB_ERRNO
+int bind(int s, const struct sockaddr *addr, \
+         socklen_t addrlen)                                  STUB_ERRNO
+int listen(int s, int backlog)                               STUB_ERRNO
+int shutdown(int s, int how)                                 STUB_ERRNO
 int accept(int s, struct sockaddr * restrict addr, \
            socklen_t * restrict addrlen)                     STUB_ERRNO
 int connect(int s, const struct sockaddr *name, \
             socklen_t namelen)                               STUB_ERRNO
+
+ssize_t recv(int s, void *buf, size_t len, int flags)        STUB_ERRNO
 ssize_t recvfrom(int s, void *buf, size_t len, int flags,
                  struct sockaddr * restrict from, \
                  socklen_t * restrict fromlen)               STUB_ERRNO
+ssize_t send(int s, const void *msg, size_t len, int flags)  STUB_ERRNO
 ssize_t sendto(int s, const void *msg, size_t len,
                int flags, const struct sockaddr *to,
                socklen_t tolen)                              STUB_ERRNO
+
 int getsockopt(int s, int level, int optname, \
                void * restrict optval, \
                socklen_t * restrict optlen)                  STUB_ERRNO
+int setsockopt(int s, int level, int optname, \
+               const void *optval, socklen_t optlen)         STUB_ERRNO
+
 int getsockname(int s, struct sockaddr * restrict name, \
                 socklen_t * restrict namelen)                STUB_ERRNO
 int getpeername(int s, struct sockaddr * restrict name, \
                 socklen_t * restrict namelen)                STUB_ERRNO
+
+int getifaddrs(struct ifaddrs **ifap)                        STUB_ERRNO
+void freeifaddrs(struct ifaddrs *ifp)                        STUB_VOID
+
+int gethostname(char *name, size_t namelen)                  STUB_ERRNO
+struct hostent *gethostbyaddr(const void *addr, \
+                              socklen_t len, int af)         STUB_NULL
+int gethostbyname_r(const char *name, struct hostent *he, \
+                    char *buffer, size_t buflen, \
+                    struct hostent **result, int *h_errnop)  STUB_ERRNO
+
+unsigned int if_nametoindex(const char *ifname)              STUB_ZERO
 
 /* MMAP */
 
@@ -215,14 +286,54 @@ int execve(const char *path, char *const argv[], \
            char *const envp[])                               STUB_ERRNO
 int chdir(const char *path)                                  STUB_ERRNO
 char *getenv(const char *name)                               STUB_NULL
+
 pid_t getpid() {
-	printf("WARNING: getpid should never fail!");
+	printf("[SANDBOX: getpid should never fail!");
 	STUB_ERRNO
 }
+
+int issetugid() {
+	printf("[SANDBOX: issetugid should never fail!");
+	STUB_ERRNO
+}
+
 pid_t waitpid(pid_t wpid, int *status, int options)          STUB_ERRNO
 pid_t fork()                                                 STUB_ERRNO
 int kill(pid_t pid, int sig)                                 STUB_ERRNO
 int raise(int sig)                                           STUB_ERRNO
+
+void exit(int status) {
+	printf("[SANDBOX: exiting with code %d...]\n", status);
+	abort();
+}
+
+/* TIME */
+
+time_t time(time_t *tloc) {
+	printf("[SANDBOX error: %s\n", __func__);
+	return (time_t) - 1;
+}
+
+int utimes(const char *path, const struct timeval *times)    STUB_ERRNO
+
+/* STRINGS */
+
+int asprintf(char **ret, const char *format, ...) {
+	int res;
+	va_list args;
+
+	va_start(args, format);
+	res = vasprintf(ret, format, args);
+	va_end(args);
+
+	return res;
+}
+
+int vasprintf(char **ret, const char *format, va_list ap) {
+	*ret = NULL;
+	return (-1);
+}
+
 
 /* INITIALIZATION */
 
