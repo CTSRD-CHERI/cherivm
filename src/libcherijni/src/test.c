@@ -150,7 +150,7 @@ static void test_PopLocalFrame_MoreRefs(JNIEnv *env) {
 			if (success < 0)
 				TEST_FAILED_REASON("couldn't create local frame");
 			else {
-				jobject str2 = (*env)->NewLocalRef(env, str2);
+				jobject str2 = (*env)->NewLocalRef(env, str);
 				(*env)->PopLocalFrame(env, NULL);
 				if ((*env)->GetStringUTFLength(env, str) == 0)
 					TEST_FAILED_REASON("old ref not accepted");
