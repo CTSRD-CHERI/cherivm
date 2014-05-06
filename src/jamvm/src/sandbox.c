@@ -1404,6 +1404,35 @@ LIBC_FUNCTION_PRIM(fcntl) {
 		return -EINVAL;
 }
 
+#define SOCKET_GETNAME(NAME)                                    \
+	LIBC_FUNCTION_PRIM(get##NAME##name) {                       \
+		int fd = arg_fd(c1);                                    \
+		if (fd < 0)                                             \
+			return -EBADF;                                      \
+		                                                        \
+		__capability char *addr_cap = arg_cap(c2, 0, w, TRUE);  \
+		size_t addr_len = cheri_getlen(addr_cap);               \
+		/* protect ourselves from allocating too much memory */ \
+		if (addr_len > 1024)                                    \
+			return -EFAULT;                                     \
+		                                                        \
+		char *addr = sysMalloc(addr_len);                       \
+		int res = get##NAME##name(fd, addr, &addr_len);         \
+		                                                        \
+		if (res == 0)                                           \
+			copyToSandbox(addr_cap, addr, addr_len);            \
+		                                                        \
+		sysFree(addr);                                          \
+		                                                        \
+		if (res < 0)                                            \
+			return -errno;                                      \
+		else                                                    \
+			return addr_len;                                    \
+	}
+
+SOCKET_GETNAME(sock)
+SOCKET_GETNAME(peer)
+
 register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a2, register_t a3, register_t a4, register_t a5, register_t a6, register_t a7, struct cheri_object system_object, __capability void *c1, __capability void *c2, __capability void *c3, __capability void *c4, __capability void *c5) __attribute__((cheri_ccall)) {
 	switch(methodnum) {
 	case CHERIJNI_JNIEnv_GetVersion:
@@ -1738,6 +1767,10 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 		CALL_LIBC_PRIM(bind)
 	case CHERIJNI_LIBC_fcntl:
 		CALL_LIBC_PRIM(fcntl)
+	case CHERIJNI_LIBC_getsockname:
+		CALL_LIBC_PRIM(getsockname)
+	case CHERIJNI_LIBC_getpeername:
+		CALL_LIBC_PRIM(getpeername)
 
 	default:
 		break;
