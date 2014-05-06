@@ -110,6 +110,15 @@ static jobject CallObjectMethod(JNIEnv *env, jobject obj, jmethodID mid, ...) {
 	return (jobject) cherijni_jobject_store(result, JNI_FALSE);
 }
 
+static jobject NewObject(JNIEnv *env, jclass clazz, jmethodID mid, ...) {
+	VIRTUAL_METHOD_COMMON
+	__capability void *result = hostInvoke_7_5(cheri_invoke_cap, NewObject,
+			args_prim[0], args_prim[1], args_prim[2], args_prim[3], args_prim[4], args_prim[5], args_prim[6],
+			get_cap(clazz, jobject), get_cap(mid, jmethodID),
+			args_cap[0], args_cap[1], args_cap[2]);
+	return (jobject) cherijni_jobject_store(result, JNI_FALSE);
+}
+
 #define CALL_METHOD(access)        \
 access##_METHOD(Boolean, jboolean) \
 access##_METHOD(Byte, jbyte)       \
@@ -260,7 +269,7 @@ static struct _JNINativeInterface cherijni_JNIEnv_struct = {
 		NewLocalRef,
 		NULL, // EnsureLocalCapacity,
 		NULL, // AllocObject,
-		NULL, // NewObject,
+		NewObject,
 		NULL, // NewObjectV,
 		NULL, // NewObjectA,
 		NULL, // GetObjectClass,

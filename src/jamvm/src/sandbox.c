@@ -963,6 +963,18 @@ JNI_FUNCTION_CAP(CallObjectMethod) {
 	return return_jniref(result);
 }
 
+JNI_FUNCTION_CAP(NewObject) {
+	VIRTUAL_METHOD_COMMON(CNULL)
+
+	jclass clazz = checkIsClass(obj);
+	if (clazz == NULL)
+		return CNULL;
+
+	jobject result = (*env)->NewObjectA(env, clazz, mb, args);
+	if (args) sysFree(args);
+	return return_jniref(result);
+}
+
 JNI_FUNCTION_CAP(GetFieldID) {
 	pClass clazz = arg_class(c1);
 	const char *name = arg_str(c2, 1, r);
@@ -1484,7 +1496,7 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 	case CHERIJNI_JNIEnv_AllocObject:
 		break;
 	case CHERIJNI_JNIEnv_NewObject:
-		break;
+		CALL_JNI_CAP(NewObject)
 	case CHERIJNI_JNIEnv_GetObjectClass:
 		break;
 	case CHERIJNI_JNIEnv_IsInstanceOf:
