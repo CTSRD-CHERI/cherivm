@@ -40,24 +40,6 @@ static JNIEnv *env = &globalJNIEnv;
 static pClass class_String;
 static pClass class_Buffer;
 
-static VMLock cherijni_sandbox_lock;
-
-static void lockSandbox() {
-	Thread *self = threadSelf();
-    if(!tryLockVMLock(cherijni_sandbox_lock, self)) {
-        disableSuspend(self);
-        lockVMLock(cherijni_sandbox_lock, self);
-        enableSuspend(self);
-    }
-//    printf("[LOCK: Thread %p entering sandbox]\n", self);
-}
-
-static void unlockSandbox() {
-	Thread *self = threadSelf();
-//    printf("[LOCK: Thread %p leaving sandbox]\n", self);
-    unlockVMLock(cherijni_sandbox_lock, self);
-}
-
 struct sandbox_object {
 	struct sandbox_class	*sbo_sandbox_classp;
 	void			*sbo_mem;
@@ -68,6 +50,45 @@ struct sandbox_object {
 	struct cheri_object	 sbo_cheri_system_object;
 	struct sandbox_object_stat	*sbo_sandbox_object_statp;
 };
+
+typedef struct cherijni_reference {
+	jobject jni_ref;
+	uintptr_t counter;
+} cherijni_ref;
+
+typedef cherijni_ref *pRef;
+
+#define SANDBOX_REFS_SIZE       128
+
+struct cherijni_sandbox {
+	struct sandbox_class       *classp;
+	struct sandbox_object      *objectp;
+	uintptr_t                   mem_start;
+	uintptr_t                   mem_end;
+	cherijni_ref                refs[SANDBOX_REFS_SIZE];
+	size_t                      refs_size;
+};
+
+static VMLock cherijni_sandbox_lock;
+static struct cherijni_sandbox *sandbox_lock_current;
+
+static void lockSandbox(struct cherijni_sandbox *handle) {
+	Thread *self = threadSelf();
+    if(!tryLockVMLock(cherijni_sandbox_lock, self)) {
+        disableSuspend(self);
+        lockVMLock(cherijni_sandbox_lock, self);
+        enableSuspend(self);
+    }
+    sandbox_lock_current = handle;
+    // printf("[LOCK: Thread %p entering sandbox]\n", self);
+}
+
+static void unlockSandbox() {
+	Thread *self = threadSelf();
+	// printf("[LOCK: Thread %p leaving sandbox]\n", self);
+	sandbox_lock_current = NULL;
+    unlockVMLock(cherijni_sandbox_lock, self);
+}
 
 struct cap_counter cap_counter_new() {
 	struct cap_counter counter;
@@ -109,28 +130,10 @@ int cap_counter_compare(struct cap_counter *c1, struct cap_counter *c2) {
 	return 0;
 }
 
-typedef struct cherijni_reference {
-	jobject jni_ref;
-	uintptr_t counter;
-} cherijni_ref;
-
-typedef cherijni_ref *pRef;
-
 #define IS_REVOKED(ref)    (ref == NULL || (ref->jni_ref != NULL && ref->counter == 0))
 #define IS_VALID(ref)      (ref != NULL && ref->jni_ref != NULL && ref->counter != 0)
 #define FREE_REF(ref)      (ref->jni_ref = NULL)
 #define IS_FREE(ref)       (ref->jni_ref == NULL)
-
-#define SANDBOX_REFS_SIZE       128
-
-struct cherijni_sandbox {
-	struct sandbox_class       *classp;
-	struct sandbox_object      *objectp;
-	uintptr_t                   mem_start;
-	uintptr_t                   mem_end;
-	cherijni_ref                refs[SANDBOX_REFS_SIZE];
-	size_t                      refs_size;
-};
 
 static void scrubMemory(struct cherijni_sandbox *sandbox);
 
@@ -245,7 +248,7 @@ void *cherijni_open(char *path) {
 
 	/* Run init inside sandbox */
 	struct cheri_object system = sandbox_object_getsystemobject(sandbox->objectp);
-	lockSandbox();
+	lockSandbox(sandbox);
 	register_t result = CInvoke_0_2(sandbox, CHERIJNI_METHOD_INIT, system.co_codecap, system.co_datacap);
 	unlockSandbox();
 	if (result == CHERI_FAIL) {
@@ -294,15 +297,8 @@ void cherijni_markValidRefs() {
 // TODO: check the return value? -1 *may* mean that a trap happened inside the sandbox (will be replaced with signals)
 
 void *cherijni_lookup(void *handle, char *methodName) {
-	lockSandbox();
+	lockSandbox((struct cherijni_sandbox*) handle);
 	void *res = (void*) CInvoke_0_1(handle, CHERIJNI_METHOD_LOOKUP, cap_string(methodName));
-	unlockSandbox();
-	return res;
-}
-
-jint cherijni_callOnLoadUnload(void *handle, void *ptr, JavaVM *jvm, void *reserved) {
-	lockSandbox();
-	jint res = (jint) CInvoke_1_0(handle, CHERIJNI_METHOD_ONLOAD_ONUNLOAD, ptr);
 	unlockSandbox();
 	return res;
 }
@@ -402,15 +398,7 @@ static inline void revoke_fd(int fd) {
 	cap_counter_inc(&FDs[fd]);
 }
 
-#define GET_SANDBOX_HANDLE(error_return)                                     \
-		struct cherijni_sandbox *sandbox;                                    \
-		Frame *frame = getExecEnv()->last_frame;                             \
-		if (frame->mb != NULL && frame->mb->sandbox_handle != NULL)          \
-			sandbox = (struct cherijni_sandbox *) frame->mb->sandbox_handle; \
-		else {                                                               \
-			jam_printf("[ERROR: cannot find sandbox handle]\n");             \
-			return error_return;                                             \
-		}
+#define GET_SANDBOX_HANDLE(error_return) struct cherijni_sandbox *sandbox = sandbox_lock_current;
 
 static inline __capability void *return_ref(pRef ref) {
 	if (ref == NULL)
@@ -653,24 +641,20 @@ static void revokeLrefsInFrame(JNIFrame *frame) {
 static __capability void *invoke_returnCap(void *handle, void *native_func, __capability void *cap_signature, __capability void *cap_this, register_t args_prim[], __capability void *args_cap[]) {
 	cheri_invoke_cap func = (cheri_invoke_cap) cheri_invoke;
 	struct cherijni_sandbox *sandbox = (struct cherijni_sandbox*) handle;
-	lockSandbox();
 	__capability void *res = (func)(
 			sandbox->objectp->sbo_cheri_object,
 			CHERIJNI_METHOD_RUN, (register_t) native_func,
 			args_prim[0], args_prim[1], args_prim[2], args_prim[3], args_prim[4], args_prim[5],
             cap_signature, cap_this,
             args_cap[0], args_cap[1], args_cap[2], args_cap[3], args_cap[4], args_cap[5]);
-	unlockSandbox();
 	return res;
 }
 
 static register_t invoke_returnPrim(void *handle, void *native_func, __capability void *cap_signature, __capability void *cap_this, register_t args_prim[], __capability void *args_cap[]) {
-	lockSandbox();
 	register_t res = CInvoke_7_6(handle, CHERIJNI_METHOD_RUN, native_func,
 	                   args_prim[0], args_prim[1], args_prim[2], args_prim[3], args_prim[4], args_prim[5],
 	                   cap_signature, cap_this,
 	                   args_cap[0], args_cap[1], args_cap[2], args_cap[3], args_cap[4], args_cap[5]);
-	unlockSandbox();
 	return res;
 }
 
@@ -683,6 +667,35 @@ static void fillArguments(char *sig, uintptr_t *_ostack, register_t *_pPrimitive
 		                          (*env)->NewLocalRef(env, newref);
 		                          _ostack++; },
 		/* return values     */ { }, { }, { }, { });
+}
+
+static void setupFrame() {
+	/* Set JNI frame depth to zero */
+	if ((*env)->PushLocalFrame(env, 16) == JNI_ERR) {
+		jam_printf("[ERROR: Could not a new frame for CheriJNI call. Exiting...]\n");
+		exitVM(1);
+	}
+	getExecEnv()->last_frame->depth = 0;
+}
+
+static void destroyFrame() {
+	while(TRUE) {
+		JNIFrame *frame = (JNIFrame*) getExecEnv()->last_frame;
+		revokeLrefsInFrame(frame);
+		if (frame->depth == 0)
+			break;
+		else
+			(*env)->PopLocalFrame(env, NULL);
+	}
+}
+
+jint cherijni_callOnLoadUnload(void *handle, void *ptr, JavaVM *jvm, void *reserved) {
+	lockSandbox((struct cherijni_sandbox*) handle);
+	setupFrame();
+	jint res = (jint) CInvoke_1_0(handle, CHERIJNI_METHOD_ONLOAD_ONUNLOAD, ptr);
+	destroyFrame();
+	unlockSandbox();
+	return res;
 }
 
 uintptr_t *cherijni_callMethod(pMethodBlock mb, pClass class, uintptr_t *ostack) {
@@ -704,12 +717,9 @@ uintptr_t *cherijni_callMethod(pMethodBlock mb, pClass class, uintptr_t *ostack)
 
 	// TODO: check number of arguments
 
-	/* Set JNI frame depth to zero */
-	if ((*env)->PushLocalFrame(env, 16) == JNI_ERR) {
-		jam_printf("[ERROR: Could not a new frame for CheriJNI call. Exiting...]\n");
-		exitVM(1);
-	}
-	getExecEnv()->last_frame->depth = 0;
+	struct cherijni_sandbox *handle = (struct cherijni_sandbox *) mb->sandbox_handle;
+	lockSandbox((struct cherijni_sandbox*) handle);
+	setupFrame();
 
 	/* Prepare arguments */
 	if (class == NULL) { cap_this = return_jniref(OBJ_TO_REF((jobject) *_ostack, LOCAL_REF)); _ostack++; }
@@ -718,7 +728,6 @@ uintptr_t *cherijni_callMethod(pMethodBlock mb, pClass class, uintptr_t *ostack)
 
 	/* Invoke JNI method */
 
-	struct cherijni_sandbox *handle = (struct cherijni_sandbox *) mb->sandbox_handle;
 	void *native_func = mb->code;
 	if (returnType == RETURNTYPE_OBJECT) {
 		__capability void *cap_result = invoke_returnCap(handle, native_func, cap_string(mb->type), cap_this, args_prim, args_cap);
@@ -734,14 +743,8 @@ uintptr_t *cherijni_callMethod(pMethodBlock mb, pClass class, uintptr_t *ostack)
 		}
 	}
 
-	while(TRUE) {
-		JNIFrame *frame = (JNIFrame*) getExecEnv()->last_frame;
-		revokeLrefsInFrame(frame);
-		if (frame->depth == 0)
-			break;
-		else
-			(*env)->PopLocalFrame(env, NULL);
-	}
+	destroyFrame();
+	unlockSandbox();
 
 	return ostack;
 }
