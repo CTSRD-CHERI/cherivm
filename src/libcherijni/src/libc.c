@@ -296,8 +296,17 @@ int getifaddrs(struct ifaddrs **ifap)                        STUB_ERRNO
 void freeifaddrs(struct ifaddrs *ifp)                        STUB_VOID
 
 int gethostname(char *name, size_t namelen)                  STUB_ERRNO
-struct hostent *gethostbyaddr(const void *addr, \
-                              socklen_t len, int af)         STUB_NULL
+
+struct hostent *gethostbyaddr(const void *addr, socklen_t len, int af) {
+	register_t res = hostInvoke_1_1(cheri_invoke_prim, gethostbyaddr, af, cap_buffer_ro(addr, len));
+	if (res < 0) {
+		__local_h_errno = -res;
+		printf("[SANDBOX ERROR: %s returned errno %d]\n", __func__, h_errno);
+		return NULL;
+	}
+	return NULL;
+}
+
 int gethostbyname_r(const char *name, struct hostent *he, \
                     char *buffer, size_t buflen, \
                     struct hostent **result, int *h_errnop)  STUB_ERRNO

@@ -7,10 +7,12 @@
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
+#include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/types.h>
 #include <pthread.h>
 #include <fcntl.h>
+#include <netdb.h>
 
 #include "jam.h"
 #include "symbol.h"
@@ -493,9 +495,15 @@ static inline pRef arg_ref(__capability void *cap) {
 	GET_SANDBOX_HANDLE(NULL)
 
 	pRef ref = arg_ref_allowRevoked(cap, sandbox);
+	if (ref == NULL)
+		return NULL;
 
 	if (!IS_VALID(ref)) {
-		jam_printf("Warning: sandbox provided a revoked reference\n");
+		pObject obj = REF_TO_OBJ_WEAK_NULL_CHECK(ref->jni_ref);
+		if (obj == NULL)
+			jam_printf("Warning: sandbox used a revoked ref\n");
+		else
+			jam_printf("Warning: sandbox used a revoked ref to %s\n", CLASS_CB(obj->class)->name);
 		return NULL;
 	}
 
@@ -763,8 +771,10 @@ JNI_FUNCTION_CAP(FindClass) {
 JNI_FUNCTION_PRIM(ThrowNew) {
 	pClass clazz = arg_class(c1);
 	const char *msg = arg_str(c2, 1, r);
-	if (clazz == NULL)
+	if (clazz == NULL) {
+		printf("ERROR: sandbox tried to throw a NULL class\n");
 		return CHERI_FAIL;
+	}
 
 	return (*env)->ThrowNew(env, clazz, msg);
 }
@@ -1289,6 +1299,59 @@ LIBC_FUNCTION_PRIM(ioctl) {
 		return -EINVAL;
 }
 
+LIBC_FUNCTION_PRIM(gethostbyaddr) {
+	int af = (int) a1;
+
+	int addr_len;
+
+	if (af == AF_INET)
+		addr_len = 4;
+	else if (af == AF_INET6)
+		addr_len = 16;
+	else {
+		return -NO_RECOVERY;
+	}
+
+	__capability char *addr_cap = arg_cap(c1, addr_len, r, TRUE);
+	if (addr_cap == CNULL)
+		return -NO_RECOVERY;
+
+	char addr[16];
+	copyFromSandbox(addr, addr_cap, addr_len);
+
+	printf("gethostbyaddr: ");
+	int i;
+	for (i = 0; i < addr_len; i++)
+		printf("%d.", addr[i]);
+	printf("\n");
+
+	struct hostent *result;
+	result = gethostbyaddr(addr, addr_len, af);
+	if (result == NULL) {
+		return -h_errno;
+	}
+
+	printf("Result: name=%s addrtype=%d length=%d\n", result->h_name, result->h_addrtype, result->h_length);
+	char **slot;
+	printf("Aliases:\n");
+	slot = result->h_aliases;
+	while (slot) {
+		printf("%s\n", slot);
+		slot++;
+	}
+	printf("Addresses:\n");
+	slot = result->h_addr_list;
+	while (slot) {
+		for (i = 0; i < result->h_length; i++)
+			printf("%d.", slot[i]);
+		printf("\n");
+		slot++;
+	}
+
+	printf("!!! RESULT WAS NOT RETURNED BACK TO SANDBOX !!!");
+
+	return CHERI_SUCCESS;
+}
 
 register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a2, register_t a3, register_t a4, register_t a5, register_t a6, register_t a7, struct cheri_object system_object, __capability void *c1, __capability void *c2, __capability void *c3, __capability void *c4, __capability void *c5) __attribute__((cheri_ccall)) {
 	switch(methodnum) {
@@ -1618,6 +1681,8 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 		CALL_LIBC_CAP(socket)
 	case CHERIJNI_LIBC_ioctl:
 		CALL_LIBC_CAP(ioctl)
+	case CHERIJNI_LIBC_gethostbyaddr:
+		CALL_LIBC_PRIM(gethostbyaddr)
 
 	default:
 		break;
