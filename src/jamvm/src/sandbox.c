@@ -302,7 +302,7 @@ void *cherijni_lookup(void *handle, char *methodName) {
 
 jint cherijni_callOnLoadUnload(void *handle, void *ptr, JavaVM *jvm, void *reserved) {
 	lockSandbox();
-	jint res = (jint) CInvoke_0_0(handle, CHERIJNI_METHOD_ONLOAD_ONUNLOAD);
+	jint res = (jint) CInvoke_1_0(handle, CHERIJNI_METHOD_ONLOAD_ONUNLOAD, ptr);
 	unlockSandbox();
 	return res;
 }

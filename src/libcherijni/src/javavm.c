@@ -1,34 +1,34 @@
 #include "guest.h"
 
-static jint cherijni_JavaVM_DestroyJavaVM(JavaVM *vm) {
+static jint DestroyJavaVM(JavaVM *vm) {
 	return JNI_ERR;
 }
 
-static jint cherijni_JavaVM_AttachCurrentThread(JavaVM *vm, void **penv, void *args) {
+static jint AttachCurrentThread(JavaVM *vm, void **penv, void *args) {
 	return JNI_ERR;
 }
 
-static jint cherijni_JavaVM_DetachCurrentThread(JavaVM *vm) {
+static jint DetachCurrentThread(JavaVM *vm) {
 	return JNI_ERR;
 }
 
-static jint cherijni_JavaVM_GetEnv(JavaVM *vm, void **penv, jint version) {
-	(*penv) = NULL;
-	return JNI_EVERSION;
+static jint GetEnv(JavaVM *vm, void **penv, jint version) {
+	(*penv) = cherijni_getJNIEnv();
+	return JNI_OK;
 }
 
-static jint cherijni_JavaVM_AttachCurrentThreadAsDaemon(JavaVM *vm, void **penv, void *args) {
+static jint AttachCurrentThreadAsDaemon(JavaVM *vm, void **penv, void *args) {
 	(*penv) = NULL;
 	return JNI_ERR;
 }
 
 static struct _JNIInvokeInterface cherijni_JavaVM_data = {
 	    NULL, NULL, NULL,
-	    &cherijni_JavaVM_DestroyJavaVM,
-	    &cherijni_JavaVM_AttachCurrentThread,
-	    &cherijni_JavaVM_DetachCurrentThread,
-	    &cherijni_JavaVM_GetEnv,
-	    &cherijni_JavaVM_AttachCurrentThreadAsDaemon
+	    DestroyJavaVM,
+	    AttachCurrentThread,
+	    DetachCurrentThread,
+	    GetEnv,
+	    AttachCurrentThreadAsDaemon
 	};
 
 static JavaVM cherijni_JavaVM = &cherijni_JavaVM_data;

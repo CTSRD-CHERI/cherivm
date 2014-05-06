@@ -2,6 +2,8 @@
 
 #define UNUSED	__attribute__ ((__unused__))
 
+extern jint JNI_OnLoad (JavaVM *vm, void *reserved);
+
 extern void Java_gnu_java_nio_EpollSelectorImpl_epoll_1add (JNIEnv *env, jclass c __attribute__((unused)), jint efd, jint fd, jint ops);
 extern jint Java_gnu_java_nio_EpollSelectorImpl_epoll_1create (JNIEnv *env, jclass c __attribute__((unused)), jint size);
 extern void Java_gnu_java_nio_EpollSelectorImpl_epoll_1delete (JNIEnv *env, jclass c __attribute__((unused)), jint efd, jint fd);
@@ -202,6 +204,8 @@ typedef struct method_entry {
 } methodEntry;
 
 methodEntry cherijni_MethodList[] = {
+	{ "JNI_OnLoad", &JNI_OnLoad, 2 },
+
 	{ "Java_gnu_java_nio_EpollSelectorImpl_epoll_1add", &Java_gnu_java_nio_EpollSelectorImpl_epoll_1add, 1 },
 	{ "Java_gnu_java_nio_EpollSelectorImpl_epoll_1create", &Java_gnu_java_nio_EpollSelectorImpl_epoll_1create, 2 },
 	{ "Java_gnu_java_nio_EpollSelectorImpl_epoll_1delete", &Java_gnu_java_nio_EpollSelectorImpl_epoll_1delete, 1 },
