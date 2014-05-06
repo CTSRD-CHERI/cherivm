@@ -307,5 +307,7 @@ typedef __capability void* (*cheri_invoke_cap)(struct cheri_object, u_int, regis
 #define CHERIJNI_LIBC_socket						(CHERI_SYSTEM_USER_BASE + 512)
 #define CHERIJNI_LIBC_ioctl							(CHERI_SYSTEM_USER_BASE + 513)
 #define CHERIJNI_LIBC_gethostbyaddr					(CHERI_SYSTEM_USER_BASE + 514)
+#define CHERIJNI_LIBC_bind							(CHERI_SYSTEM_USER_BASE + 515)
+#define CHERIJNI_LIBC_fcntl							(CHERI_SYSTEM_USER_BASE + 516)
 
 #endif //__SANDBOX_SHARED_H__

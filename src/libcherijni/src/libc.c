@@ -138,7 +138,6 @@ ssize_t writev(int fd, const struct iovec *iov, int iovcnt)  STUB_ERRNO
 int dup(int oldd)                                            STUB_ERRNO
 int dup2(int oldd, int newd)                                 STUB_ERRNO
 
-int	fcntl(int fd, int cmd, ...)                              STUB_ERRNO
 int fsync(int fd)                                            STUB_ERRNO
 int ftruncate(int fd, off_t length)                          STUB_ERRNO
 int fprintf(FILE * restrict stream, \
@@ -167,7 +166,32 @@ int ioctl(int fd, unsigned long request, ...) {
 		}
 
 	} else {
-		printf("[SANDBOX ERROR: %s - unsupported operation]\n", __func__);
+		printf("[SANDBOX ERROR: %s - unsupported operation %d]\n", __func__, request);
+		errno = EINVAL;
+		return -1;
+	}
+}
+
+int	fcntl(int fd, int cmd, ...) {
+	init_cap_fd(fd, ERRNO)
+
+	if (cmd == F_SETFD) {
+		int arg;
+		va_list varargs;
+
+		va_start(varargs, cmd);
+		arg = va_arg(varargs, int);
+		va_end(varargs);
+
+		register_t res = hostInvoke_2_1(cheri_invoke_prim, fcntl, cmd, arg, cap_fd);
+		if (res == CHERI_SUCCESS)
+			return 0;
+		else {
+			errno = -res;
+			return -1;
+		}
+	} else {
+		printf("[SANDBOX ERROR: %s - unsupported operation %d]\n", __func__, cmd);
 		errno = EINVAL;
 		return -1;
 	}
@@ -263,8 +287,18 @@ int socket(int domain, int type, int protocol) {
 		return -1;
 }
 
-int bind(int s, const struct sockaddr *addr, \
-         socklen_t addrlen)                                  STUB_ERRNO
+int bind(int s, const struct sockaddr *addr, socklen_t addrlen) {
+	init_cap_fd(s, ERRNO)
+	register_t res = hostInvoke_0_2(cheri_invoke_prim, bind, cap_s, cap_buffer_ro(addr, addrlen));
+
+	if (res == CHERI_SUCCESS)
+		return 0;
+	else {
+		errno = -res;
+		return -1;
+	}
+}
+
 int listen(int s, int backlog)                               STUB_ERRNO
 int shutdown(int s, int how)                                 STUB_ERRNO
 int accept(int s, struct sockaddr * restrict addr, \

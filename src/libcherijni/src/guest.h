@@ -39,6 +39,7 @@ extern __capability void *cherijni_output;
 #define hostInvoke_3_3(recast, name, a1, a2, a3, c1, c2, c3) hostInvoke_7_5(recast, name, a1, a2, a3, 0, 0, 0, 0, c1, c2, c3, CNULL, CNULL)
 #define hostInvoke_3_1(recast, name, a1, a2, a3, c1)         hostInvoke_3_3(recast, name, a1, a2, a3, c1, CNULL, CNULL)
 #define hostInvoke_2_2(recast, name, a1, a2, c1, c2)         hostInvoke_3_3(recast, name, a1, a2, 0, c1, c2, CNULL)
+#define hostInvoke_2_1(recast, name, a1, a2, c1)             hostInvoke_2_2(recast, name, a1, a2, c1, CNULL)
 #define hostInvoke_1_2(recast, name, a1, c1, c2)             hostInvoke_2_2(recast, name, a1, 0, c1, c2)
 #define hostInvoke_1_1(recast, name, a1, c1)                 hostInvoke_2_2(recast, name, a1, 0, c1, CNULL)
 #define hostInvoke_1_0(recast, name, a1)                     hostInvoke_1_1(recast, name, a1, CNULL)
