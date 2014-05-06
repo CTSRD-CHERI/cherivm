@@ -1089,6 +1089,7 @@ native/jawt/Makefile
 native/jni/Makefile
 native/jni/classpath/Makefile
 native/jni/sandbox/Makefile
+native/jni/java-full/Makefile
 native/jni/java-io/Makefile
 native/jni/java-lang/Makefile
 native/jni/java-math/Makefile

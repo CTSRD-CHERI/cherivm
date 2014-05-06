@@ -86,7 +86,8 @@ public class EpollSelectorImpl extends AbstractSelector
   static
   {
     if (Configuration.INIT_LOAD_LIBRARY)
-      System.loadLibrary("javanio");
+      // System.loadLibrary("javanio");
+    	System.loadLibrary("java");
 
     if (epoll_supported())
       sizeof_struct_epoll_event = sizeof_struct();

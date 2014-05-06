@@ -36,12 +36,12 @@ if CREATE_GMPBI_LIBRARY
   GMPDIR = java-math
 endif
 
-SUBDIRS = classpath sandbox $(JNIDIRS) \
+SUBDIRS = classpath sandbox java-full $(JNIDIRS) \
   $(ALSADIR) $(DSSIDIR) $(GTKDIR) $(CLASSPATH_QT_PEER_DIR) $(XMLJDIR) \
   $(CLASSPATH_GCONF_PEER_DIR) $(CLASSPATH_GSTREAMER_PEER_DIR) $(GMPDIR)
 DIST_SUBDIRS = classpath sandbox java-io java-lang java-math java-net java-nio java-util \
                gtk-peer gconf-peer gstreamer-peer qt-peer xmlj midi-alsa \
-               midi-dssi native-lib
+               midi-dssi native-lib java-full
 
 all-local:
 	$(SHELL) $(top_builddir)/scripts/check_jni_methods.sh

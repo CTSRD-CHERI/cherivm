@@ -51,7 +51,8 @@ final class VMURLConnection
   static
   {
     if (Configuration.INIT_LOAD_LIBRARY)
-      System.loadLibrary("javanet");
+      // System.loadLibrary("javanet");
+    	System.loadLibrary("java");
     init();
   }
 

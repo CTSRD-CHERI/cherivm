@@ -49,7 +49,8 @@ final class VMObjectInputStream
   {
     if (Configuration.INIT_LOAD_LIBRARY)
       {
-        System.loadLibrary("javaio");
+        // System.loadLibrary("javaio");
+    	System.loadLibrary("java");
       }
   }
 

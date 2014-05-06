@@ -84,7 +84,8 @@ public final class FileChannelImpl extends FileChannel
   {
     if (Configuration.INIT_LOAD_LIBRARY)
       {
-        System.loadLibrary("javanio");
+        // System.loadLibrary("javanio");
+    	System.loadLibrary("java");
       }
 
     //init();

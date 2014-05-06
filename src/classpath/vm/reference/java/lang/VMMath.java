@@ -47,7 +47,8 @@ final class VMMath
   {
     if (Configuration.INIT_LOAD_LIBRARY)
       {
-        System.loadLibrary("javalang");
+        // System.loadLibrary("javalang");
+    	System.loadLibrary("java");
       }
   }
 

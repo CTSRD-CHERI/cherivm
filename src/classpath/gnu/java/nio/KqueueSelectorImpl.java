@@ -75,7 +75,8 @@ public class KqueueSelectorImpl extends AbstractSelector
   {
     try
       {
-        System.loadLibrary("javanio");
+        // System.loadLibrary("javanio");
+    	System.loadLibrary("java");
       }
     catch (Exception x)
       {

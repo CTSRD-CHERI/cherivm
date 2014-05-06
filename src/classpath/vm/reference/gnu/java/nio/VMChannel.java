@@ -101,7 +101,8 @@ public final class VMChannel
     // load the shared library needed for native methods.
     if (Configuration.INIT_LOAD_LIBRARY)
       {
-        System.loadLibrary ("javanio");
+        // System.loadLibrary ("javanio");
+    	System.loadLibrary ("java");
       }
     initIDs();
   }

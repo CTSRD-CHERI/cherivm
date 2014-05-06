@@ -70,7 +70,8 @@ final class LocalSocketImpl extends SocketImpl
       {
         if (Configuration.INIT_LOAD_LIBRARY)
           {
-            System.loadLibrary ("javanet");
+            // System.loadLibrary ("javanet");
+        	System.loadLibrary ("java");
           }
       }
     catch (Exception x)
