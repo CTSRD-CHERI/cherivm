@@ -351,8 +351,17 @@ int getsockopt(int s, int level, int optname, void * restrict optval, socklen_t 
 	}
 }
 
-int setsockopt(int s, int level, int optname, \
-               const void *optval, socklen_t optlen)         STUB_ERRNO
+int setsockopt(int s, int level, int optname, const void *optval, socklen_t optlen) {
+	init_cap_fd(s, ERRNO)
+	register_t res = hostInvoke_2_2(cheri_invoke_prim, setsockopt, level, optname, cap_s, cap_buffer_ro(optval, optlen));
+
+	if (res == CHERI_SUCCESS)
+		return 0;
+	else {
+		errno = -res;
+		return -1;
+	}
+}
 
 int getsockname(int s, struct sockaddr * restrict name, socklen_t * restrict namelen) {
 	init_cap_fd(s, ERRNO)

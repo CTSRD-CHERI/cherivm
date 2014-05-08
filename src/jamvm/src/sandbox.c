@@ -1535,6 +1535,33 @@ LIBC_FUNCTION_PRIM(getsockopt) {
 	return len;
 }
 
+LIBC_FUNCTION_PRIM(setsockopt) {
+	int fd = arg_fd(c1);
+	if (fd < 0)
+		return -EBADF;
+
+	int level = (int) a1;
+	int optname = (int) a2;
+
+	__capability char *optval_cap = arg_cap(c2, 0, r, TRUE);
+	if (optval_cap == CNULL)
+		return -EINVAL;
+
+	socklen_t optlen = cheri_getlen(optval_cap);
+	if (optlen > 128)
+		return -EINVAL;
+
+	void *optval = sysMalloc(optlen);
+	copyFromSandbox(optval, optval_cap, optlen);
+
+	int ret = setsockopt(fd, level, optname, optval, optlen);
+	sysFree(optval);
+	if (ret < 0)
+		return -errno;
+	else
+		return CHERI_SUCCESS;
+}
+
 register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a2, register_t a3, register_t a4, register_t a5, register_t a6, register_t a7, struct cheri_object system_object, __capability void *c1, __capability void *c2, __capability void *c3, __capability void *c4, __capability void *c5) __attribute__((cheri_ccall)) {
 	switch(methodnum) {
 	case CHERIJNI_JNIEnv_GetVersion:
@@ -1871,10 +1898,12 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 		CALL_LIBC_PRIM(fcntl)
 	case CHERIJNI_LIBC_getsockname:
 		CALL_LIBC_PRIM(getsockname)
-	case CHERIJNI_LIBC_getsockopt:
-		CALL_LIBC_PRIM(getsockopt)
 	case CHERIJNI_LIBC_getpeername:
 		CALL_LIBC_PRIM(getpeername)
+	case CHERIJNI_LIBC_getsockopt:
+		CALL_LIBC_PRIM(getsockopt)
+	case CHERIJNI_LIBC_setsockopt:
+		CALL_LIBC_PRIM(setsockopt)
 	case CHERIJNI_LIBC_listen:
 		CALL_LIBC_PRIM(listen)
 	case CHERIJNI_LIBC_accept:
