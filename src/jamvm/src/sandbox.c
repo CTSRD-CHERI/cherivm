@@ -13,6 +13,7 @@
 #include <pthread.h>
 #include <fcntl.h>
 #include <netdb.h>
+#include <netinet/in.h>
 
 #include "jam.h"
 #include "symbol.h"
@@ -1416,30 +1417,24 @@ LIBC_FUNCTION_PRIM(fcntl) {
 		return -EINVAL;
 }
 
-#define SOCKET_GETNAME(NAME)                                    \
-	LIBC_FUNCTION_PRIM(get##NAME##name) {                       \
-		int fd = arg_fd(c1);                                    \
-		if (fd < 0)                                             \
-			return -EBADF;                                      \
-		                                                        \
-		__capability char *addr_cap = arg_cap(c2, 0, w, TRUE);  \
-		size_t addr_len = cheri_getlen(addr_cap);               \
-		/* protect ourselves from allocating too much memory */ \
-		if (addr_len > 1024)                                    \
-			return -EFAULT;                                     \
-		                                                        \
-		char *addr = sysMalloc(addr_len);                       \
-		int res = get##NAME##name(fd, addr, &addr_len);         \
-		                                                        \
-		if (res == 0)                                           \
-			copyToSandbox(addr_cap, addr, addr_len);            \
-		                                                        \
-		sysFree(addr);                                          \
-		                                                        \
-		if (res < 0)                                            \
-			return -errno;                                      \
-		else                                                    \
-			return addr_len;                                    \
+#define SOCKET_GETNAME(NAME)                                            \
+	LIBC_FUNCTION_PRIM(get##NAME##name) {                               \
+		int fd = arg_fd(c1);                                            \
+		if (fd < 0)                                                     \
+			return -EBADF;                                              \
+		                                                                \
+		struct sockaddr_in6 *addr6;                                     \
+		struct sockaddr_in6 sock_storage;                               \
+		socklen_t socklen = sizeof(struct sockaddr_in6);                \
+		struct sockaddr *sockaddr = (struct sockaddr*) &sock_storage;   \
+		int ret = getsockname(fd, sockaddr, &socklen);                  \
+		if (ret < 0)                                                    \
+			return -errno;                                              \
+		else {                                                          \
+			__capability char *sockcap = arg_cap(c2, socklen, w, TRUE); \
+			copyToSandbox(sockcap, sockaddr, socklen);                  \
+			return socklen;                                             \
+		}                                                               \
 	}
 
 SOCKET_GETNAME(sock)
