@@ -313,5 +313,6 @@ typedef __capability void* (*cheri_invoke_cap)(struct cheri_object, u_int, regis
 #define CHERIJNI_LIBC_getpeername					(CHERI_SYSTEM_USER_BASE + 518)
 #define CHERIJNI_LIBC_listen						(CHERI_SYSTEM_USER_BASE + 519)
 #define CHERIJNI_LIBC_accept						(CHERI_SYSTEM_USER_BASE + 520)
+#define CHERIJNI_LIBC_getsockopt					(CHERI_SYSTEM_USER_BASE + 521)
 
 #endif //__SANDBOX_SHARED_H__

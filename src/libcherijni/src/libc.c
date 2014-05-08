@@ -339,7 +339,16 @@ ssize_t sendto(int s, const void *msg, size_t len,
                socklen_t tolen)                              STUB_ERRNO
 
 int getsockopt(int s, int level, int optname, void * restrict optval, socklen_t * restrict optlen) {
-	STUB_ERRNO
+	init_cap_fd(s, ERRNO)
+	register_t res = hostInvoke_2_2(cheri_invoke_prim, getsockopt, level, optname, cap_s, cap_buffer_wo(optval, *optlen));
+
+	if (res >= 0) {
+		*optlen = res;
+		return 0;
+	} else {
+		errno = -res;
+		return -1;
+	}
 }
 
 int setsockopt(int s, int level, int optname, \

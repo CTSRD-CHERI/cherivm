@@ -1505,6 +1505,34 @@ LIBC_FUNCTION_CAP(accept) {
 	return return_fd(ret);
 }
 
+LIBC_FUNCTION_PRIM(getsockopt) {
+	int fd = arg_fd(c1);
+	if (fd < 0)
+		return -EBADF;
+
+	int level = (int) a1;
+	int optname = (int) a2;
+
+	socklen_t len = 128;
+	void *data = sysMalloc(len);
+	int ret = getsockopt(fd, level, optname, data, &len);
+	if (ret < 0) {
+		sysFree(data);
+		return -errno;
+	}
+
+	__capability char *datacap = arg_cap(c2, len, w, TRUE);
+	if (datacap == CNULL) {
+		sysFree(data);
+		return -EINVAL;
+	}
+
+	copyToSandbox(datacap, data, len);
+	sysFree(data);
+
+	return len;
+}
+
 register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a2, register_t a3, register_t a4, register_t a5, register_t a6, register_t a7, struct cheri_object system_object, __capability void *c1, __capability void *c2, __capability void *c3, __capability void *c4, __capability void *c5) __attribute__((cheri_ccall)) {
 	switch(methodnum) {
 	case CHERIJNI_JNIEnv_GetVersion:
@@ -1832,7 +1860,7 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 	case CHERIJNI_LIBC_socket:
 		CALL_LIBC_CAP(socket)
 	case CHERIJNI_LIBC_ioctl:
-		CALL_LIBC_CAP(ioctl)
+		CALL_LIBC_PRIM(ioctl)
 	case CHERIJNI_LIBC_gethostbyaddr:
 		CALL_LIBC_PRIM(gethostbyaddr)
 	case CHERIJNI_LIBC_bind:
@@ -1841,6 +1869,8 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 		CALL_LIBC_PRIM(fcntl)
 	case CHERIJNI_LIBC_getsockname:
 		CALL_LIBC_PRIM(getsockname)
+	case CHERIJNI_LIBC_getsockopt:
+		CALL_LIBC_PRIM(getsockopt)
 	case CHERIJNI_LIBC_getpeername:
 		CALL_LIBC_PRIM(getpeername)
 	case CHERIJNI_LIBC_listen:
