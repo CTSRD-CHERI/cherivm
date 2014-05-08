@@ -461,7 +461,22 @@ int execvp(const char *file, char *const argv[])             STUB_ERRNO
 int execve(const char *path, char *const argv[], \
            char *const envp[])                               STUB_ERRNO
 int chdir(const char *path)                                  STUB_ERRNO
-char *getenv(const char *name)                               STUB_NULL
+
+static char *getenv_last = NULL;
+
+char *getenv(const char *name) {
+	if (getenv_last) {
+		free(getenv_last);
+		getenv_last = NULL;
+	}
+
+	__capability void *ret = hostInvoke_0_1(cheri_invoke_cap, getenv, cap_string(name));
+	if (ret == CNULL)
+		return NULL;
+
+	getenv_last = cherijni_extractHostString(ret);
+	return getenv_last;
+}
 
 pid_t getpid() {
 	printf("[SANDBOX: getpid should never fail!");

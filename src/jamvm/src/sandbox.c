@@ -340,7 +340,7 @@ static inline int checkSandboxCapability_w(__capability void *cap, size_t min_le
 
 #define arg_cap(cap, len, perm, u)    (checkSandboxCapability_##perm(cap, len, u) ? cap : CNULL)
 #define arg_ptr(cap, len, perm)       ((void*) arg_cap(cap, len, perm, TRUE))
-#define arg_str(ptr, len, perm)       ((const char*) arg_ptr(ptr, len, perm)) // TODO: check it ends with a zero
+#define arg_str(cap, len, perm)       ((const char*) arg_ptr(cap, len, perm)) // TODO: check it ends with a zero
 #define arg_class(cap)                checkIsClass(arg_jniref(cap))
 #define arg_file(cap)                 cap_unseal(pFILE, FILE, cap)
 #define arg_mid(cap)                  cap_unseal(pMethodBlock, MethodID, cap)
@@ -1582,6 +1582,17 @@ LIBC_FUNCTION_PRIM(time) {
 	return time(NULL);
 }
 
+LIBC_FUNCTION_CAP(getenv) {
+	const char *name = arg_str(c1, 0, r);
+	if (name == NULL)
+		return CNULL;
+
+	const char *ret = getenv(name);
+	if (ret)
+		return cap_string(ret);
+	else
+		return CNULL;
+}
 
 register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a2, register_t a3, register_t a4, register_t a5, register_t a6, register_t a7, struct cheri_object system_object, __capability void *c1, __capability void *c2, __capability void *c3, __capability void *c4, __capability void *c5) __attribute__((cheri_ccall)) {
 	switch(methodnum) {
@@ -1933,6 +1944,8 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 		CALL_LIBC_PRIM(lseek)
 	case CHERIJNI_LIBC_time:
 		CALL_LIBC_PRIM(time)
+	case CHERIJNI_LIBC_getenv:
+		CALL_LIBC_CAP(getenv)
 
 	default:
 		break;
