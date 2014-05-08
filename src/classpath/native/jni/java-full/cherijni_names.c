@@ -197,6 +197,8 @@ extern jboolean Java_java_net_VMNetworkInterface_supportsMulticast (JNIEnv *env,
 extern jstring Java_java_net_VMURLConnection_guessContentTypeFromBuffer (JNIEnv *env, jclass klass __attribute__ ((__unused__)), jbyteArray bytes, jint valid);
 extern  void Java_java_net_VMURLConnection_init (JNIEnv *env __attribute__ ((__unused__)), jclass klass __attribute__ ((__unused__)));
 
+extern jstring Java_java_util_VMTimeZone_getSystemTimeZoneId (JNIEnv * env, jclass clazz __attribute__ ((__unused__)));
+
 typedef struct method_entry {
 	char *name;
 	void *func;
@@ -398,5 +400,8 @@ methodEntry cherijni_MethodList[] = {
 	{ "Java_java_net_VMNetworkInterface_supportsMulticast", &Java_java_net_VMNetworkInterface_supportsMulticast, 2 },
 	{ "Java_java_net_VMURLConnection_guessContentTypeFromBuffer", &Java_java_net_VMURLConnection_guessContentTypeFromBuffer, 3 },
 	{ "Java_java_net_VMURLConnection_init", &Java_java_net_VMURLConnection_init, 1 },
+
+	{ "Java_java_util_VMTimeZone_getSystemTimeZoneId", &Java_java_util_VMTimeZone_getSystemTimeZoneId, 3 },
+
 	{NULL, NULL, 0}
 };

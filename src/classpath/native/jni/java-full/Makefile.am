@@ -34,6 +34,7 @@ java_SOURCES = $(top_builddir)/native/jni/java-nio/gnu_java_nio_VMPipe.c \
                $(top_builddir)/native/jni/java-net/java_net_VMURLConnection.c \
                $(top_builddir)/native/jni/java-net/gnu_java_net_VMPlainSocketImpl.c \
                $(local_sources) \
+               $(top_builddir)/native/jni/java-util/java_util_VMTimeZone.c \
                cherijni_names.c
 
 java_LDADD = $(top_builddir)/native/fdlibm/libfdlibm.la \
