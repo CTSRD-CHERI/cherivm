@@ -316,5 +316,6 @@ typedef __capability void* (*cheri_invoke_cap)(struct cheri_object, u_int, regis
 #define CHERIJNI_LIBC_getsockopt					(CHERI_SYSTEM_USER_BASE + 521)
 #define CHERIJNI_LIBC_setsockopt					(CHERI_SYSTEM_USER_BASE + 522)
 #define CHERIJNI_LIBC_lseek							(CHERI_SYSTEM_USER_BASE + 523)
+#define CHERIJNI_LIBC_time							(CHERI_SYSTEM_USER_BASE + 524)
 
 #endif //__SANDBOX_SHARED_H__

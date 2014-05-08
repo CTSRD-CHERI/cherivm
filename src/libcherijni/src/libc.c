@@ -486,8 +486,12 @@ void exit(int status) {
 /* TIME */
 
 time_t time(time_t *tloc) {
-	printf("[SANDBOX error: %s\n", __func__);
-	return (time_t) - 1;
+	time_t ret = (time_t) hostInvoke_0_0(cheri_invoke_prim, time);
+
+	if (tloc)
+		*tloc = ret;
+
+	return ret;
 }
 
 int utimes(const char *path, const struct timeval *times)    STUB_ERRNO

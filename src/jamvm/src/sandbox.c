@@ -14,6 +14,7 @@
 #include <fcntl.h>
 #include <netdb.h>
 #include <netinet/in.h>
+#include <time.h>
 
 #include "jam.h"
 #include "symbol.h"
@@ -1577,6 +1578,11 @@ LIBC_FUNCTION_PRIM(lseek) {
 		return ret;
 }
 
+LIBC_FUNCTION_PRIM(time) {
+	return time(NULL);
+}
+
+
 register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a2, register_t a3, register_t a4, register_t a5, register_t a6, register_t a7, struct cheri_object system_object, __capability void *c1, __capability void *c2, __capability void *c3, __capability void *c4, __capability void *c5) __attribute__((cheri_ccall)) {
 	switch(methodnum) {
 	case CHERIJNI_JNIEnv_GetVersion:
@@ -1925,6 +1931,8 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 		CALL_LIBC_PRIM(accept)
 	case CHERIJNI_LIBC_lseek:
 		CALL_LIBC_PRIM(lseek)
+	case CHERIJNI_LIBC_time:
+		CALL_LIBC_PRIM(time)
 
 	default:
 		break;
