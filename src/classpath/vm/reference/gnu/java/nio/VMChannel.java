@@ -432,7 +432,7 @@ public final class VMChannel
   {
     if (!nfd.isValid())
       return null;
-    ByteBuffer name = ByteBuffer.allocateDirect(18);
+    ByteBuffer name = ByteBuffer.allocate(18);
     int namelen = getsockname(nfd.getNativeFD(), name);
     if (namelen == 0) // not bound
       return null; // XXX return some wildcard?
@@ -467,7 +467,7 @@ public final class VMChannel
   {
     if (!nfd.isValid())
       return null;
-    ByteBuffer name = ByteBuffer.allocateDirect(18);
+    ByteBuffer name = ByteBuffer.allocate(18);
     int namelen = getpeername (nfd.getNativeFD(), name);
     if (namelen == 0) // not connected yet
       return null;

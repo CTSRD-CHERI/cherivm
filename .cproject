@@ -24,6 +24,9 @@
 								<option id="org.eclipse.cdt.build.core.settings.holder.symbols.2135214989" name="Symbols" superClass="org.eclipse.cdt.build.core.settings.holder.symbols" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="JNI_CHERI"/>
 									<listOptionValue builtIn="false" value="__capability"/>
+									<listOptionValue builtIn="false" value="HAVE_GETSOCKNAME"/>
+									<listOptionValue builtIn="false" value="HAVE_INET6"/>
+									<listOptionValue builtIn="false" value="HAVE_GETPEERNAME"/>
 								</option>
 								<inputType id="org.eclipse.cdt.build.core.settings.holder.inType.118200924" languageId="org.eclipse.cdt.core.assembly" languageName="Assembly" sourceContentType="org.eclipse.cdt.core.asmSource" superClass="org.eclipse.cdt.build.core.settings.holder.inType"/>
 							</tool>
@@ -31,6 +34,9 @@
 								<option id="org.eclipse.cdt.build.core.settings.holder.symbols.657111237" name="Symbols" superClass="org.eclipse.cdt.build.core.settings.holder.symbols" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="JNI_CHERI"/>
 									<listOptionValue builtIn="false" value="__capability"/>
+									<listOptionValue builtIn="false" value="HAVE_GETSOCKNAME"/>
+									<listOptionValue builtIn="false" value="HAVE_INET6"/>
+									<listOptionValue builtIn="false" value="HAVE_GETPEERNAME"/>
 								</option>
 								<inputType id="org.eclipse.cdt.build.core.settings.holder.inType.380131283" languageId="org.eclipse.cdt.core.parser.upc.upc" languageName="UPC" sourceContentType="org.eclipse.cdt.core.parser.upc.upcSource" superClass="org.eclipse.cdt.build.core.settings.holder.inType"/>
 							</tool>
@@ -38,6 +44,9 @@
 								<option id="org.eclipse.cdt.build.core.settings.holder.symbols.278172875" name="Symbols" superClass="org.eclipse.cdt.build.core.settings.holder.symbols" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="JNI_CHERI"/>
 									<listOptionValue builtIn="false" value="__capability"/>
+									<listOptionValue builtIn="false" value="HAVE_GETSOCKNAME"/>
+									<listOptionValue builtIn="false" value="HAVE_INET6"/>
+									<listOptionValue builtIn="false" value="HAVE_GETPEERNAME"/>
 								</option>
 								<inputType id="org.eclipse.cdt.build.core.settings.holder.inType.813581178" languageId="org.eclipse.cdt.managedbuilder.llvm.ui.llvmAssembly" languageName="LLVM bytecode assembly" sourceContentType="org.eclipse.cdt.managedbuilder.llvm.ui.llvmAssemblySource" superClass="org.eclipse.cdt.build.core.settings.holder.inType"/>
 							</tool>
@@ -45,6 +54,9 @@
 								<option id="org.eclipse.cdt.build.core.settings.holder.symbols.1198055" name="Symbols" superClass="org.eclipse.cdt.build.core.settings.holder.symbols" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="JNI_CHERI"/>
 									<listOptionValue builtIn="false" value="__capability"/>
+									<listOptionValue builtIn="false" value="HAVE_GETSOCKNAME"/>
+									<listOptionValue builtIn="false" value="HAVE_INET6"/>
+									<listOptionValue builtIn="false" value="HAVE_GETPEERNAME"/>
 								</option>
 								<inputType id="org.eclipse.cdt.build.core.settings.holder.inType.1010019057" languageId="org.eclipse.cdt.core.g++" languageName="GNU C++" sourceContentType="org.eclipse.cdt.core.cxxSource,org.eclipse.cdt.core.cxxHeader" superClass="org.eclipse.cdt.build.core.settings.holder.inType"/>
 							</tool>
@@ -52,6 +64,9 @@
 								<option id="org.eclipse.cdt.build.core.settings.holder.symbols.1131715740" name="Symbols" superClass="org.eclipse.cdt.build.core.settings.holder.symbols" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="JNI_CHERI"/>
 									<listOptionValue builtIn="false" value="__capability"/>
+									<listOptionValue builtIn="false" value="HAVE_GETSOCKNAME"/>
+									<listOptionValue builtIn="false" value="HAVE_INET6"/>
+									<listOptionValue builtIn="false" value="HAVE_GETPEERNAME"/>
 								</option>
 								<inputType id="org.eclipse.cdt.build.core.settings.holder.inType.964520158" languageId="org.eclipse.cdt.core.gcc" languageName="GNU C" sourceContentType="org.eclipse.cdt.core.cSource,org.eclipse.cdt.core.cHeader" superClass="org.eclipse.cdt.build.core.settings.holder.inType"/>
 							</tool>
@@ -72,4 +87,10 @@
 		</scannerConfigBuildInfo>
 	</storageModule>
 	<storageModule moduleId="org.eclipse.cdt.core.LanguageSettingsProviders"/>
+	<storageModule moduleId="refreshScope" versionNumber="2">
+		<configuration configurationName="Default">
+			<resource resourceType="PROJECT" workspacePath="/cherivm"/>
+		</configuration>
+	</storageModule>
+	<storageModule moduleId="org.eclipse.cdt.internal.ui.text.commentOwnerProjectMappings"/>
 </cproject>

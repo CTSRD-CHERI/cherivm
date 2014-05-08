@@ -1115,7 +1115,7 @@ JNI_FUNCTION_CAP(GetDirectBufferAddress) {
 		return CNULL;
 
 	// TODO: needs a type!
-	return cheri_ptrperm(base, length, CHERI_PERM_LOAD | CHERI_PERM_STORE);
+	return CNULL; // cheri_ptrperm(base, length, CHERI_PERM_LOAD | CHERI_PERM_STORE);
 }
 
 static inline int allowFileAccess(const char *path) {

@@ -1370,7 +1370,12 @@ Java_gnu_java_nio_VMChannel_getsockname (JNIEnv *env, jclass clazz __attribute__
   struct sockaddr *sockaddr = (struct sockaddr *) &sock_storage;
   struct sockaddr_in *addr4;
   int ret;
-  char *nameptr = (*env)->GetDirectBufferAddress (env, name);
+  struct JCL_buffer buf;
+  if (JCL_init_buffer(env, &buf, name) < 0) {
+      /* TODO: Rethrown exception */
+      JCL_ThrowException (env, IO_EXCEPTION, "Buffer initialisation failed");
+      return -1;
+  }
 
   ret = getsockname (fd, sockaddr, &socklen);
   if (ret == -1)
@@ -1382,8 +1387,9 @@ Java_gnu_java_nio_VMChannel_getsockname (JNIEnv *env, jclass clazz __attribute__
   if (sockaddr->sa_family == AF_INET)
     {
       addr4 = (struct sockaddr_in *) sockaddr;
-      memcpy (nameptr, &(addr4->sin_addr.s_addr), 4);
-      memcpy (nameptr + 4, &(addr4->sin_port), 2);
+      memcpy (buf.ptr, &(addr4->sin_addr.s_addr), 4);
+      memcpy (buf.ptr + 4, &(addr4->sin_port), 2);
+      JCL_release_buffer(env, &buf, name, 0);
       return 4;
     }
 
@@ -1392,11 +1398,14 @@ Java_gnu_java_nio_VMChannel_getsockname (JNIEnv *env, jclass clazz __attribute__
   if (sockaddr->sa_family == AF_INET6)
     {
       addr6 = (struct sockaddr_in6 *) sockaddr;
-      memcpy (nameptr, &(addr6->sin6_addr.s6_addr), 16);
-      memcpy (nameptr + 16, &(addr6->sin6_port), 2);
+      memcpy (buf.ptr, &(addr6->sin6_addr.s6_addr), 16);
+      memcpy (buf.ptr + 16, &(addr6->sin6_port), 2);
+      JCL_release_buffer(env, &buf, name, 0);
       return 16;
     }
 #endif /* HAVE_INET6 */
+
+  JCL_release_buffer(env, &buf, name, 0);
   JCL_ThrowException (env, IO_EXCEPTION, "unsupported address format");
   return -1;
 #else
@@ -1430,7 +1439,12 @@ Java_gnu_java_nio_VMChannel_getpeername (JNIEnv *env, jclass clazz __attribute__
   struct sockaddr *sockaddr = (struct sockaddr *) &sock_storage;
   struct sockaddr_in *addr4;
   int ret;
-  char *nameptr = (*env)->GetDirectBufferAddress (env, name);
+  struct JCL_buffer buf;
+  if (JCL_init_buffer(env, &buf, name) < 0) {
+      /* TODO: Rethrown exception */
+      JCL_ThrowException (env, IO_EXCEPTION, "Buffer initialisation failed");
+      return -1;
+  }
   
   ret = getpeername (fd, sockaddr, &socklen);
   if (ret == -1)
@@ -1443,20 +1457,23 @@ Java_gnu_java_nio_VMChannel_getpeername (JNIEnv *env, jclass clazz __attribute__
   if (sockaddr->sa_family == AF_INET)
     {
       addr4 = (struct sockaddr_in *) sockaddr;
-      memcpy (nameptr, &(addr4->sin_addr.s_addr), 4);
-      memcpy (nameptr + 4, &(addr4->sin_port), 2);
+      memcpy (buf.ptr, &(addr4->sin_addr.s_addr), 4);
+      memcpy (buf.ptr + 4, &(addr4->sin_port), 2);
+      JCL_release_buffer(env, &buf, name, 0);
       return 4;
     }
 #ifdef HAVE_INET6
   else if (sockaddr->sa_family == AF_INET6)
     {
       addr6 = (struct sockaddr_in6 *) sockaddr;
-      memcpy (nameptr, &(addr6->sin6_addr.s6_addr), 16);
-      memcpy (nameptr + 16, &(addr6->sin6_port), 2);
+      memcpy (buf.ptr, &(addr6->sin6_addr.s6_addr), 16);
+      memcpy (buf.ptr + 16, &(addr6->sin6_port), 2);
+      JCL_release_buffer(env, &buf, name, 0);
       return 16;
     }
 #endif /* HAVE_INET6 */
 
+  JCL_release_buffer(env, &buf, name, 0);
   JCL_ThrowException (env, "java/net/SocketException",
                       "unsupported address type");
   return -1;
