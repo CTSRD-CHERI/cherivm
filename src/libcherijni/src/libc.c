@@ -197,7 +197,16 @@ int	fcntl(int fd, int cmd, ...) {
 	}
 }
 
-off_t lseek(int fildes, off_t offset, int whence)            STUB_ERRNO
+off_t lseek(int fildes, off_t offset, int whence) {
+	init_cap_fd(fildes, ERRNO)
+	register_t ret = hostInvoke_2_1(cheri_invoke_prim, lseek, offset, whence, cap_fildes);
+	if (ret >= 0)
+		return ret;
+	else {
+		errno = -ret;
+		return -1;
+	}
+}
 
 #define STAT_FUNCTION(NAME)                                                           \
 	int NAME(const char *path, struct stat *sb) {                                     \

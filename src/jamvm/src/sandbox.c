@@ -1562,6 +1562,21 @@ LIBC_FUNCTION_PRIM(setsockopt) {
 		return CHERI_SUCCESS;
 }
 
+LIBC_FUNCTION_PRIM(lseek) {
+	int fd = arg_fd(c1);
+	if (fd < 0)
+		return -EBADF;
+
+	off_t offset = (off_t) a1;
+	int whence = (int) a2;
+
+	int ret = lseek(fd, offset, whence);
+	if (ret == -1)
+		return -errno;
+	else
+		return ret;
+}
+
 register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a2, register_t a3, register_t a4, register_t a5, register_t a6, register_t a7, struct cheri_object system_object, __capability void *c1, __capability void *c2, __capability void *c3, __capability void *c4, __capability void *c5) __attribute__((cheri_ccall)) {
 	switch(methodnum) {
 	case CHERIJNI_JNIEnv_GetVersion:
@@ -1908,6 +1923,8 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 		CALL_LIBC_PRIM(listen)
 	case CHERIJNI_LIBC_accept:
 		CALL_LIBC_PRIM(accept)
+	case CHERIJNI_LIBC_lseek:
+		CALL_LIBC_PRIM(lseek)
 
 	default:
 		break;
