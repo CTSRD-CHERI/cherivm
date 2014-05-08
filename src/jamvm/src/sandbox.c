@@ -1119,22 +1119,22 @@ JNI_FUNCTION_CAP(GetDirectBufferAddress) {
 }
 
 static inline int allowFileAccess(const char *path) {
-	jam_printf("[ACCESS: %s => ALLOWED]\n", path);
+	// jam_printf("[ACCESS: %s => ALLOWED]\n", path);
 	return TRUE;
 }
 
 static inline int allowSocketBind() {
-	jam_printf("[ACCESS: bind => ALLOWED]\n");
+	// jam_printf("[ACCESS: bind => ALLOWED]\n");
 	return TRUE;
 }
 
 static inline int allowSocketListen() {
-	jam_printf("[ACCESS: listen => ALLOWED]\n");
+	// jam_printf("[ACCESS: listen => ALLOWED]\n");
 	return TRUE;
 }
 
 static inline int allowSocketAccept() {
-	jam_printf("[ACCESS: accept => ALLOWED]\n");
+	// jam_printf("[ACCESS: accept => ALLOWED]\n");
 	return TRUE;
 }
 
