@@ -1133,6 +1133,11 @@ static inline int allowSocketListen() {
 	return TRUE;
 }
 
+static inline int allowSocketAccept() {
+	jam_printf("[ACCESS: accept => ALLOWED]\n");
+	return TRUE;
+}
+
 LIBC_FUNCTION_CAP(GetStdinFD) {
 	return return_fd(STDIN_FILENO);
 }
@@ -1460,6 +1465,44 @@ LIBC_FUNCTION_PRIM(listen) {
 		return -errno;
 	else
 		return CHERI_SUCCESS;
+}
+
+LIBC_FUNCTION_CAP(accept) {
+	__capability int *output = arg_cap(c3, 2 * sizeof(int), w, TRUE);
+	if (output == CNULL)
+		return CNULL;
+
+	int fd = arg_fd(c1);
+	if (fd < 0) {
+		output[0] = EBADF;
+		return CNULL;
+	}
+
+	if (!allowSocketAccept()) {
+		output[0] = EACCES;
+		return CNULL;
+	}
+
+	struct sockaddr_in6 *addr6;
+	struct sockaddr_in6 sock_storage;
+	socklen_t socklen = sizeof(struct sockaddr_in6);
+	struct sockaddr *sockaddr = (struct sockaddr*) &sock_storage;
+	int ret = accept(fd, sockaddr, &socklen);
+	if (ret < 0) {
+		output[0] = errno;
+		return CNULL;
+	}
+
+	__capability char *sockcap = arg_cap(c2, socklen, w, TRUE);
+	if (sockcap == CNULL) {
+		output[0] = EINVAL;
+		return CNULL;
+	}
+
+	copyToSandbox(sockcap, sockaddr, socklen);
+	output[0] = ret;
+	output[1] = socklen;
+	return return_fd(ret);
 }
 
 register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a2, register_t a3, register_t a4, register_t a5, register_t a6, register_t a7, struct cheri_object system_object, __capability void *c1, __capability void *c2, __capability void *c3, __capability void *c4, __capability void *c5) __attribute__((cheri_ccall)) {
@@ -1802,6 +1845,8 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 		CALL_LIBC_PRIM(getpeername)
 	case CHERIJNI_LIBC_listen:
 		CALL_LIBC_PRIM(listen)
+	case CHERIJNI_LIBC_accept:
+		CALL_LIBC_PRIM(accept)
 
 	default:
 		break;

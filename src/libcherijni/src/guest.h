@@ -36,17 +36,19 @@ extern __capability void *cherijni_output;
 	    c1, c2, c3, c4, c5, \
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap()))
 
-#define hostInvoke_3_3(recast, name, a1, a2, a3, c1, c2, c3) hostInvoke_7_5(recast, name, a1, a2, a3, 0, 0, 0, 0, c1, c2, c3, CNULL, CNULL)
-#define hostInvoke_3_1(recast, name, a1, a2, a3, c1)         hostInvoke_3_3(recast, name, a1, a2, a3, c1, CNULL, CNULL)
-#define hostInvoke_2_2(recast, name, a1, a2, c1, c2)         hostInvoke_3_3(recast, name, a1, a2, 0, c1, c2, CNULL)
-#define hostInvoke_2_1(recast, name, a1, a2, c1)             hostInvoke_2_2(recast, name, a1, a2, c1, CNULL)
-#define hostInvoke_1_2(recast, name, a1, c1, c2)             hostInvoke_2_2(recast, name, a1, 0, c1, c2)
-#define hostInvoke_1_1(recast, name, a1, c1)                 hostInvoke_2_2(recast, name, a1, 0, c1, CNULL)
-#define hostInvoke_1_0(recast, name, a1)                     hostInvoke_1_1(recast, name, a1, CNULL)
-#define hostInvoke_0_3(recast, name, c1, c2, c3)             hostInvoke_3_3(recast, name, 0, 0, 0, c1, c2, c3)
-#define hostInvoke_0_2(recast, name, c1, c2)                 hostInvoke_0_3(recast, name, c1, c2, CNULL)
-#define hostInvoke_0_1(recast, name, c1)                     hostInvoke_0_2(recast, name, c1, CNULL)
-#define hostInvoke_0_0(recast, name)                         hostInvoke_0_1(recast, name, CNULL)
+#define hostInvoke_4_4(recast, name, a1, a2, a3, a4, c1, c2, c3, c4) hostInvoke_7_5(recast, name, a1, a2, a3, a4, 0, 0, 0, c1, c2, c3, c4, CNULL)
+#define hostInvoke_3_3(recast, name, a1, a2, a3, c1, c2, c3)         hostInvoke_4_4(recast, name, a1, a2, a3, 0, c1, c2, c3, CNULL)
+#define hostInvoke_3_1(recast, name, a1, a2, a3, c1)                 hostInvoke_3_3(recast, name, a1, a2, a3, c1, CNULL, CNULL)
+#define hostInvoke_2_2(recast, name, a1, a2, c1, c2)                 hostInvoke_3_3(recast, name, a1, a2, 0, c1, c2, CNULL)
+#define hostInvoke_2_1(recast, name, a1, a2, c1)                     hostInvoke_2_2(recast, name, a1, a2, c1, CNULL)
+#define hostInvoke_1_2(recast, name, a1, c1, c2)                     hostInvoke_2_2(recast, name, a1, 0, c1, c2)
+#define hostInvoke_1_1(recast, name, a1, c1)                         hostInvoke_2_2(recast, name, a1, 0, c1, CNULL)
+#define hostInvoke_1_0(recast, name, a1)                             hostInvoke_1_1(recast, name, a1, CNULL)
+#define hostInvoke_0_4(recast, name, c1, c2, c3, c4)                 hostInvoke_4_4(recast, name, 0, 0, 0, 0, c1, c2, c3, c4)
+#define hostInvoke_0_3(recast, name, c1, c2, c3)                     hostInvoke_0_4(recast, name, c1, c2, c3, CNULL)
+#define hostInvoke_0_2(recast, name, c1, c2)                         hostInvoke_0_3(recast, name, c1, c2, CNULL)
+#define hostInvoke_0_1(recast, name, c1)                             hostInvoke_0_2(recast, name, c1, CNULL)
+#define hostInvoke_0_0(recast, name)                                 hostInvoke_0_1(recast, name, CNULL)
 
 #define check_cheri_fail(errcode, func_result)                { if ((errcode) == CHERI_FAIL) { printf("[SANDBOX ERROR: call to %s failed]\n", __func__); return func_result; } }
 #define check_cheri_fail_extra(errcode, func_result, doExtra) { if ((errcode) == CHERI_FAIL) { doExtra; check_cheri_fail(errcode, func_result) } }

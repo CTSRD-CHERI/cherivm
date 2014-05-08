@@ -35,6 +35,8 @@
 #define STUB_MAPFAILED    { printf("[SANDBOX error: %s\n", __func__); errno = ECAPMODE; return MAP_FAILED; }
 #define STUB_VOID         { printf("[SANDBOX error: %s\n", __func__); errno = ECAPMODE; }
 
+#define OUTPUT_VAR(var)   (cap_buffer_wo(&var, sizeof(var)))
+
 #define init_cap_fd(fd, err) \
 	__capability void* cap_##fd = cherijni_fd_load(fd); \
 	if (cap_##fd == CNULL) STUB_##err else { }
@@ -63,12 +65,10 @@ int access(const char *path, int mode)                       STUB_ERRNO
 
 int open(const char *path, int flags, ...) {
 	int fileno = EIO;
-	__capability void *cap_fileno = cap_buffer_wo(&fileno, sizeof(fileno));
-	__capability void *cap_path = cap_string(path);
 
 	// TODO: support O_CREAT's extra argument
 
-	__capability void *cap_fd = hostInvoke_1_2(cheri_invoke_cap, open, flags, cap_path, cap_fileno);
+	__capability void *cap_fd = hostInvoke_1_2(cheri_invoke_cap, open, flags, cap_string(path), OUTPUT_VAR(fileno));
 	if (cap_fd == CNULL) {
 		errno = fileno;
 		return -1;
@@ -149,7 +149,7 @@ int ioctl(int fd, unsigned long request, ...) {
 	if (request == FIONREAD || request == FIONWRITE || request == FIONSPACE) {
 		int arg, res;
 
-		res = hostInvoke_1_2(cheri_invoke_prim, ioctl, request, cap_fd, cap_buffer_wo(&arg, sizeof(int)));
+		res = hostInvoke_1_2(cheri_invoke_prim, ioctl, request, cap_fd, OUTPUT_VAR(arg));
 		if (res == CHERI_SUCCESS) {
 			int *arg_res;
 			va_list varargs;
@@ -273,9 +273,7 @@ int rmdir(const char *path)                                  STUB_ERRNO
 
 int socket(int domain, int type, int protocol) {
 	int fileno;
-	__capability void *cap_fileno = cap_buffer_wo(&fileno, sizeof(fileno));
-
-	__capability void *cap_fd = hostInvoke_3_1(cheri_invoke_cap, socket, domain, type, protocol, cap_fileno);
+	__capability void *cap_fd = hostInvoke_3_1(cheri_invoke_cap, socket, domain, type, protocol, OUTPUT_VAR(fileno));
 	if (cap_fd == CNULL) {
 		errno = -fileno;
 		return -1;
@@ -312,8 +310,22 @@ int listen(int s, int backlog) {
 }
 
 int shutdown(int s, int how)                                 STUB_ERRNO
-int accept(int s, struct sockaddr * restrict addr, \
-           socklen_t * restrict addrlen)                     STUB_ERRNO
+
+int accept(int s, struct sockaddr * restrict addr, socklen_t * restrict addrlen) {
+	int output[2];
+	init_cap_fd(s, ERRNO)
+
+	__capability void *res = hostInvoke_0_3(cheri_invoke_cap, accept, cap_s, cap_buffer_wo(addr, *addrlen), OUTPUT_VAR(output));
+
+	if (res == CNULL) {
+		errno = output[0];
+		return -1;
+	} else {
+		*addrlen = output[1];
+		return cherijni_fd_store(res, output[0]);
+	}
+}
+
 int connect(int s, const struct sockaddr *name, \
             socklen_t namelen)                               STUB_ERRNO
 
@@ -326,9 +338,10 @@ ssize_t sendto(int s, const void *msg, size_t len,
                int flags, const struct sockaddr *to,
                socklen_t tolen)                              STUB_ERRNO
 
-int getsockopt(int s, int level, int optname, \
-               void * restrict optval, \
-               socklen_t * restrict optlen)                  STUB_ERRNO
+int getsockopt(int s, int level, int optname, void * restrict optval, socklen_t * restrict optlen) {
+	STUB_ERRNO
+}
+
 int setsockopt(int s, int level, int optname, \
                const void *optval, socklen_t optlen)         STUB_ERRNO
 
