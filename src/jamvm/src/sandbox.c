@@ -1128,6 +1128,11 @@ static inline int allowSocketBind() {
 	return TRUE;
 }
 
+static inline int allowSocketListen() {
+	jam_printf("[ACCESS: listen => ALLOWED]\n");
+	return TRUE;
+}
+
 LIBC_FUNCTION_CAP(GetStdinFD) {
 	return return_fd(STDIN_FILENO);
 }
@@ -1439,6 +1444,23 @@ LIBC_FUNCTION_PRIM(fcntl) {
 
 SOCKET_GETNAME(sock)
 SOCKET_GETNAME(peer)
+
+LIBC_FUNCTION_PRIM(listen) {
+	int fd = arg_fd(c1);
+	if (fd < 0)
+		return -EBADF;
+
+	int backlog = (int) a1;
+
+	if (!allowSocketListen())
+		return -EACCES;
+
+	int ret = listen(fd, backlog);
+	if (ret < 0)
+		return -errno;
+	else
+		return CHERI_SUCCESS;
+}
 
 register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a2, register_t a3, register_t a4, register_t a5, register_t a6, register_t a7, struct cheri_object system_object, __capability void *c1, __capability void *c2, __capability void *c3, __capability void *c4, __capability void *c5) __attribute__((cheri_ccall)) {
 	switch(methodnum) {
@@ -1778,6 +1800,8 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 		CALL_LIBC_PRIM(getsockname)
 	case CHERIJNI_LIBC_getpeername:
 		CALL_LIBC_PRIM(getpeername)
+	case CHERIJNI_LIBC_listen:
+		CALL_LIBC_PRIM(listen)
 
 	default:
 		break;

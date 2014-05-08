@@ -299,7 +299,18 @@ int bind(int s, const struct sockaddr *addr, socklen_t addrlen) {
 	}
 }
 
-int listen(int s, int backlog)                               STUB_ERRNO
+int listen(int s, int backlog) {
+	init_cap_fd(s, ERRNO)
+	register_t res = hostInvoke_1_1(cheri_invoke_prim, listen, backlog, cap_s);
+
+	if (res == CHERI_SUCCESS)
+		return 0;
+	else {
+		errno = -res;
+		return -1;
+	}
+}
+
 int shutdown(int s, int how)                                 STUB_ERRNO
 int accept(int s, struct sockaddr * restrict addr, \
            socklen_t * restrict addrlen)                     STUB_ERRNO
