@@ -1499,6 +1499,8 @@ LIBC_FUNCTION_CAP(accept) {
 		return CNULL;
 	}
 
+	printf("[SOCKET: accepted connection on socket %d => %d]\n", fd, ret);
+
 	copyToSandbox(sockcap, sockaddr, socklen);
 	output[0] = ret;
 	output[1] = socklen;

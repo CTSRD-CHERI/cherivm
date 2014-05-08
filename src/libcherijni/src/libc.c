@@ -317,12 +317,12 @@ int accept(int s, struct sockaddr * restrict addr, socklen_t * restrict addrlen)
 
 	__capability void *res = hostInvoke_0_3(cheri_invoke_cap, accept, cap_s, cap_buffer_wo(addr, *addrlen), OUTPUT_VAR(output));
 
-	if (res == CNULL) {
+	if (res != CNULL && cherijni_fd_store(res, output[0])) {
+		*addrlen = output[1];
+		return output[0];
+	} else {
 		errno = output[0];
 		return -1;
-	} else {
-		*addrlen = output[1];
-		return cherijni_fd_store(res, output[0]);
 	}
 }
 
