@@ -15,6 +15,7 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <time.h>
+#include <sys/time.h>
 
 #include "jam.h"
 #include "symbol.h"
@@ -700,7 +701,23 @@ jint cherijni_callOnLoadUnload(void *handle, void *ptr, JavaVM *jvm, void *reser
 	return res;
 }
 
+jlong nanoTime() {
+	jlong result;
+	struct timespec tp;
+
+	if (clock_gettime (CLOCK_MONOTONIC, &tp) == -1)
+		return 0L;
+
+	result = (jlong) tp.tv_sec;
+	result *= (jlong)1000000000L;
+	result += (jlong)tp.tv_nsec;
+
+	return result;
+}
+
 uintptr_t *cherijni_callMethod(pMethodBlock mb, pClass class, uintptr_t *ostack) {
+	jlong startTime = nanoTime();
+
 	__capability void *cap_this;
 	uintptr_t *_ostack = ostack;
 	size_t cPrimitiveArgs = 0, cObjectArgs = 0, returnType;
@@ -747,6 +764,9 @@ uintptr_t *cherijni_callMethod(pMethodBlock mb, pClass class, uintptr_t *ostack)
 
 	destroyFrame();
 	unlockSandbox();
+
+	jlong totalTime = nanoTime() - startTime;
+	printf("[TIME: %s.%s ~ %lu ns]\n", CLASS_CB(mb->class)->name, mb->name, totalTime);
 
 	return ostack;
 }
