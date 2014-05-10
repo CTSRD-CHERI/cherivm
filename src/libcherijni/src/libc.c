@@ -61,7 +61,14 @@ int pipe(int fildes[2])                                      STUB_ERRNO
 
 /* FILE ACCESS */
 
-int access(const char *path, int mode)                       STUB_ERRNO
+int access(const char *path, int mode) {
+	register_t ret = hostInvoke_1_1(cheri_invoke_prim, access, mode, cap_string(path));
+	if (ret < 0) {
+		errno = -ret;
+		return -1;
+	} else
+		return 0;
+}
 
 int open(const char *path, int flags, ...) {
 	int fileno = EIO;

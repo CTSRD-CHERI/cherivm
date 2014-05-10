@@ -1208,6 +1208,22 @@ LIBC_FUNCTION_PRIM(fstat) {
 	return CHERI_SUCCESS;
 }
 
+LIBC_FUNCTION_PRIM(access) {
+const char *path = arg_str(c1, 0, r);
+	int mode = a1;
+	if (path == NULL)
+		return -EINVAL;
+
+	if (!allowFileAccess(path))
+		return -EACCES;
+
+	int ret = access(path, mode);
+	if (ret == -1)
+		return -errno;
+	else
+		return 0;
+}
+
 LIBC_FUNCTION_CAP(open) {
 	__capability int *fileno = arg_cap(c2, sizeof(int), w, TRUE);
 	if (fileno == CNULL)
@@ -1946,6 +1962,8 @@ register_t cherijni_trampoline(register_t methodnum, register_t a1, register_t a
 		CALL_LIBC_PRIM(time)
 	case CHERIJNI_LIBC_getenv:
 		CALL_LIBC_CAP(getenv)
+	case CHERIJNI_LIBC_access:
+		CALL_LIBC_PRIM(access)
 
 	default:
 		break;
