@@ -12,7 +12,8 @@ pushd "$DIR_SODIUM" > /dev/null
     try_to_run ./configure \
       --prefix="$DIR_CHERISYS/usr" \
       --host=mips4-unknown-freebsd \
-      --with-sysroot="$DIR_CHERISDK" 
+      --with-sysroot="$DIR_CHERISDK" \
+      --disable-ssp
 popd > /dev/null
 
 echo "Configuring libCheriJNI..."
