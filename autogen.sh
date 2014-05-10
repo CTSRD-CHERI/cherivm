@@ -9,3 +9,6 @@ for x in "$DIR_LIBCHERIJNI" "$DIR_CLASSPATH" "$DIR_JAMVM"; do
     popd > /dev/null
 done
 
+pushd "$DIR_SODIUM" > /dev/null
+    try_to_run ./autogen.sh
+popd > /dev/null
