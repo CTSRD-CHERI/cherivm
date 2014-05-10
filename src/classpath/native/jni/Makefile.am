@@ -1,7 +1,7 @@
 ## Input file for automake to generate the Makefile.in used by configure
 
 if CREATE_CORE_JNI_LIBRARIES
-  JNIDIRS = native-lib java-full
+  JNIDIRS = native-lib java-full sodium
 endif
 
 if CREATE_ALSA_LIBRARIES
@@ -41,7 +41,7 @@ SUBDIRS = classpath sandbox $(JNIDIRS) \
   $(CLASSPATH_GCONF_PEER_DIR) $(CLASSPATH_GSTREAMER_PEER_DIR) $(GMPDIR)
 DIST_SUBDIRS = classpath sandbox java-io java-lang java-math java-net java-nio java-util \
                gtk-peer gconf-peer gstreamer-peer qt-peer xmlj midi-alsa \
-               midi-dssi native-lib java-full
+               midi-dssi native-lib java-full sodium
 
 all-local:
 	$(SHELL) $(top_builddir)/scripts/check_jni_methods.sh

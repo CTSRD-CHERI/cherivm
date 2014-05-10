@@ -464,6 +464,10 @@ if test "x${COMPILE_JNI}" = xyes; then
   AC_CHECK_LIB(magic, magic_open, LIBMAGIC=-lmagic)
   AC_SUBST(LIBMAGIC)
 
+  LIBSODIUM=
+  AC_CHECK_LIB(sodium, sodium_init, LIBSODIUM=-lsodium)
+  AC_SUBST(LIBSODIUM)
+
   AC_MSG_CHECKING([whether struct sockaddr_in6 is in netinet/in.h])
   AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <netinet/in.h>]], [[struct sockaddr_in6 addr6;]])],
                     [AC_DEFINE(HAVE_INET6, 1,
@@ -1090,6 +1094,7 @@ native/jni/Makefile
 native/jni/classpath/Makefile
 native/jni/sandbox/Makefile
 native/jni/java-full/Makefile
+native/jni/sodium/Makefile
 native/jni/java-io/Makefile
 native/jni/java-lang/Makefile
 native/jni/java-math/Makefile
