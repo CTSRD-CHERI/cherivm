@@ -7,6 +7,14 @@ if [ "$1" == "-d" ]; then
     JAMVM_DEBUG="--enable-trace"
 fi
 
+echo "Configuring libsodium..."
+pushd "$DIR_SODIUM" > /dev/null
+    try_to_run ./configure \
+      --prefix="$DIR_CHERISYS" \
+      --host=mips4-unknown-freebsd \
+      --with-sysroot="$DIR_CHERISDK" 
+popd > /dev/null
+
 echo "Configuring libCheriJNI..."
 pushd "$DIR_LIBCHERIJNI" > /dev/null
     try_to_run ./configure \
@@ -43,10 +51,3 @@ pushd "$DIR_JAMVM" > /dev/null
       --with-classpath-install-dir="$DIR_TARGET"
 popd > /dev/null
 
-echo "Configuring libsodium..."
-pushd "$DIR_SODIUM" > /dev/null
-    try_to_run ./configure \
-      --prefix="$DIR_CHERISYS" \
-      --host=mips4-unknown-freebsd \
-      --with-sysroot="$DIR_CHERISDK" 
-popd > /dev/null

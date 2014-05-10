@@ -2,6 +2,10 @@
  
 source chericc.inc
 
+pushd "$DIR_SODIUM" > /dev/null
+    try_to_run ./autogen.sh
+popd > /dev/null
+
 for x in "$DIR_LIBCHERIJNI" "$DIR_CLASSPATH" "$DIR_JAMVM"; do
     pushd "$x" > /dev/null
         echo "Reconfiguring $x..."
@@ -9,6 +13,3 @@ for x in "$DIR_LIBCHERIJNI" "$DIR_CLASSPATH" "$DIR_JAMVM"; do
     popd > /dev/null
 done
 
-pushd "$DIR_SODIUM" > /dev/null
-    try_to_run ./autogen.sh
-popd > /dev/null
