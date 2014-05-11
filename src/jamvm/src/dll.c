@@ -23,6 +23,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <time.h>
+#include <sys/time.h>
 
 #include "jam.h"
 
@@ -423,16 +425,37 @@ void unloadClassLoaderDlls(pObject loader) {
 
 static void *env = &Jam_JNINativeInterface;
 
+jlong nanoTime() {
+	jlong result;
+	struct timespec tp;
+
+	if (clock_gettime (CLOCK_MONOTONIC, &tp) == -1)
+		return 0L;
+
+	result = (jlong) tp.tv_sec;
+	result *= (jlong)1000000000L;
+	result += (jlong)tp.tv_nsec;
+
+	return result;
+}
+
 uintptr_t *callJNIWrapper(pClass class, pMethodBlock mb, uintptr_t *ostack) {
     TRACE("<DLL: Calling JNI method %s.%s%s>\n", CLASS_CB(class)->name,
           mb->name, mb->type);
 
+    jlong startTime = nanoTime();
+
     if(!initJNILrefs())
         return NULL;
 
-    return callJNIMethod(&env, (mb->access_flags & ACC_STATIC) ? class : NULL,
+    uintptr_t *result = callJNIMethod(&env, (mb->access_flags & ACC_STATIC) ? class : NULL,
                          mb->type, mb->native_extra_arg, ostack, mb->code,
                          mb->args_count);
+
+    jlong totalTime = nanoTime() - startTime;
+    printf("[TIME: %s.%s ~ %lu ns]\n", CLASS_CB(mb->class)->name, mb->name, totalTime);
+
+    return result;
 }
 
 void *lookupLoadedDlls(pMethodBlock mb) {
