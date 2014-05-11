@@ -1093,6 +1093,7 @@ native/jni/java-math/Makefile
 native/jni/java-net/Makefile
 native/jni/java-nio/Makefile
 native/jni/java-util/Makefile
+native/jni/jsodium/Makefile
 native/jni/gtk-peer/Makefile
 native/jni/gconf-peer/Makefile
 native/jni/gstreamer-peer/Makefile
