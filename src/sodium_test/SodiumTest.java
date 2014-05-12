@@ -18,6 +18,8 @@ public class SodiumTest {
 	private static final int SIZE_PUBLICKEY;
 	private static final int SIZE_PRIVATEKEY;
 	private static final int SIZE_NONCE;
+
+	public static boolean direct;
 	
 	static {
 		System.out.print("[opening libjsodium... ");
@@ -48,8 +50,8 @@ public class SodiumTest {
 			System.out.print("[create user " + name + "... ");
 			
 			this.name = name;
-			this.keyPublic = ByteBuffer.allocate(SIZE_PUBLICKEY);
-			this.keyPrivate = ByteBuffer.allocate(SIZE_PRIVATEKEY);
+			this.keyPublic = direct ? ByteBuffer.allocateDirect(SIZE_PUBLICKEY) : ByteBuffer.allocate(SIZE_PUBLICKEY);
+			this.keyPrivate = direct ? ByteBuffer.allocateDirect(SIZE_PRIVATEKEY) : ByteBuffer.allocate(SIZE_PRIVATEKEY);
 
 			generateKeyPair(this.keyPublic, this.keyPrivate);
 
@@ -62,13 +64,13 @@ public class SodiumTest {
 			byte[] data = msg.getBytes("UTF-8");
 
 			System.out.print("[generating a nonce... ");
-			ByteBuffer bufNonce = ByteBuffer.allocate(SIZE_NONCE);
+			ByteBuffer bufNonce = direct ? ByteBuffer.allocateDirect(SIZE_NONCE) : ByteBuffer.allocate(SIZE_NONCE);
 			generateNonce(bufNonce);
 			System.out.println("DONE]");
 
 			System.out.print("[encrypting message... ");
 			int encryptedLength = encryptLength(data.length);
-			ByteBuffer bufOutput = ByteBuffer.allocate(encryptedLength);
+			ByteBuffer bufOutput = direct ? ByteBuffer.allocateDirect(encryptedLength) : ByteBuffer.allocate(encryptedLength);
 			encryptData(ByteBuffer.wrap(data), this.keyPrivate, recipient.keyPublic, bufNonce, bufOutput);
 			System.out.println("DONE]");
 
@@ -104,7 +106,9 @@ public class SodiumTest {
 	}
 	
 	public static void main(String[] args) throws UnsupportedEncodingException {
-		System.out.println("*** LIBSODIUM JNI TEST ***");
+		direct = (args.length > 0);
+
+		System.out.println("*** LIBSODIUM JNI TEST " + (direct ? "(direct)" : "") + " ***");
 		
 		SodiumUser userAlice = new SodiumUser("Alice");
 		SodiumUser userBob = new SodiumUser("Bob");
