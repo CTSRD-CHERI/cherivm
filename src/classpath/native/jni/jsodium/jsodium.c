@@ -30,25 +30,32 @@ jmethodID get_method_id(JNIEnv *env,  jclass clazz, const char *name, const char
 }
 
 int JCL_init_buffer(JNIEnv *env, struct JCL_buffer *buf, jobject bbuf) {
+	void *addr = (*env)->GetDirectBufferAddress(env, bbuf);
+
 	buf->position = (*env)->CallIntMethod(env, bbuf, get_position_mid);
 	buf->limit = (*env)->CallIntMethod(env, bbuf, get_limit_mid);
 	buf->offset = 0;
 	buf->count = 0;
 	buf->type = UNKNOWN;
 
-	jboolean has_array;
-	has_array = (*env)->CallBooleanMethod(env, bbuf, has_array_mid);
-
-	if (has_array == JNI_TRUE) {
-		jbyteArray arr;
-		buf->offset = (*env)->CallIntMethod(env, bbuf, array_offset_mid);
-		arr = (*env)->CallObjectMethod(env, bbuf, array_mid);
-		buf->ptr = (*env)->GetByteArrayElements(env, arr, 0);
-		buf->type = ARRAY;
-		(*env)->DeleteLocalRef(env, arr);
+	if (addr != NULL) {
+		buf->ptr = (jbyte *) addr;
+		buf->type = DIRECT;
 	} else {
-		jclass clazz = (*env)->FindClass(env, "java/lang/InternalError");
-		(*env)->ThrowNew(env, clazz, "Unsupported buffer type");
+		jboolean has_array;
+		has_array = (*env)->CallBooleanMethod(env, bbuf, has_array_mid);
+
+		if (has_array == JNI_TRUE) {
+			jbyteArray arr;
+			buf->offset = (*env)->CallIntMethod(env, bbuf, array_offset_mid);
+			arr = (*env)->CallObjectMethod(env, bbuf, array_mid);
+			buf->ptr = (*env)->GetByteArrayElements(env, arr, 0);
+			buf->type = ARRAY;
+			(*env)->DeleteLocalRef(env, arr);
+		} else {
+			jclass clazz = (*env)->FindClass(env, "java/lang/InternalError");
+			(*env)->ThrowNew(env, clazz, "Unsupported buffer type");
+		}
 	}
 
 	return 0;
