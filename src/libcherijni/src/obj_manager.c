@@ -18,16 +18,16 @@
 			printf("[SANDBOX ERROR: cannot allocate storage for type %s]\n", #NAME); \
 	}
 
-STORAGE_DEF(jobject)
-STORAGE_DEF(jfieldID)
-STORAGE_DEF(jmethodID)
+//STORAGE_DEF(jobject)
+//STORAGE_DEF(jfieldID)
+//STORAGE_DEF(jmethodID)
 STORAGE_DEF(fd)
 STORAGE_DEF(pFILE)
 
 void cherijni_obj_init() {
-	STORAGE_INIT(jobject);
-	STORAGE_INIT(jfieldID);
-	STORAGE_INIT(jmethodID);
+//	STORAGE_INIT(jobject);
+//	STORAGE_INIT(jfieldID);
+//	STORAGE_INIT(jmethodID);
 	STORAGE_INIT(fd);
 	STORAGE_INIT(pFILE);
 }
@@ -84,38 +84,41 @@ void cherijni_obj_init() {
 	newslot->cap = cobj;
 
 
-STORAGE_FIND_COMPARECAP(jobject)
-STORAGE_EMPTYSLOT(jobject)
+//STORAGE_FIND_COMPARECAP(jobject)
+//STORAGE_EMPTYSLOT(jobject)
 
 jobject cherijni_jobject_store(__capability void *cobj, jboolean isGlobal) {
-	STORAGE_STORE_COMMON(jobject)
-	newslot->isGlobal = isGlobal;
-	return newslot;
+//	STORAGE_STORE_COMMON(jobject)
+//	newslot->isGlobal = isGlobal;
+//	return newslot;
+	return cobj;
 }
 
 void cherijni_jobject_clearLocal() {
-	size_t i;
-	for (i = 0; i < storage_jobject_used; i++) {
-		if (storage_jobject[i].isGlobal == JNI_FALSE)
-			storage_jobject[i].cap = cheri_zerocap();
-	}
+//	size_t i;
+//	for (i = 0; i < storage_jobject_used; i++) {
+//		if (storage_jobject[i].isGlobal == JNI_FALSE)
+//			storage_jobject[i].cap = cheri_zerocap();
+//	}
 }
 
-STORAGE_FIND_COMPARECAP(jfieldID)
-STORAGE_EMPTYSLOT(jfieldID)
+//STORAGE_FIND_COMPARECAP(jfieldID)
+//STORAGE_EMPTYSLOT(jfieldID)
 
 jfieldID cherijni_jfieldID_store(__capability void *cobj) {
-	STORAGE_STORE_COMMON(jfieldID)
-	return newslot;
+//	STORAGE_STORE_COMMON(jfieldID)
+//	return newslot;
+	return cobj;
 }
 
-STORAGE_FIND_COMPARECAP(jmethodID)
-STORAGE_EMPTYSLOT(jmethodID)
+//STORAGE_FIND_COMPARECAP(jmethodID)
+//STORAGE_EMPTYSLOT(jmethodID)
 
 jmethodID cherijni_jmethodID_store(__capability void *cobj, const char *sig) {
-	STORAGE_STORE_COMMON(jmethodID)
-	newslot->sig = strdup(sig);
-	return newslot;
+//	STORAGE_STORE_COMMON(jmethodID)
+//	newslot->sig = strdup(sig);
+//	return newslot;
+	return cobj;
 }
 
 cherijni_objtype_fd *cherijni_obj_fd_find(__capability void *cap) {

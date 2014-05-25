@@ -16,7 +16,8 @@ struct cheri_object cherijni_obj_system;
 __capability void *cherijni_output;
 
 typedef jint (*fn_init)(JavaVM*, void*);
-typedef register_t (*fn_jni)(JNIEnv*, register_t, register_t, register_t, register_t, register_t, register_t, register_t);
+typedef register_t (*fn_jni)(JNIEnv*, __capability void *, register_t, register_t, register_t, register_t, register_t, register_t, __capability void*, __capability void*, __capability void*, __capability void*, __capability void*, __capability void*);
+typedef jobject (*fn_jni_obj)(JNIEnv*, __capability void *, register_t, register_t, register_t, register_t, register_t, register_t, __capability void*, __capability void*, __capability void*, __capability void*, __capability void*, __capability void*);
 
 char* cherijni_extractHostString(__capability char* str_cap) {
 	unsigned int i;
@@ -91,7 +92,7 @@ register_t cherijni_invoke(u_int op,
 		 */
 
 		methodEntry *entry = (methodEntry*) a1;
-		char *signature = cherijni_extractHostString(c1);
+//		char *signature = cherijni_extractHostString(c1);
 		JNIEnv *env = cherijni_getJNIEnv();
 		cherijni_jobject_clearLocal();
 
@@ -100,29 +101,28 @@ register_t cherijni_invoke(u_int op,
 //			cherijni_runTests(env);
 //		}
 
-		register_t args_prim[] = { a2, a3, a4, a5, a6, a7 };
-		__capability void *args_objs[] = { c3, c4, c5, c6, c7, c8 };
-		size_t args_prim_ready = 0, args_objs_ready = 0;
-
-		register_t args_this = (register_t) cherijni_jobject_store(c2, JNI_FALSE);
-		register_t args_ready[6];
-		scanSignature(signature,
-			/* single primitives */ { args_ready[args_prim_ready + args_objs_ready] = args_prim[args_prim_ready]; args_prim_ready++; },
-			/* double primitives */ { args_ready[args_prim_ready + args_objs_ready] = args_prim[args_prim_ready]; args_prim_ready++; },
-			/* objects           */ { args_ready[args_prim_ready + args_objs_ready] = (register_t) cherijni_jobject_store(args_objs[args_objs_ready], JNI_FALSE); args_objs_ready++; },
-			/* return values     */ { }, { }, { }, { });
-		free(signature);
-
-//		printf("[SANDBOX: invoke method %s]\n", entry->name);
-		register_t result = ((fn_jni) entry->func)(env, args_this, args_ready[0], args_ready[1], args_ready[2], args_ready[3], args_ready[4], args_ready[5]);
-//		printf("[SANDBOX: returning %p]\n", (void*) result);
+//		register_t args_prim[] = { a2, a3, a4, a5, a6, a7 };
+//		__capability void *args_objs[] = { c3, c4, c5, c6, c7, c8 };
+//		size_t args_prim_ready = 0, args_objs_ready = 0;
+//
+//		jobject args_this = cherijni_jobject_store(c2, JNI_FALSE);
+//		register_t args_ready[6];
+//		jobject args_ready_obj[6];
+//		scanSignature(signature,
+//			/* single primitives */ { args_ready[args_prim_ready] = args_prim[args_prim_ready]; args_prim_ready++; },
+//			/* double primitives */ { args_ready[args_prim_ready] = args_prim[args_prim_ready]; args_prim_ready++; },
+//			/* objects           */ { args_ready_obj[args_objs_ready] = cherijni_jobject_store(args_objs[args_objs_ready], JNI_FALSE); args_objs_ready++; },
+//			/* return values     */ { }, { }, { }, { });
+//		free(signature);
 
 		if (entry->type == FNTYPE_OBJECT) {
-			__capability void *result_cap = get_cap((void*) result, jobject);
+			__capability void *result_cap = ((fn_jni_obj) entry->func)(env, c2, a2, a3, a4, a5, a6, a7, c3, c4, c5, c6, c7, c8);
 			cheri_setreg(3, result_cap);
 			return CHERI_SUCCESS;
-		} else
+		} else {
+			register_t result = ((fn_jni) entry->func)(env, c2, a2, a3, a4, a5, a6, a7, c3, c4, c5, c6, c7, c8);
 			return result;
+		}
 
 	} else
 		return CHERI_FAIL;

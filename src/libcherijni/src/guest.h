@@ -55,7 +55,7 @@ extern __capability void *cherijni_output;
 #define check_cheri_fail_void(errcode)                        { if ((errcode) == CHERI_FAIL) { printf("[SANDBOX ERROR: call to %s failed]\n", __func__); return; } }
 
 #define get_str(cap)        cherijni_extractHostString(cap)
-#define get_cap(ptr, type)  ((ptr) ? ((cherijni_objtype_##type*) ptr)->cap : CNULL)
+#define get_cap(ptr, type)  ptr //((ptr) ? ((cherijni_objtype_##type*) ptr)->cap : CNULL)
 
 extern void cherijni_obj_init();
 extern void cherijni_libc_init();
