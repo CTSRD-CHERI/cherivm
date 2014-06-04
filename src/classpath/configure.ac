@@ -1095,6 +1095,7 @@ native/jni/classpath/Makefile
 native/jni/sandbox/Makefile
 native/jni/java-full/Makefile
 native/jni/sodium/Makefile
+native/jni/zlib/Makefile
 native/jni/java-io/Makefile
 native/jni/java-lang/Makefile
 native/jni/java-math/Makefile

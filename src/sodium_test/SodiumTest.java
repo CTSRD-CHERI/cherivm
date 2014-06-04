@@ -1,4 +1,7 @@
 import java.nio.ByteBuffer;
+import java.nio.FloatBuffer;
+import java.util.Arrays;
+import java.util.Random;
 import java.io.UnsupportedEncodingException;
 
 public class SodiumTest {
@@ -105,21 +108,190 @@ public class SodiumTest {
 		}
 	}
 	
-	public static void main(String[] args) throws UnsupportedEncodingException {
-		direct = (args.length > 0);
-
-		System.out.println("*** LIBSODIUM JNI TEST " + (direct ? "(direct)" : "") + " ***");
+	public static class SodiumSecurity extends SecurityManager {
+		@Override
+		public void checkRead(String file) {
+			// System.out.println("SodiumSecurity: " + file);
+		}
+	}
+	
+	private static float[] generateMatrix(int size) {
+		int elems = size * size;
+		float[] matrix = new float[elems];
+		Random rand = new Random();
 		
-		SodiumUser userAlice = new SodiumUser("Alice");
-		SodiumUser userBob = new SodiumUser("Bob");
-		SodiumUser userEve = new SodiumUser("Eve");
+		for (int i = 0; i < elems; i++)
+			matrix[i] = rand.nextFloat();
+		
+		return matrix;
+	}
+	
+	private static native void squareMatrix(int size, float[] matrixOrig, float[] matrixNew);
+	private static native boolean readAccess(String path);
+	
+	private static void squareMatrix_pure(int size, float[] matrixOrig, float[] matrixNew) {
+		int i, j, k;
+		for (i = 0; i < size; i++) {
+			for (j = 0; j < size; j++) {
+				matrixNew[i*size + j] = 0.0f;
+				for (k = 0; k < size; k++)
+					matrixNew[i*size + j] += matrixOrig[i*size + k] * matrixOrig[k*size + j];
+			}
+		}
+	}
+	
+	public static class AccessSecurity0 extends SecurityManager {
+		@Override
+		public void checkRead(String file) {
+			// System.out.println("Security0");
+			return;
+		}
+	}
 
-		String msgBob = "Meet me in the pub in 10mins";
+	public static class AccessSecurity1 extends SecurityManager {
+		@Override
+		public void checkRead(String file) {
+			// System.out.println("Security1");
+			if (file.startsWith("1/usr/local/bin/")) throw new SecurityException();
+			if (file.startsWith("1/bin/")) throw new SecurityException();
+			if (file.startsWith("1/home/db538/cherivm/target")) throw new SecurityException();
+			if (file.startsWith("1/proc/sys/acpi/lenovo")) throw new SecurityException();
+		}
+	}
 
-		SodiumMessage msg = userBob.encrypt(msgBob, userAlice);
-		String msgAlice = userAlice.decrypt(msg, userBob);
+	public static class AccessSecurity2 extends SecurityManager {
+		@Override
+		public void checkRead(String file) {
+			// System.out.println("Security2");
+			if (file.startsWith("1/usr/local/bin/")) throw new SecurityException();
+			if (file.startsWith("1/bin/")) throw new SecurityException();
+			if (file.startsWith("1/home/db538/cherivm/target")) throw new SecurityException();
+			if (file.startsWith("1/proc/sys/acpi/lenovo")) throw new SecurityException();
+			if (file.startsWith("2/usr/local/bin/")) throw new SecurityException();
+			if (file.startsWith("2/bin/")) throw new SecurityException();
+			if (file.startsWith("2/home/db538/cherivm/target")) throw new SecurityException();
+			if (file.startsWith("2/proc/sys/acpi/lenovo")) throw new SecurityException();
+		}
+	}
+	
+	public static class AccessSecurity3 extends SecurityManager {
+		@Override
+		public void checkRead(String file) {
+			// System.out.println("Security3");
+			if (file.startsWith("1/usr/local/bin/")) throw new SecurityException();
+			if (file.startsWith("1/bin/")) throw new SecurityException();
+			if (file.startsWith("1/home/db538/cherivm/target")) throw new SecurityException();
+			if (file.startsWith("1/proc/sys/acpi/lenovo")) throw new SecurityException();
+			if (file.startsWith("2/usr/local/bin/")) throw new SecurityException();
+			if (file.startsWith("2/bin/")) throw new SecurityException();
+			if (file.startsWith("2/home/db538/cherivm/target")) throw new SecurityException();
+			if (file.startsWith("2/proc/sys/acpi/lenovo")) throw new SecurityException();
+			if (file.startsWith("3/usr/local/bin/")) throw new SecurityException();
+			if (file.startsWith("3/bin/")) throw new SecurityException();
+			if (file.startsWith("3/home/db538/cherivm/target")) throw new SecurityException();
+			if (file.startsWith("3/proc/sys/acpi/lenovo")) throw new SecurityException();
+		}
+	}
 
-		System.out.println("Bob sent:        " + msgBob);
-		System.out.println("Alice decrypted: " + msgAlice);
+	public static class AccessSecurity4 extends SecurityManager {
+		@Override
+		public void checkRead(String file) {
+			// System.out.println("Security4");
+			if (file.startsWith("1/usr/local/bin/")) throw new SecurityException();
+			if (file.startsWith("1/bin/")) throw new SecurityException();
+			if (file.startsWith("1/home/db538/cherivm/target")) throw new SecurityException();
+			if (file.startsWith("1/proc/sys/acpi/lenovo")) throw new SecurityException();
+			if (file.startsWith("2/usr/local/bin/")) throw new SecurityException();
+			if (file.startsWith("2/bin/")) throw new SecurityException();
+			if (file.startsWith("2/home/db538/cherivm/target")) throw new SecurityException();
+			if (file.startsWith("2/proc/sys/acpi/lenovo")) throw new SecurityException();
+			if (file.startsWith("3/usr/local/bin/")) throw new SecurityException();
+			if (file.startsWith("3/bin/")) throw new SecurityException();
+			if (file.startsWith("3/home/db538/cherivm/target")) throw new SecurityException();
+			if (file.startsWith("3/proc/sys/acpi/lenovo")) throw new SecurityException();
+			if (file.startsWith("4/usr/local/bin/")) throw new SecurityException();
+			if (file.startsWith("4/bin/")) throw new SecurityException();
+			if (file.startsWith("4/home/db538/cherivm/target")) throw new SecurityException();
+			if (file.startsWith("4/proc/sys/acpi/lenovo")) throw new SecurityException();
+		}
+	}
+
+	public static void main(String[] args) throws UnsupportedEncodingException {
+		if (args.length <= 1) {
+			direct = (args.length > 0);
+	
+			SecurityManager sm = new SodiumSecurity();
+			System.setSecurityManager(sm);
+	
+			System.out.println("*** LIBSODIUM JNI TEST " + (direct ? "(direct)" : "") + " ***");
+			
+			SodiumUser userAlice = new SodiumUser("Alice");
+			SodiumUser userBob = new SodiumUser("Bob");
+	
+			String msgBob = "Meet me in the pub in 10mins";
+	
+			SodiumMessage msg = userBob.encrypt(msgBob, userAlice);
+			userAlice.decrypt(msg, userBob);
+		} else if (args.length <= 2) {
+			System.out.println("*** MATRIX SQUARING TEST ***");
+			
+			for (int i = 1; i <= 100; i++) {
+				System.err.println("size = " + i);
+				float[] matrix1 = generateMatrix(i);
+				float[] matrix2 = generateMatrix(i);
+				
+				for (int j = 0; j < 100; j++) {
+					long start = System.nanoTime();
+					squareMatrix(i, matrix1, matrix2);
+					long afterNative = System.nanoTime();
+					squareMatrix_pure(i, matrix2, matrix1);
+					long afterPure = System.nanoTime();
+					System.out.println(i + ", " + (afterNative - start) + ", " + (afterPure - afterNative));
+				}
+			}
+		} else {
+			String path = "/tmp/matrix.log";
+			
+			for (int i = 0; i < 500; i++) {
+
+				// System.out.println("Security NULL");
+				System.setSecurityManager(null);
+				long time0_1 = System.nanoTime();
+				readAccess(path);
+				long time0_2 = System.nanoTime();
+				
+				// System.out.println("Security 0");
+				System.setSecurityManager(new AccessSecurity0());
+				long time1_1 = System.nanoTime();
+				readAccess(path);
+				long time1_2 = System.nanoTime();
+	
+				// System.out.println("Security 1");
+				System.setSecurityManager(new AccessSecurity1());
+				long time2_1 = System.nanoTime();
+				readAccess(path);
+				long time2_2 = System.nanoTime();
+	
+				// System.out.println("Security 2");
+				System.setSecurityManager(new AccessSecurity2());
+				long time3_1 = System.nanoTime();
+				readAccess(path);
+				long time3_2 = System.nanoTime();
+	
+				// System.out.println("Security 3");
+				System.setSecurityManager(new AccessSecurity3());
+				long time4_1 = System.nanoTime();
+				readAccess(path);
+				long time4_2 = System.nanoTime();
+	
+				// System.out.println("Security 4");
+				System.setSecurityManager(new AccessSecurity4());
+				long time5_1 = System.nanoTime();
+				readAccess(path);
+				long time5_2 = System.nanoTime();
+				
+				System.out.println((time0_2 - time0_1) + ", " + (time1_2 - time1_1) + ", " + (time2_2 - time2_1) + ", " + (time3_2 - time3_1) + ", " + (time4_2 - time4_1) + ", " + (time5_2 - time5_1));
+			}
+		}
 	}
 }

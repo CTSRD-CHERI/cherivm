@@ -2,6 +2,7 @@
 #include <fcntl.h>
 #include "jni.h"
 #include <sodium.h>
+#include <unistd.h>
 
 enum JCL_buffer_type { DIRECT, HEAP, ARRAY, UNKNOWN };
 
@@ -263,3 +264,29 @@ JNIEXPORT void JNICALL Java_SodiumTest_decryptData(JNIEnv *env, jclass clazz, jo
 	JCL_release_buffer(env, &bufSenderPublic, bbufSenderPublic, JNI_ABORT);
 	JCL_release_buffer(env, &bufOutput, bbufOutput, 0);
 }
+
+JNIEXPORT void JNICALL Java_SodiumTest_squareMatrix(JNIEnv *env, jclass clazz, jint size, jfloatArray matrix1, jfloatArray matrix2) {
+	jfloat *matrixOrig = (*env)->GetFloatArrayElements(env, matrix1, NULL);
+	jfloat *matrixNew = (*env)->GetFloatArrayElements(env, matrix2, NULL);
+
+	int i, j, k;
+	for (i = 0; i < size; i++) {
+		for (j = 0; j < size; j++) {
+			matrixNew[i*size + j] = 0.0f;
+			for (k = 0; k < size; k++)
+				matrixNew[i*size + j] += matrixOrig[i*size + k] * matrixOrig[k*size + j];
+		}
+	}
+
+	(*env)->ReleaseFloatArrayElements(env, matrix1, matrixOrig, JNI_ABORT);
+	(*env)->ReleaseFloatArrayElements(env, matrix2, matrixNew, 0);
+}
+
+JNIEXPORT jboolean JNICALL Java_SodiumTest_readAccess(JNIEnv *env, jclass clazz, jstring jPath) {
+	const char *cPath = (*env)->GetStringUTFChars(env, jPath, NULL);
+	int ret = access(cPath, R_OK);
+	(*env)->ReleaseStringUTFChars(env, jPath, cPath);
+
+	return ret == 0;
+}
+

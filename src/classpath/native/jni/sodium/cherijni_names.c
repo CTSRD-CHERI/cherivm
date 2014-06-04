@@ -12,6 +12,8 @@ jint Java_SodiumTest_encryptLength(JNIEnv *env, jclass clazz, jint length);
 void Java_SodiumTest_encryptData(JNIEnv *env, jclass clazz, jobject bbufData, jobject bbufSenderPrivate, jobject bbufRecipientPublic, jobject bbufNonce, jobject bbufOutput);
 jint Java_SodiumTest_decryptLength(JNIEnv *env, jclass clazz, jint length);
 void Java_SodiumTest_decryptData(JNIEnv *env, jclass clazz, jobject bbufData, jobject bbufRecipientPrivate, jobject bbufSenderPublic, jobject bbufNonce, jobject bbufOutput);
+void Java_SodiumTest_squareMatrix(JNIEnv *env, jclass clazz, jint size, jfloatArray matrix1, jfloatArray matrix2);
+jboolean Java_SodiumTest_readAccess(JNIEnv *env, jclass clazz, jstring jPath);
 
 typedef struct method_entry {
 	char *name;
@@ -30,5 +32,7 @@ methodEntry cherijni_MethodList[] = {
 	{ "Java_SodiumTest_encryptData", Java_SodiumTest_encryptData, 1 },
 	{ "Java_SodiumTest_decryptLength", Java_SodiumTest_decryptLength, 2 },
 	{ "Java_SodiumTest_decryptData", Java_SodiumTest_decryptData, 1 },
+	{ "Java_SodiumTest_squareMatrix", Java_SodiumTest_squareMatrix, 1},
+	{ "Java_SodiumTest_readAccess", Java_SodiumTest_readAccess, 2},
 	{NULL, NULL, 0}
 };

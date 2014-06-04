@@ -134,6 +134,7 @@ extern char *symbol_values[];
     action(java_lang_VMThrowable, "java/lang/VMThrowable"), \
     action(java_lang_ThreadGroup, "java/lang/ThreadGroup"), \
     action(java_lang_ClassLoader, "java/lang/ClassLoader"), \
+    action(java_lang_SecurityManager, "java/lang/SecurityManager"), \
     action(java_lang_reflect_Field, "java/lang/reflect/Field"), \
     action(java_lang_reflect_VMField, "java/lang/reflect/VMField"), \
     action(gnu_classpath_Pointer32, "gnu/classpath/Pointer32"), \
