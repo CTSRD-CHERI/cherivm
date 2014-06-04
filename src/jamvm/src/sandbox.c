@@ -945,7 +945,15 @@ static inline jvalue *prepareJniArguments(pMethodBlock mb, register_t a1, regist
 	scanSignature(mb->type,
 	/* single primitives */ { args[args_ready++].i = args_prim[args_used_prim++]; },
 	/* double primitives */ { args[args_ready++].j = args_prim[args_used_prim++]; },
-	/* objects           */ { args[args_ready++].l = arg_jniref(args_cap[args_used_cap]); args_used_cap++; },
+	/* objects           */
+		{
+			jobject ref = arg_jniref(args_cap[args_used_cap]);
+			pObject obj = REF_TO_OBJ_WEAK_NULL_CHECK(ref);
+			if (!(*env)->IsInstanceOf(env, obj, s--))
+				return NULL;
+			args[args_ready++].l = ref;
+			args_used_cap++;
+		},
 	/* return values     */ { }, { }, { }, { });
 
 	return args;
@@ -1139,9 +1147,30 @@ JNI_FUNCTION_CAP(GetDirectBufferAddress) {
 	return CNULL; // cheri_ptrperm(base, length, CHERI_PERM_LOAD | CHERI_PERM_STORE);
 }
 
-static inline int allowFileAccess(const char *path) {
-	// jam_printf("[ACCESS: %s => ALLOWED]\n", path);
-	return TRUE;
+static inline int allowRead(const char *path) {
+	if ((*env)->ExceptionCheck(env) == JNI_TRUE) {
+		return FALSE;
+	}
+
+	jmethodID mid_getManager = (*env)->GetStaticMethodID(env, class_System, "getSecurityManager", "()Ljava/lang/SecurityManager;");
+	jobject manager = (*env)->CallStaticObjectMethod(env, class_System, mid_getManager);
+	if (manager == NULL) {
+		return TRUE;
+	}
+
+	jmethodID mid_read = (*env)->GetMethodID(env, class_SecurityManager, "checkRead", "(Ljava/lang/String;)V");
+	jstring str_path = (*env)->NewStringUTF(env, path);
+
+	(*env)->CallVoidMethod(env, manager, mid_read, str_path);
+
+	jboolean result = (*env)->ExceptionCheck(env);
+	if (result)
+		(*env)->ExceptionClear(env);
+
+	(*env)->DeleteLocalRef(env, manager);
+	(*env)->DeleteLocalRef(env, str_path);
+
+	return !result;
 }
 
 static inline int allowSocketBind() {
@@ -1192,7 +1221,7 @@ LIBC_FUNCTION_CAP(GetStream) {
 		if (path == NULL || buf == CNULL)                                    \
 			return -ECAPMODE;                                                \
 		                                                                     \
-		if (!allowFileAccess(path))                                          \
+		if (!allowRead(path))                                          \
 			return -EACCES;                                                  \
 		                                                                     \
 		struct stat data;                                                    \
@@ -1234,8 +1263,8 @@ const char *path = arg_str(c1, 0, r);
 	if (path == NULL)
 		return -EINVAL;
 
-	if (!allowFileAccess(path))
-		return -EACCES;
+//	if ((mode & R_OK) && !allowRead(path))
+//		return -EACCES;
 
 	int ret = access(path, mode);
 	if (ret == -1)
@@ -1261,7 +1290,7 @@ LIBC_FUNCTION_CAP(open) {
 		return CNULL;
 	}
 
-	if (!allowFileAccess(path)) {
+	if (!allowRead(path)) {
 		fileno[0] = EACCES;
 		return CNULL;
 	}
