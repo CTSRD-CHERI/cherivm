@@ -1,5 +1,12 @@
+CheriVM
+=======
+
+This is a fork of JamVM and GNU Classpath containing support for sandboxed
+native code using CHERI.  It is an ongoing research project and so is currently
+missing a lot of features.
+
 How to build
-============
+------------
 
 Currently the CHERI version of JamVM can only build on FreeBSD.
 

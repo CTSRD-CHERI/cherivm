@@ -78,6 +78,10 @@ extern char *symbol_values[];
     action(newLibraryUnloader, "newLibraryUnloader"), \
     action(contextClassLoader, "contextClassLoader"), \
     action(getSystemClassLoader, "getSystemClassLoader"), \
+    action(annotationType, "annotationType"), \
+    action(scope, "scope"), \
+    action(ordinal, "ordinal"), \
+    action(SandboxClass, "SandboxClass"), \
     \
     /* Constant pool attribute names */\
     action(Code, "Code"), \
@@ -216,6 +220,7 @@ extern char *symbol_values[];
     /* Method signatures */\
     action(___V, "()V"), \
     action(___Z, "()Z"), \
+    action(___I, "()I"), \
     action(_I__V, "(I)V"), \
     action(_J__V, "(J)V"), \
     action(_java_lang_String_I__java_lang_Package, \
@@ -232,12 +237,17 @@ extern char *symbol_values[];
     action(_java_lang_Thread__V, "(Ljava/lang/Thread;)V"), \
     action(_java_lang_Throwable__V, "(Ljava/lang/Throwable;)V"), \
     action(_array_java_lang_String__V, "([Ljava/lang/String;)V"), \
+    action(___java_lang_Class, "()Ljava/lang/Class;"), \
     action(___java_lang_ClassLoader, "()Ljava/lang/ClassLoader;"), \
     action(_java_lang_Object_java_lang_Object__java_lang_Object, \
            "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;"), \
     action(_java_lang_String_I_java_lang_String_java_lang_String_Z__V, \
            "(Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;Z)V"), \
-    action(_java_lang_String__java_lang_Class, "(Ljava/lang/String;)Ljava/lang/Class;")
+    action(_java_lang_String__java_lang_Class, "(Ljava/lang/String;)Ljava/lang/Class;"), \
+    action(___sandbox_Sandbox_Scope, "()Lsandbox/Sandbox$Scope;"), \
+    action(___java_lang_String, "()Ljava/lang/String;") \
+
+
 
 #define SYMBOL_ENUM(name, value) SYMBOL_NAME_ENUM(name)
 enum {

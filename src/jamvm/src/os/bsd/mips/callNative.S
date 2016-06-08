@@ -24,6 +24,105 @@
 #ifndef USE_FFI
 
 #ifdef __mips64__
+
+
+#ifdef __CHERI__
+
+#ifndef _MIPS_SZCAP
+#error Can't determine capability size
+#endif
+#ifndef _MIPS_SZLONG
+#error Can't determine integer register size
+#endif
+#define CAP_SIZE (_MIPS_SZCAP / 8)
+#define LONG_SIZE (_MIPS_SZLONG / 8)
+
+/* On function entry parameters:
+ * $a0 cap_args
+ * $a1 cap_arg_count
+ * $a2 int_args
+ * $a3 int_arg_count
+ * $a4 operand stack
+ * $a5 method number
+ * $a6 return value signature
+ *
+ * $c3 env
+ * $c4 sandbox code
+ * $c5 sandbox data
+ */
+.text
+.align 8
+.set noreorder
+.globl callSandboxedJNIMethod
+    .ent callSandboxedJNIMethod
+    .type callSandboxedJNIMethod, @function
+callSandboxedJNIMethod:
+    // Spill things that we'll need later.  Stack alignment must be 32 bytes
+    // (16 CHERI128, but it doesn't cost us much to waste 16 bytes).
+    daddiu   $sp, $sp, -64
+    sd       $ra, 56($sp)
+    sd       $fp, 48($sp)
+    sd       $gp, 40($sp)
+    sd       $a4, 32($sp)
+    sd       $a6, 24($sp)
+    move     $fp, $sp
+
+    // Set up $gp
+    lui      $at, %hi(%neg(%gp_rel(callSandboxedJNIMethod)))
+    daddu    $at, $at, $25
+    daddiu   $gp, $at, %lo(%neg(%gp_rel(callSandboxedJNIMethod)))
+
+    // Move the object / class and method number to the correct argument
+    // registers
+    cmove    $c1, $c3
+    cmove    $c2, $c4
+    move     $v0, $a5
+
+    // FIXME: on-stack arguments
+    // Load capability arguments.  Some of these will be null.
+    clc      $c3, $a0, (CAP_SIZE * 0)($c0)
+    clc      $c4, $a0, (CAP_SIZE * 1)($c0)
+    clc      $c5, $a0, (CAP_SIZE * 2)($c0)
+    clc      $c6, $a0, (CAP_SIZE * 3)($c0)
+    clc      $c7, $a0, (CAP_SIZE * 4)($c0)
+    clc      $c8, $a0, (CAP_SIZE * 5)($c0)
+    clc      $c9, $a0, (CAP_SIZE * 6)($c0)
+    clc      $c10, $a0, (CAP_SIZE * 7)($c0)
+    // Load integer arguments.  Some will be zero.
+    ld       $a0, (LONG_SIZE * 0)($a2)
+    ld       $a1, (LONG_SIZE * 1)($a2)
+    ld       $a3, (LONG_SIZE * 3)($a2)
+    ld       $a4, (LONG_SIZE * 4)($a2)
+    ld       $a5, (LONG_SIZE * 5)($a2)
+    ld       $a6, (LONG_SIZE * 6)($a2)
+    ld       $a7, (LONG_SIZE * 7)($a2)
+
+    ld       $t9, %call16(cheri_invoke)($gp)
+    jalr     $t9
+    ld       $a2, (LONG_SIZE * 2)($a2) // Delay slot
+
+    // FIXME: non-doubleword returns
+    // FIXME: If the return value is a capability then we need to transform it
+    // (probably unseal it?)
+
+    // Reload the top of the object stack and store the return value there.
+    ld       $a4, 32($sp)
+    ld       $a6, 24($sp)
+    sd       $v0, 0($a4)
+    // Move the top of the object stack
+    daddiu   $v0, $a4, 8
+
+    // Epilog
+    move     $sp, $fp
+    ld       $gp, 40($sp)
+    ld       $fp, 48($sp)
+    ld       $ra, 56($sp)
+    jr       $ra
+    daddiu   $sp, $sp, 64
+.end callJNIMethod
+
+#endif // __CHERI__
+
 .text
 .align 8
 .set reorder

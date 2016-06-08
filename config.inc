@@ -9,10 +9,7 @@ DIR_TARGET="$DIR_ROOT/target"
 DIR_CHERISDK="$DIR_ROOT/sdk"
 DIR_CHERISDK_BIN="$DIR_CHERISDK/bin"
 
-export MAKEOBJDIRPREFIX="$DIR_ROOT/sdk-tmp"
-export JFLAG=-j4
-
-DIR_CHERISYS="$MAKEOBJDIRPREFIX/mips.mips64$DIR_REALROOT/cheribsd/tmp" # taken from build_sdk.sh
+export JFLAG=-j`sysctl -n kern.smp.cpus`
 
 mkdir -p "$DIR_TARGET"
 

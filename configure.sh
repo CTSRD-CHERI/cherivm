@@ -11,9 +11,8 @@ echo "Configuring GNU Classpath..."
 pushd "$DIR_CLASSPATH" > /dev/null
     try_to_run ./configure \
       --prefix="$DIR_TARGET" \
-      --target=mips4-unknown-freebsd \
-      --host=x86_64-unknown-freebsd10.0 \
-      --with-sysroot="$DIR_CHERISDK" \
+      --host=mips4-unknown-freebsd \
+      --with-sysroot="$DIR_CHERISDK/sysroot" \
       --enable-default-preferences-peer=file \
       --disable-plugin \
       --disable-gtk-peer \
@@ -29,7 +28,7 @@ pushd "$DIR_JAMVM" > /dev/null
     try_to_run ./configure \
       --prefix="$DIR_TARGET" \
       --host=mips4-unknown-freebsd \
-      --with-sysroot="$DIR_CHERISDK" \
+      --with-sysroot="$DIR_CHERISDK/sysroot" \
       $JAMVM_DEBUG \
       --with-classpath-install-dir="$DIR_TARGET"
 popd > /dev/null

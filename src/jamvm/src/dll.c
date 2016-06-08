@@ -47,6 +47,7 @@ extern JavaVM invokeIntf;
 #define HASHTABSZE 1<<4
 static HashTable hash_table;
 void *lookupLoadedDlls(pMethodBlock mb);
+extern void *lookupLoadedSandboxes(pMethodBlock mb);
 #endif
 
 /* Trace library loading and method lookup */
@@ -439,6 +440,10 @@ void *lookupLoadedDlls(pMethodBlock mb) {
     pObject loader = (CLASS_CB(mb->class))->class_loader;
     char *mangled = mangleClassAndMethodName(mb);
     void *func;
+
+    if ((func = lookupLoadedSandboxes(mb))) {
+        return func;
+    }
 
     func = lookupLoadedDlls0(mangled, loader);
 

@@ -187,4 +187,7 @@ final class VMRuntime
      * an exit handler, should it so desire.
      */
     static void enableShutdownHooks() {}
+
+    static native void resetGlobalSandbox(String name);
+    static native void revokeGlobalSandbox(String name);
 } // class VMRuntime

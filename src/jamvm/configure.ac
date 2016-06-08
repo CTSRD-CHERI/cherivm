@@ -250,6 +250,10 @@ if test "$enable_zip" != no; then
     AC_CHECK_LIB(z,inflate,,AC_MSG_ERROR(zlib is missing))
 fi
 
+if test "$enable_cheri" != no; then
+    AC_CHECK_LIB(cheri,sandbox_class_new,,AC_MSG_ERROR(libcheri is missing))
+fi
+
 if test "$enable_ffi" != no; then
     AC_CHECK_LIB(ffi,ffi_call,,AC_MSG_ERROR(libffi is missing))
 fi

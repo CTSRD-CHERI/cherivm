@@ -41,7 +41,13 @@
 #define JNI_ABORT 2
 
 #define JNIEXPORT
+#ifdef __CHERI_PURE_CAPABILITY__
+#define JNICALL \
+    __attribute__((cheri_ccallee)) \
+    __attribute__((cheri_method_class(JNI_SANDBOX_CLASS)))
+#else
 #define JNICALL
+#endif
 
 typedef int             jint;
 typedef long long       jlong;
@@ -68,6 +74,21 @@ typedef jarray jfloatArray;
 typedef jarray jdoubleArray;
 typedef jarray jobjectArray;
 
+typedef __capability void *jobject_c;
+typedef jobject_c jclass_c;
+typedef jobject_c jthrowable_c;
+typedef jobject_c jstring_c;
+typedef jobject_c jarray_c;
+typedef jarray_c jbooleanArray_c;
+typedef jarray_c jbyteArray_c;
+typedef jarray_c jcharArray_c;
+typedef jarray_c jshortArray_c;
+typedef jarray_c jintArray_c;
+typedef jarray_c jlongArray_c;
+typedef jarray_c jfloatArray_c;
+typedef jarray_c jdoubleArray_c;
+typedef jarray_c jobjectArray_c;
+
 typedef jobject jweak;
 
 typedef union jvalue {
@@ -82,6 +103,18 @@ typedef union jvalue {
     jobject  l;
 } jvalue;
 
+typedef union jvalue_c {
+    jboolean z;
+    jbyte    b;
+    jchar    c;
+    jshort   s;
+    jint     i;
+    jlong    j;
+    jfloat   f;
+    jdouble  d;
+    jobject_c  l;
+} jvalue_c;
+
 typedef struct {
     char *name;
     char *signature;
@@ -90,9 +123,16 @@ typedef struct {
 
 typedef void *jfieldID;
 typedef void *jmethodID;
+typedef __capability void *jfieldID_c;
+typedef __capability void *jmethodID_c;
 
 struct _JNINativeInterface;
+struct _JNISandboxedNativeInterface;
+#ifdef __CHERI_PURE_CAPABILITY__
+typedef const struct _JNISandboxedNativeInterface *JNIEnv;
+#else
 typedef const struct _JNINativeInterface *JNIEnv;
+#endif
 
 struct _JNIInvokeInterface;
 typedef const struct _JNIInvokeInterface *JavaVM;
@@ -106,44 +146,49 @@ enum _jobjectRefType
 };
 
 typedef enum _jobjectRefType jobjectRefType;
+#ifdef __CHERI__
+#ifndef CHERI_CALLBACK
+#define CHERI_CALLBACK __attribute__((cheri_ccallback))
+#endif
+#endif
 
 #define VIRTUAL_METHOD(type, native_type)                                                   \
-native_type (*Call##type##Method)(JNIEnv *env, jobject obj, jmethodID mID, ...);            \
-native_type (*Call##type##MethodV)(JNIEnv *env, jobject obj, jmethodID mID, va_list jargs); \
-native_type (*Call##type##MethodA)(JNIEnv *env, jobject obj, jmethodID mID, jvalue *jargs);
+CALLBACK_CC native_type (*Call##type##Method)(JNIEnvType *env, jobject obj, jmethodID mID, ...);            \
+CALLBACK_CC native_type (*Call##type##MethodV)(JNIEnvType *env, jobject obj, jmethodID mID, va_list jargs); \
+CALLBACK_CC native_type (*Call##type##MethodA)(JNIEnvType *env, jobject obj, jmethodID mID, jvalue *jargs);
 
 #define NONVIRTUAL_METHOD(type, native_type)                                                \
-native_type (*CallNonvirtual##type##Method)(JNIEnv *env, jobject obj, jclass clazz,         \
+CALLBACK_CC native_type (*CallNonvirtual##type##Method)(JNIEnvType *env, jobject obj, jclass clazz,         \
                 jmethodID methodID, ...);                                                   \
-native_type (*CallNonvirtual##type##MethodV)(JNIEnv *env, jobject obj, jclass clazz,        \
+CALLBACK_CC native_type (*CallNonvirtual##type##MethodV)(JNIEnvType *env, jobject obj, jclass clazz,        \
                 jmethodID methodID, va_list jargs);                                         \
-native_type (*CallNonvirtual##type##MethodA)(JNIEnv *env, jobject obj, jclass clazz,        \
+CALLBACK_CC native_type (*CallNonvirtual##type##MethodA)(JNIEnvType *env, jobject obj, jclass clazz,        \
                 jmethodID methodID, jvalue *jargs);
 
 #define STATIC_METHOD(type, native_type)                                                    \
-native_type (*CallStatic##type##Method)(JNIEnv *env, jclass clazz, jmethodID methodID, ...);\
-native_type (*CallStatic##type##MethodV)(JNIEnv *env, jclass clazz, jmethodID methodID,     \
+CALLBACK_CC native_type (*CallStatic##type##Method)(JNIEnvType *env, jclass clazz, jmethodID methodID, ...);\
+CALLBACK_CC native_type (*CallStatic##type##MethodV)(JNIEnvType *env, jclass clazz, jmethodID methodID,     \
                 va_list jargs);                                                             \
-native_type (*CallStatic##type##MethodA)(JNIEnv *env, jclass clazz, jmethodID methodID,     \
+CALLBACK_CC native_type (*CallStatic##type##MethodA)(JNIEnvType *env, jclass clazz, jmethodID methodID,     \
                 jvalue *jargs);
 
 #define VOID_VIRTUAL_METHOD                                                                 \
-void (*CallVoidMethod)(JNIEnv *env, jobject obj, jmethodID methodID, ...);                  \
-void (*CallVoidMethodV)(JNIEnv *env, jobject obj, jmethodID methodID, va_list jargs);       \
-void (*CallVoidMethodA)(JNIEnv *env, jobject obj, jmethodID methodID, jvalue *jargs);       \
+CALLBACK_CC void (*CallVoidMethod)(JNIEnvType *env, jobject obj, jmethodID methodID, ...);                  \
+CALLBACK_CC void (*CallVoidMethodV)(JNIEnvType *env, jobject obj, jmethodID methodID, va_list jargs);       \
+CALLBACK_CC void (*CallVoidMethodA)(JNIEnvType *env, jobject obj, jmethodID methodID, jvalue *jargs);       \
 
 #define VOID_NONVIRTUAL_METHOD                                                              \
-void (*CallNonvirtualVoidMethod)(JNIEnv *env, jobject obj, jclass clazz,                    \
+CALLBACK_CC void (*CallNonvirtualVoidMethod)(JNIEnvType *env, jobject obj, jclass clazz,                    \
                 jmethodID methodID, ...);                                                   \
-void (*CallNonvirtualVoidMethodV)(JNIEnv *env, jobject obj, jclass clazz,                   \
+CALLBACK_CC void (*CallNonvirtualVoidMethodV)(JNIEnvType *env, jobject obj, jclass clazz,                   \
                 jmethodID methodID, va_list jargs);                                         \
-void (*CallNonvirtualVoidMethodA)(JNIEnv *env, jobject obj, jclass clazz,                   \
+CALLBACK_CC void (*CallNonvirtualVoidMethodA)(JNIEnvType *env, jobject obj, jclass clazz,                   \
                 jmethodID methodID, jvalue *jargs);
 
 #define VOID_STATIC_METHOD                                                                  \
-void (*CallStaticVoidMethod)(JNIEnv *env, jclass clazz, jmethodID methodID, ...);           \
-void (*CallStaticVoidMethodV)(JNIEnv *env, jclass clazz, jmethodID methodID, va_list jargs);\
-void (*CallStaticVoidMethodA)(JNIEnv *env, jclass clazz, jmethodID methodID, jvalue *jargs);
+CALLBACK_CC void (*CallStaticVoidMethod)(JNIEnvType *env, jclass clazz, jmethodID methodID, ...);           \
+CALLBACK_CC void (*CallStaticVoidMethodV)(JNIEnvType *env, jclass clazz, jmethodID methodID, va_list jargs);\
+CALLBACK_CC void (*CallStaticVoidMethodA)(JNIEnvType *env, jclass clazz, jmethodID methodID, jvalue *jargs);
 
 #define CALL_METHOD(access)         \
 access##_METHOD(Object, jobject);   \
@@ -159,19 +204,19 @@ VOID_##access##_METHOD;
 
 
 #define NEW_PRIM_ARRAY(type, native_type, array_type) \
-native_type##Array (*New##type##Array)(JNIEnv *env, jsize length);
+CALLBACK_CC native_type##Array (*New##type##Array)(JNIEnvType *env, jsize length);
 
 #define GET_ELEMENTS_PRIM_ARRAY(type, native_type, array_type) \
-native_type *(*Get##type##ArrayElements)(JNIEnv *env, native_type##Array array, jboolean *isCopy);
+CALLBACK_CC native_type *(*Get##type##ArrayElements)(JNIEnvType *env, native_type##Array array, jboolean *isCopy);
 
 #define RELEASE_ELEMENTS_PRIM_ARRAY(type, native_type, array_type) \
-void (*Release##type##ArrayElements)(JNIEnv *env, native_type##Array array, native_type *elems, jint mode);
+CALLBACK_CC void (*Release##type##ArrayElements)(JNIEnvType *env, native_type##Array array, native_type *elems, jint mode);
 
 #define GET_REGION_PRIM_ARRAY(type, native_type, array_type) \
-void (*Get##type##ArrayRegion)(JNIEnv *env, native_type##Array array, jsize start, jsize len, native_type *buf);
+CALLBACK_CC void (*Get##type##ArrayRegion)(JNIEnvType *env, native_type##Array array, jsize start, jsize len, native_type *buf);
 
 #define SET_REGION_PRIM_ARRAY(type, native_type, array_type) \
-void (*Set##type##ArrayRegion)(JNIEnv *env, native_type##Array array, jsize start, jsize len, native_type *buf);
+CALLBACK_CC void (*Set##type##ArrayRegion)(JNIEnvType *env, native_type##Array array, jsize start, jsize len, native_type *buf);
 
 #define PRIM_ARRAY_OP(op)                      \
 op##_PRIM_ARRAY(Boolean, jboolean, T_BOOLEAN); \
@@ -185,30 +230,32 @@ op##_PRIM_ARRAY(Double, jdouble, T_DOUBLE);
 
 
 #define GET_FIELD(type, native_type) \
-native_type (*Get##type##Field)(JNIEnv *env, jobject obj, jfieldID fieldID);
+CALLBACK_CC native_type (*Get##type##Field)(JNIEnvType *env, jobject obj, jfieldID fieldID);
 
 #define SET_FIELD(type, native_type) \
-void (*Set##type##Field)(JNIEnv *env, jobject obj, jfieldID fieldID, native_type value);
+CALLBACK_CC void (*Set##type##Field)(JNIEnvType *env, jobject obj, jfieldID fieldID, native_type value);
 
 #define GET_STATIC_FIELD(type, native_type) \
-native_type (*GetStatic##type##Field)(JNIEnv *env, jclass clazz, jfieldID fieldID);
+CALLBACK_CC native_type (*GetStatic##type##Field)(JNIEnvType *env, jclass clazz, jfieldID fieldID);
 
 #define SET_STATIC_FIELD(type, native_type) \
-void (*SetStatic##type##Field)(JNIEnv *env, jclass clazz, jfieldID fieldID, native_type value);
+CALLBACK_CC void (*SetStatic##type##Field)(JNIEnvType *env, jclass clazz, jfieldID fieldID, native_type value);
 
 #define FIELD_OP(op)           \
-op##_FIELD(Object, jobject);   \
-op##_FIELD(Boolean, jboolean); \
-op##_FIELD(Byte, jbyte);       \
-op##_FIELD(Char, jchar);       \
-op##_FIELD(Short, jshort);     \
-op##_FIELD(Int, jint);         \
-op##_FIELD(Long, jlong);       \
-op##_FIELD(Float, jfloat);     \
-op##_FIELD(Double, jdouble);
+CALLBACK_CC op##_FIELD(Object, jobject);   \
+CALLBACK_CC op##_FIELD(Boolean, jboolean); \
+CALLBACK_CC op##_FIELD(Byte, jbyte);       \
+CALLBACK_CC op##_FIELD(Char, jchar);       \
+CALLBACK_CC op##_FIELD(Short, jshort);     \
+CALLBACK_CC op##_FIELD(Int, jint);         \
+CALLBACK_CC op##_FIELD(Long, jlong);       \
+CALLBACK_CC op##_FIELD(Float, jfloat);     \
+CALLBACK_CC op##_FIELD(Double, jdouble);
 
 
 struct _JNINativeInterface {
+#define JNIEnvType JNIEnv
+#define CALLBACK_CC
     void *reserved0;
     void *reserved1;
     void *reserved2;
@@ -321,6 +368,169 @@ struct _JNINativeInterface {
     void* (*GetDirectBufferAddress)(JNIEnv *env, jobject buffer);
     jlong (*GetDirectBufferCapacity)(JNIEnv *env, jobject buffer);
     jobjectRefType (*GetObjectRefType)(JNIEnv *env, jobject obj);
+#undef JNIEnvType
+#undef CALLBACK_CC
+};
+
+
+struct _JNISandboxedNativeInterface {
+#pragma pointer_interpretation push
+#pragma pointer_interpretation capability
+    void *reserved0;
+    void *reserved1;
+    void *reserved2;
+    void *reserved3;
+
+#define JNIEnvType const __capability struct _JNISandboxedNativeInterface*
+#define CALLBACK_CC CHERI_CALLBACK
+#define jobject       jobject_c
+#define jclass        jclass_c
+#define jthrowable    jthrowable_c
+#define jstring       jstring_c
+#define jarray        jarray_c
+#define jbooleanArray jbooleanArray_c
+#define jbyteArray    jbyteArray_c
+#define jcharArray    jcharArray_c
+#define jshortArray   jshortArray_c
+#define jintArray     jintArray_c
+#define jlongArray    jlongArray_c
+#define jfloatArray   jfloatArray_c
+#define jdoubleArray  jdoubleArray_c
+#define jobjectArray  jobjectArray_c
+#define jfieldID      jfieldID_c
+#define jmethodID     jmethodID_c
+#ifndef __CHERI_PURE_CAPABILITY__
+#define jvalue        jvalue_c
+#endif
+    CHERI_CALLBACK jint (*GetVersion)(JNIEnvType *env);
+
+    CHERI_CALLBACK jclass (*DefineClass)(JNIEnvType *env, const char *name, jobject loader, const jbyte *buf, jsize len);
+    CHERI_CALLBACK jclass (*FindClass)(JNIEnvType *env, const char *name);
+
+    CHERI_CALLBACK jmethodID (*FromReflectedMethod)(JNIEnvType *env, jobject method);
+    CHERI_CALLBACK jfieldID (*FromReflectedField)(JNIEnvType *env, jobject field);
+    CHERI_CALLBACK jobject (*ToReflectedMethod)(JNIEnvType *env, jclass cls, jmethodID methodID, jboolean isStatic);
+
+    CHERI_CALLBACK jclass (*GetSuperclass)(JNIEnvType *env, jclass sub);
+    CHERI_CALLBACK jboolean (*IsAssignableFrom)(JNIEnvType *env, jclass sub, jclass sup);
+
+    CHERI_CALLBACK jobject (*ToReflectedField)(JNIEnvType *env, jclass cls, jfieldID fieldID, jboolean isStatic);
+
+    CHERI_CALLBACK jint (*Throw)(JNIEnvType *env, jthrowable obj);
+    CHERI_CALLBACK jint (*ThrowNew)(JNIEnvType *env, jclass clazz, const char *msg);
+
+    CHERI_CALLBACK jthrowable (*ExceptionOccurred)(JNIEnvType *env);
+    CHERI_CALLBACK void (*ExceptionDescribe)(JNIEnvType *env);
+    CHERI_CALLBACK void (*ExceptionClear)(JNIEnvType *env);
+    CHERI_CALLBACK void (*FatalError)(JNIEnvType *env, const char *msg);
+
+    CHERI_CALLBACK jint (*PushLocalFrame)(JNIEnvType *env, jint capacity);
+    CHERI_CALLBACK jobject (*PopLocalFrame)(JNIEnvType *env, jobject result);
+
+    CHERI_CALLBACK jobject (*NewGlobalRef)(JNIEnvType *env, jobject obj);
+    CHERI_CALLBACK void (*DeleteGlobalRef)(JNIEnvType *env, jobject obj);
+    CHERI_CALLBACK void (*DeleteLocalRef)(JNIEnvType *env, jobject obj);
+    CHERI_CALLBACK jboolean (*IsSameObject)(JNIEnvType *env, jobject obj1, jobject obj2);
+
+    CHERI_CALLBACK jobject (*NewLocalRef)(JNIEnvType *env, jobject obj);
+    CHERI_CALLBACK jint (*EnsureLocalCapacity)(JNIEnvType *env, jint capacity);
+
+    CHERI_CALLBACK jobject (*AllocObject)(JNIEnvType *env, jclass clazz);
+    CHERI_CALLBACK jobject (*NewObject)(JNIEnvType *env, jclass clazz, jmethodID methodID, ...);
+    CHERI_CALLBACK jobject (*NewObjectV)(JNIEnvType *env, jclass clazz, jmethodID methodID, va_list args);
+    CHERI_CALLBACK jobject (*NewObjectA)(JNIEnvType *env, jclass clazz, jmethodID methodID, jvalue *args);
+
+    CHERI_CALLBACK jclass (*GetObjectClass)(JNIEnvType *env, jobject obj);
+    CHERI_CALLBACK jboolean (*IsInstanceOf)(JNIEnvType *env, jobject obj, jclass clazz);
+
+    CHERI_CALLBACK jmethodID (*GetMethodID)(JNIEnvType *env, jclass clazz, const char *name, const char *sig);
+
+    CALL_METHOD(VIRTUAL);
+    CALL_METHOD(NONVIRTUAL);
+
+    CHERI_CALLBACK jfieldID (*GetFieldID)(JNIEnvType *env, jclass clazz, const char *name, const char *sig);
+
+    FIELD_OP(GET);
+    FIELD_OP(SET);
+
+    CHERI_CALLBACK jmethodID (*GetStaticMethodID)(JNIEnvType *env, jclass clazz, const char *name, const char *sig);
+
+    CALL_METHOD(STATIC);
+
+    CHERI_CALLBACK jfieldID (*GetStaticFieldID)(JNIEnvType *env, jclass clazz, const char *name, const char *sig);
+
+    FIELD_OP(GET_STATIC);
+    FIELD_OP(SET_STATIC);
+
+    CHERI_CALLBACK jstring (*NewString)(JNIEnvType *env, const jchar *unicode, jsize len);
+    CHERI_CALLBACK jsize (*GetStringLength)(JNIEnvType *env, jstring str);
+    CHERI_CALLBACK const jchar *(*GetStringChars)(JNIEnvType *env, jstring str, jboolean *isCopy);
+    CHERI_CALLBACK void (*ReleaseStringChars)(JNIEnvType *env, jstring str, const jchar *chars);
+  
+    CHERI_CALLBACK jstring (*NewStringUTF)(JNIEnvType *env, const char *utf);
+    CHERI_CALLBACK jsize (*GetStringUTFLength)(JNIEnvType *env, jstring str);
+    CHERI_CALLBACK const char* (*GetStringUTFChars)(JNIEnvType *env, jstring str, jboolean *isCopy);
+    CHERI_CALLBACK void (*ReleaseStringUTFChars)(JNIEnvType *env, jstring str, const char* chars);
+  
+    CHERI_CALLBACK jsize (*GetArrayLength)(JNIEnvType *env, jarray array);
+
+    CHERI_CALLBACK jobjectArray (*NewObjectArray)(JNIEnvType *env, jsize len, jclass clazz, jobject init);
+    CHERI_CALLBACK jobject (*GetObjectArrayElement)(JNIEnvType *env, jobjectArray array, jsize index);
+    CHERI_CALLBACK void (*SetObjectArrayElement)(JNIEnvType *env, jobjectArray array, jsize index, jobject val);
+
+    PRIM_ARRAY_OP(NEW);
+    PRIM_ARRAY_OP(GET_ELEMENTS);
+    PRIM_ARRAY_OP(RELEASE_ELEMENTS);
+    PRIM_ARRAY_OP(GET_REGION);
+    PRIM_ARRAY_OP(SET_REGION);
+
+    CHERI_CALLBACK jint (*RegisterNatives)(JNIEnvType *env, jclass clazz, const JNINativeMethod *methods, jint nMethods);
+    CHERI_CALLBACK jint (*UnregisterNatives)(JNIEnvType *env, jclass clazz);
+
+    CHERI_CALLBACK jint (*MonitorEnter)(JNIEnvType *env, jobject obj);
+    CHERI_CALLBACK jint (*MonitorExit)(JNIEnvType *env, jobject obj);
+ 
+    CHERI_CALLBACK jint (*GetJavaVM)(JNIEnvType *env, JavaVM **vm);
+
+    CHERI_CALLBACK void (*GetStringRegion)(JNIEnvType *env, jstring str, jsize start, jsize len, jchar *buf);
+    CHERI_CALLBACK void (*GetStringUTFRegion)(JNIEnvType *env, jstring str, jsize start, jsize len, char *buf);
+
+    CHERI_CALLBACK void *(*GetPrimitiveArrayCritical)(JNIEnvType *env, jarray array, jboolean *isCopy);
+    CHERI_CALLBACK void (*ReleasePrimitiveArrayCritical)(JNIEnvType *env, jarray array, void *carray, jint mode);
+
+    CHERI_CALLBACK const jchar *(*GetStringCritical)(JNIEnvType *env, jstring string, jboolean *isCopy);
+    CHERI_CALLBACK void (*ReleaseStringCritical)(JNIEnvType *env, jstring string, const jchar *cstring);
+
+    CHERI_CALLBACK jweak (*NewWeakGlobalRef)(JNIEnvType *env, jobject obj);
+    CHERI_CALLBACK void (*DeleteWeakGlobalRef)(JNIEnvType *env, jweak obj);
+
+    CHERI_CALLBACK jboolean (*ExceptionCheck)(JNIEnvType *env);
+    CHERI_CALLBACK jobject (*NewDirectByteBuffer)(JNIEnvType *env, void *addr, jlong capacity);
+    CHERI_CALLBACK void* (*GetDirectBufferAddress)(JNIEnvType *env, jobject buffer);
+    CHERI_CALLBACK jlong (*GetDirectBufferCapacity)(JNIEnvType *env, jobject buffer);
+    CHERI_CALLBACK jobjectRefType (*GetObjectRefType)(JNIEnvType *env, jobject obj);
+#undef jobject
+#undef jclass
+#undef jthrowable
+#undef jstring
+#undef jarray
+#undef jbooleanArray
+#undef jbyteArray
+#undef jcharArray
+#undef jshortArray
+#undef jintArray
+#undef jlongArray
+#undef jfloatArray
+#undef jdoubleArray
+#undef jobjectArray
+#undef jfieldID
+#undef jmethodID
+#ifndef __CHERI_PURE_CAPABILITY__
+#undef jvalue
+#endif
+#undef JNIEnvType
+#undef CALLBACK_CC
+#pragma pointer_interpretation pop
 };
 
 struct _JNIInvokeInterface {

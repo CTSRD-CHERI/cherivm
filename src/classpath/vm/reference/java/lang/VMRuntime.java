@@ -189,4 +189,7 @@ final class VMRuntime
     static void enableShutdownHooks()
     {
     }
+
+    static native void resetGlobalSandbox(String name);
+    static native void revokeGlobalSandbox(String name);
 } // class VMRuntime

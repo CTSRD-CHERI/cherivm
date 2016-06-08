@@ -10,7 +10,7 @@ fi
 
 for x in "$DIR_SRC/"*; do
     pushd "$x" > /dev/null
-        gmake "$TARGET" || exit
+        gmake $JFLAG "$TARGET" || exit
     popd > /dev/null
 done
 

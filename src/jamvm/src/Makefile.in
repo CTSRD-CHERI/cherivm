@@ -132,7 +132,7 @@ am_libcore_la_OBJECTS = alloc.lo cast.lo class.lo dll.lo excep.lo \
 	execute.lo hash.lo jni.lo lock.lo natives.lo reflect.lo \
 	resolve.lo string.lo thread.lo utf8.lo zip.lo properties.lo \
 	dll_ffi.lo access.lo frame.lo init.lo hooks.lo symbol.lo \
-	shutdown.lo time.lo sig.lo
+	shutdown.lo time.lo sig.lo sjni.lo
 libcore_la_OBJECTS = $(am_libcore_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -389,7 +389,7 @@ libcore_la_SOURCES = alloc.c alloc.h cast.c class.c dll.c excep.c execute.c \
                      natives.c reflect.c resolve.c sig.h string.c thread.c \
                      thread.h utf8.c zip.c zip.h properties.c natives.h \
                      dll_ffi.c access.c frame.c init.c hooks.c class.h \
-                     symbol.c symbol.h excep.h shutdown.c time.c reflect.h \
+                     sjni.c symbol.c symbol.h excep.h shutdown.c time.c reflect.h \
                      jni-internal.h properties.h sig.c
 
 jamvm_SOURCES = jam.c
@@ -576,6 +576,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/init.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/jam.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/jni.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sjni.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lock.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/natives.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/properties.Plo@am__quote@

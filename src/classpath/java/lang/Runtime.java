@@ -793,4 +793,15 @@ public class Runtime
   {
     return out;
   }
+  public void resetGlobalSandbox(String name)
+  {
+      // FIXME: Security manager check
+      VMRuntime.resetGlobalSandbox(name);
+  }
+  public void revokeGlobalSandbox(String name)
+  {
+      // FIXME: Security manager check
+      VMRuntime.revokeGlobalSandbox(name);
+  }
+
 } // class Runtime

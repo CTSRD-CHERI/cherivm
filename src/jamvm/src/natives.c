@@ -40,6 +40,9 @@
 
 static int pd_offset;
 
+uintptr_t *resetGlobalSandbox(pClass class, pMethodBlock mb, uintptr_t *ostack);
+uintptr_t *revokeGlobalSandbox(pClass class, pMethodBlock mb, uintptr_t *ostack);
+
 void initialiseNatives() {
     pFieldBlock pd = findField(java_lang_Class, SYMBOL(pd),
                                SYMBOL(sig_java_security_ProtectionDomain));
@@ -1706,6 +1709,8 @@ VMMethod vm_runtime[] = {
     {"exit",                        exitInternal},
     {"nativeLoad",                  nativeLoad},
     {"mapLibraryName",              mapLibraryName},
+    {"resetGlobalSandbox",          resetGlobalSandbox},
+    {"revokeGlobalSandbox",         revokeGlobalSandbox},
     {NULL,                          NULL}
 };
 
