@@ -22,6 +22,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
+#include <sys/time.h>
 
 /* Required on OpenSolaris to get standard conforming sigwait. */
 #ifndef _POSIX_PTHREAD_SEMANTICS
@@ -818,8 +820,14 @@ void createVMThread(char *name, void (*start)(Thread*)) {
     /* Wait for thread to start */
 
     pthread_mutex_lock(&lock);
-    while(thread->state == 0)
-        pthread_cond_wait(&cv, &lock);
+    while(thread->state == 0) {
+        struct timeval tv;
+        struct timespec ts;
+        gettimeofday(&tv, NULL);
+        ts.tv_sec = tv.tv_sec;
+        ts.tv_nsec = (tv.tv_usec * 1000) + 10000;
+        pthread_cond_timedwait(&cv, &lock, &ts);
+    }
     pthread_mutex_unlock(&lock);
 }
 
