@@ -1048,6 +1048,7 @@ static void revoke_caps(struct jni_sandbox_object *pool)
         u->marked = false;
     }
     revoke_from_range(pool, heap);
+    revoke_from_range(pool, stack);
     release_sandbox_resources(pool, false);
 }
 
