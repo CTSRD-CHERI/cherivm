@@ -920,7 +920,7 @@ static void revoke_from_range(struct jni_sandbox_object *pool,
         // FIXME: This will currently break because libcheri doesn't give us
         // read permissions to all of the pages.
         fprintf(stderr, "mincore failed\n");
-        memset(buffer, size, MINCORE_MODIFIED);
+        memset(buffer, 0, size);
     }
     for (int p=0 ; p<pages ; p++)
     {
