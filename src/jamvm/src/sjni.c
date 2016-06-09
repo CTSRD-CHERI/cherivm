@@ -130,6 +130,11 @@ struct shared_unsealed_cap
      */
     int refcount;
     /**
+     * When we find a global during a sweep, we mark it as seen.  We can then
+     * delete any for which no references remain.
+     */
+    bool marked;
+    /**
      * The handle for storing this structure in a red-black tree.
      */
     RB_ENTRY(shared_unsealed_cap) entry;
@@ -934,6 +939,10 @@ static void revoke_from_range(struct jni_sandbox_object *pool,
                 {
                     page[c] = 0;
                 }
+                else
+                {
+                    original->marked = true;
+                }
                 //fprintf(stderr, "Found escaped cap from array: (0x%lx-0x%lx)", (unsigned long)original->base, (unsigned long)original->base + original->length);
                 //print_cap(cap);
             }
@@ -967,7 +976,7 @@ static void release_sandbox_resources(struct jni_sandbox_object *pool,
         struct shared_unsealed_cap *u, *tmp;
         RB_FOREACH_SAFE(u, unsealed_cap_tree, &pool->unsealed_caps, tmp)
         {
-            if (force || u->refcount == 0)
+            if (force || (u->refcount == 0) || (!u->marked))
             {
                 env->DeleteGlobalRef(&env, u->array);
                 free(RB_REMOVE(unsealed_cap_tree, &pool->unsealed_caps, u));
@@ -997,6 +1006,12 @@ static void revoke_caps(struct jni_sandbox_object *pool)
     struct sandbox_object *obj = pool->obj;
     __capability void *__capability *heap = sandbox_object_getsandboxdata(obj);
     __capability void *__capability *stack = sandbox_object_getsandboxstack(obj);
+    // Clear the mark bits for all of these values.
+    struct shared_unsealed_cap *u, *tmp;
+    RB_FOREACH_SAFE(u, unsealed_cap_tree, &pool->unsealed_caps, tmp)
+    {
+        u->marked = false;
+    }
     revoke_from_range(pool, heap);
     release_sandbox_resources(pool, false);
 }
