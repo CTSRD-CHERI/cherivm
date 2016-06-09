@@ -469,7 +469,7 @@ __capability native_type *sjni_Get##type##ArrayElements(JNIEnvType ptr,     \
     }                                                                        \
     jboolean isCopyLocal;                                                    \
     __capability native_type *buffer = (__capability native_type *)          \
-        env->Get##type##ArrayElements(&env,                                   \
+        env->Get##type##ArrayElements(&env,                                  \
             (native_type##Array)array_ref, &isCopyLocal);                    \
     if(isCopy != NULL)                                                       \
         *isCopy = isCopyLocal;                                               \
