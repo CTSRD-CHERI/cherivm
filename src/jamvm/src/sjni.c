@@ -167,6 +167,13 @@ struct jni_sandbox_object
      */
     struct shared_sealed_cap *sealed_caps;
     /**
+     * What is the current scope of this sandbox?  This is used to determine
+     * whether we need to track lifetime of objects (for method-scoped
+     * invocations, we do not because we implicitly collect everything at the
+     * end).
+     */
+    SandboxScope scope;
+    /**
      * Red-black tree containing all of the unsealed capabilities delegated to
      * this sandbox.  The untrusted code can derive restricted capabilities
      * from this and so we must perform comparison based on the 
@@ -395,6 +402,10 @@ static void insert_unsealed_cap(JNIEnvType ptr, jarray array, void *base,
 {
     struct jni_sandbox_object *pool =
        (void*)unseal_jnienv((*ptr)->reserved1);
+    if (pool->scope == SandboxScopeMethod)
+    {
+        return;
+    }
     struct shared_unsealed_cap *new = calloc(1, sizeof(struct shared_unsealed_cap));
     new->base = (size_t)base;
     new->length = length;
@@ -421,6 +432,10 @@ static void insert_unsealed_cap(JNIEnvType ptr, jarray array, void *base,
 static int insert_object_reference(struct jni_sandbox_object *pool,
         jobject_c cap, bool isLocal)
 {
+    if (pool->scope == SandboxScopeMethod)
+    {
+        return 0;
+    }
     struct shared_sealed_cap *original;
     HASH_FIND(hh, pool->sealed_caps, &cap, sizeof(cap), original);
     if (!original)
@@ -1071,6 +1086,7 @@ uintptr_t *callJNISandboxWrapper(pClass class, pMethodBlock mb, uintptr_t *ostac
             {
                 metadata->sandbox->global_object =
                     create_sandbox_object(metadata->sandbox);
+                metadata->sandbox->global_object->scope = SandboxScopeGlobal;
             }
             pool = metadata->sandbox->global_object;
             break;
@@ -1097,6 +1113,7 @@ uintptr_t *callJNISandboxWrapper(pClass class, pMethodBlock mb, uintptr_t *ostac
             {
                 pool = create_sandbox_object(metadata->sandbox);
             }
+            pool->scope = SandboxScopeMethod;
     }
     assert(pool);
     // FIXME: Check error, throw exception if sandbox creation failed
