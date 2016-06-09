@@ -688,6 +688,35 @@ ALL_PRIMITIVE_TYPES(FIELD_ACCESSOR)
 ALL_PRIMITIVE_TYPES(FIELD_SETTER)
 ALL_PRIMITIVE_TYPES(CALL_METHOD_A)
 
+SJNI_CALLBACK __capability void*
+sjni_GetDirectBufferAddress(JNIEnvType ptr, jobject_c buf)
+{
+    jobject buffer = unseal_object(buf);
+    REQUIRE(buffer, NULL);
+    size_t length = env->GetDirectBufferCapacity(&env, buffer);
+    void *raw_buffer = env->GetDirectBufferAddress(&env, buffer);
+    if (raw_buffer)
+    {
+        __capability void *cap = (__capability void *)raw_buffer;
+        // Note that this will add a global reference to the object, preventing
+        // it from being collected until the last reference to the buffer has
+        // gone away.
+        insert_unsealed_cap(ptr, buffer, raw_buffer, length);
+        cap = __builtin_memcap_bounds_set(cap, length);
+        cap = __builtin_memcap_perms_and(cap,
+                ~__CHERI_CAP_PERMISSION_PERMIT_STORE_CAPABILITY__ &
+                ~__CHERI_CAP_PERMISSION_PERMIT_LOAD_CAPABILITY__);
+    }
+    return NULL;
+}
+
+SJNI_CALLBACK jlong sjni_GetDirectBufferCapacity(JNIEnvType ptr, jobject_c buf)
+{
+    jobject buffer = unseal_object(buf);
+    REQUIRE(buffer, -1);
+    return env->GetDirectBufferCapacity(&env, buffer);
+}
+
 /**
  * Check that a C string passed from native code contains a null terminator
  * within its length.
@@ -816,6 +845,8 @@ createSandboxCallbacks(struct jni_sandbox_object *pool)
     SET_CALLBACK(GetArrayLength);
     SET_CALLBACK(CallObjectMethodA);
     SET_CALLBACK(NewObjectA);
+    SET_CALLBACK(GetDirectBufferAddress);
+    SET_CALLBACK(GetDirectBufferCapacity);
     ALL_PRIMITIVE_TYPES(ADD_FIELD_ACCESSOR);
     ALL_PRIMITIVE_TYPES(ADD_FIELD_SETTER);
     ALL_PRIMITIVE_TYPES(ADD_CALL_METHOD_A);
