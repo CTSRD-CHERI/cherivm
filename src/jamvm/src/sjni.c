@@ -694,7 +694,11 @@ ALL_PRIMITIVE_TYPES(CALL_METHOD_A)
  */
 bool checkString(__capability const char *str)
 {
-    //FIXME: Check that we can read this capability.
+    // Not a valid string if we can't read it!
+    if ((__builtin_memcap_perms_get(str) & __CHERI_CAP_PERMISSION_PERMIT_LOAD__) == 0)
+    {
+        return false;
+    }
     size_t len = __builtin_memcap_length_get(str);
     return memchr((const void*)str, 0, len) != NULL;
 }
