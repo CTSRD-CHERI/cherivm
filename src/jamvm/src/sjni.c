@@ -907,6 +907,22 @@ struct jni_sandbox_object *create_sandbox_object(struct jni_sandbox *sandbox)
     return pool;
 }
 
+struct jni_sandbox_object *get_or_create_sandbox_object(struct jni_sandbox *sandbox)
+{
+    pthread_mutex_lock(&sandbox->pool_lock);
+    struct jni_sandbox_object *pool = sandbox->pool_head;
+    if (pool)
+    {
+        sandbox->pool_head = pool->next;
+    }
+    pthread_mutex_unlock(&sandbox->pool_lock);
+    if (pool)
+    {
+        return pool;
+    }
+    return create_sandbox_object(sandbox);
+}
+
 /**
  * Helper function used with `__attribute__((cleanup))` to free a heap-allocated buffer.
  */
@@ -1163,11 +1179,10 @@ uintptr_t *callJNISandboxWrapper(pClass class, pMethodBlock mb, uintptr_t *ostac
     {
         case SandboxScopeGlobal:
             pthread_mutex_lock(&metadata->sandbox->global_lock);
-            // FIXME: Promote from the method pool if one exists.
             if (metadata->sandbox->global_object == NULL)
             {
                 metadata->sandbox->global_object =
-                    create_sandbox_object(metadata->sandbox);
+                    get_or_create_sandbox_object(metadata->sandbox);
                 metadata->sandbox->global_object->scope = SandboxScopeGlobal;
             }
             pool = metadata->sandbox->global_object;
@@ -1179,8 +1194,7 @@ uintptr_t *callJNISandboxWrapper(pClass class, pMethodBlock mb, uintptr_t *ostac
             HASH_FIND_PTR(metadata->sandbox->objects, &receiver, h);
             if (h == NULL)
             {
-                // FIXME: Promote from the method pool if one exists.
-                pool = create_sandbox_object(metadata->sandbox);
+                pool = get_or_create_sandbox_object(metadata->sandbox);
                 pool->scope = SandboxScopeGlobal;
                 h = calloc(1, sizeof(struct jni_per_object_sandbox));
                 h->java_object = receiver;
