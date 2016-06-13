@@ -193,6 +193,26 @@ struct jni_sandbox_object
 };
 
 /**
+ * Structure used to associate a sandbox with an object.
+ */
+struct jni_per_object_sandbox
+{
+    /**
+     * The Java object that this is associated with.  FIXME: This will
+     * currently leak: we should use a zeroing weak reference and collect later.
+     */
+    pObject java_object;
+    /**
+     * The sandbox object associated with this Java object;
+     */
+    struct jni_sandbox_object *object;
+    /**
+     * Hash handle.  Used to map from {cheri class, java object} pairs to sandboxes.
+     */
+    UT_hash_handle hh;
+};
+
+/**
  * Metadata for a CHERI object used as a JNI compartment.
  */
 struct jni_sandbox
@@ -231,11 +251,20 @@ struct jni_sandbox
      */
     struct jni_sandbox_object *pool_head;
     /**
+     * Lock used to protect per-object sandboxes.
+     */
+    pthread_mutex_t per_object_lock;
+    /**
+     * Hash table of per-object sandboxes.
+     */
+    struct jni_per_object_sandbox *objects;
+    /**
      * Hash handle, used for a hash table keyed on the name to allow name to
      * sandbox mappings.
      */
     UT_hash_handle hh;
 };
+
 
 /**
  * Compare function used by the red-black tree implementation.
@@ -1100,6 +1129,7 @@ uintptr_t *revokeGlobalSandbox(pClass class, pMethodBlock mb, uintptr_t *ostack)
     return ostack;
 }
 
+
 /**
  * Wrapper function that invokes the assembly function that calls a function in
  * a sandbox.
@@ -1124,7 +1154,8 @@ uintptr_t *callJNISandboxWrapper(pClass class, pMethodBlock mb, uintptr_t *ostac
 
     struct cheri_object sandbox;
     uintptr_t *ostack_args = ostack;
-    cap_args[1] = seal_object((mb->access_flags & ACC_STATIC) ? class : ((void*)*(ostack_args++)));
+    void *receiver = (mb->access_flags & ACC_STATIC) ? class : ((void*)*(ostack_args++));
+    cap_args[1] = seal_object(receiver);
 
     struct jni_sandbox_object *pool = NULL;
     assert(metadata->sandbox);
@@ -1142,9 +1173,27 @@ uintptr_t *callJNISandboxWrapper(pClass class, pMethodBlock mb, uintptr_t *ostac
             pool = metadata->sandbox->global_object;
             break;
         case SandboxScopeObject:
-            // FIXME: Implement object-scoped sandboxes.
-            assert(0 && "Object-scoped sandboxes are not yet supported");
+        {
+            struct jni_per_object_sandbox *h;
+            pthread_mutex_lock(&metadata->sandbox->per_object_lock);
+            HASH_FIND_PTR(metadata->sandbox->objects, &receiver, h);
+            if (h == NULL)
+            {
+                // FIXME: Promote from the method pool if one exists.
+                pool = create_sandbox_object(metadata->sandbox);
+                pool->scope = SandboxScopeGlobal;
+                h = calloc(1, sizeof(struct jni_per_object_sandbox));
+                h->java_object = receiver;
+                h->object = pool;
+                HASH_ADD_PTR(metadata->sandbox->objects, java_object, h);
+            }
+            else
+            {
+                pool = h->object;
+            }
+            pthread_mutex_unlock(&metadata->sandbox->per_object_lock);
             break;
+        }
         case SandboxScopeMethod:
             if (metadata->sandbox->pool_head)
             {
@@ -1218,6 +1267,18 @@ uintptr_t *callJNISandboxWrapper(pClass class, pMethodBlock mb, uintptr_t *ostac
     switch (metadata->scope)
     {
         case SandboxScopeObject:
+            if (cherierrno != 0)
+            {
+                // If an exception occurred in an object sandbox, assume that it
+                // is in an undefined state and reset it.
+                sandbox_object_reset(pool->obj);
+                release_sandbox_resources(pool, true);
+            }
+            else
+            {
+                revoke_caps(pool);
+            }
+            break;
         case SandboxScopeGlobal:
             if (cherierrno != 0)
             {
