@@ -203,6 +203,13 @@ struct jni_per_object_sandbox
      */
     pObject java_object;
     /**
+     * Weak reference to the Java object.  We use this to check whether the
+     * `java_object` field actually points to the right object.  If the weak
+     * reference refers to an invalid object then this is stale and can be
+     * safely deleted.
+     */
+    jweak   weak_ref;
+    /**
      * The sandbox object associated with this Java object;
      */
     struct jni_sandbox_object *object;
@@ -1170,7 +1177,8 @@ uintptr_t *callJNISandboxWrapper(pClass class, pMethodBlock mb, uintptr_t *ostac
 
     struct cheri_object sandbox;
     uintptr_t *ostack_args = ostack;
-    void *receiver = (mb->access_flags & ACC_STATIC) ? class : ((void*)*(ostack_args++));
+    bool is_static = mb->access_flags & ACC_STATIC;
+    void *receiver = is_static ? class : ((void*)*(ostack_args++));
     cap_args[1] = seal_object(receiver);
 
     struct jni_sandbox_object *pool = NULL;
@@ -1192,12 +1200,33 @@ uintptr_t *callJNISandboxWrapper(pClass class, pMethodBlock mb, uintptr_t *ostac
             struct jni_per_object_sandbox *h;
             pthread_mutex_lock(&metadata->sandbox->per_object_lock);
             HASH_FIND_PTR(metadata->sandbox->objects, &receiver, h);
+            // If we've found a sandbox, check that it refers to this object
+            // and not a dead one that happens to have the same address.  Skip
+            // this check for static methods.
+            if ((h != NULL) && (h->weak_ref != NULL))
+            {
+                jobject weak_obj = env->NewLocalRef(&env, h->weak_ref);
+                if (weak_obj != receiver)
+                {
+                    // Return this object to the pool
+                    pthread_mutex_lock(&metadata->sandbox->pool_lock);
+                    h->object->next = metadata->sandbox->pool_head;
+                    metadata->sandbox->pool_head = h->object;
+                    pthread_mutex_unlock(&metadata->sandbox->pool_lock);
+                    env->DeleteWeakGlobalRef(&env, h->weak_ref);
+                    HASH_DEL(metadata->sandbox->objects, h);
+                    free(h);
+                    h = NULL;
+                }
+            }
+            // If we still haven't found a valid sandbox, then allocate one.
             if (h == NULL)
             {
                 pool = get_or_create_sandbox_object(metadata->sandbox);
                 pool->scope = SandboxScopeGlobal;
                 h = calloc(1, sizeof(struct jni_per_object_sandbox));
                 h->java_object = receiver;
+                h->weak_ref = is_static ? NULL : env->NewWeakGlobalRef(&env, receiver);
                 h->object = pool;
                 HASH_ADD_PTR(metadata->sandbox->objects, java_object, h);
             }
