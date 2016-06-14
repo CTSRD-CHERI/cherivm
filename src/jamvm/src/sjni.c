@@ -28,6 +28,7 @@
 #include "symbol.h"
 #include "excep.h"
 #include "reflect.h"
+#include "alloc.h"
 
 
 
@@ -145,6 +146,9 @@ struct shared_unsealed_cap
  * to the capabilities that it holds.
  *
  * This structure is used to implement a pool so that sandboxes can be reused.
+ *
+ * FIXME: This should have a mark field so that we can eventually gc sandbox
+ * objects from the pool that have not been invoked for a while.
  */
 struct jni_sandbox_object
 {
@@ -336,6 +340,55 @@ SEALING_TYPES(DECLARE_SEALING_TYPE)
 static pthread_once_t once_control = PTHREAD_ONCE_INIT;
 
 /**
+ * Thread for collecting stale per-object sandboxes.  This runs in the
+ * background and periodically scans through the list of sandboxes, returning
+ * sandbox objects to the pool if required.
+ */
+static void cleanup_per_object(Thread *unused)
+{
+    while (true)
+    {
+        sleep(1);
+        pthread_mutex_lock(&sandboxes_lock);
+        struct jni_sandbox *s, *tmp;
+        HASH_ITER(hh, sandboxes, s, tmp)
+        {
+            if (s->objects != NULL)
+            {
+                // Drop the sandboxes lock while we do something expensive.  This
+                // is safe because we don't care if we miss a sandbox while
+                // iterating, we'll get it on the next pass
+                pthread_mutex_unlock(&sandboxes_lock);
+                struct jni_per_object_sandbox *o, *otmp;
+                pthread_mutex_lock(&s->per_object_lock);
+                HASH_ITER(hh, s->objects, o, otmp)
+                {
+                    if (o->weak_ref != NULL)
+                    {
+                        jobject weak_obj = REF_TO_OBJ_WEAK_NULL_CHECK(o->weak_ref);
+                        if (weak_obj == NULL)
+                        {
+                            // Return this object to the pool
+                            pthread_mutex_lock(&s->pool_lock);
+                            o->object->next = s->pool_head;
+                            s->pool_head = o->object;
+                            pthread_mutex_unlock(&s->pool_lock);
+                            env->DeleteWeakGlobalRef(&env, o->weak_ref);
+                            HASH_DEL(s->objects, o);
+                            free(o);
+                        }
+                    }
+                }
+                pthread_mutex_unlock(&s->per_object_lock);
+                pthread_mutex_lock(&sandboxes_lock);
+            }
+        }
+        pthread_mutex_unlock(&sandboxes_lock);
+    }
+}
+
+
+/**
  * Function called by `pthread_once` to set up global state.
  */
 static void initGlobalSandboxState(void)
@@ -343,6 +396,7 @@ static void initGlobalSandboxState(void)
 #define INIT_SEALING_TYPE(name, ignored) \
     name##_type = cheri_type_alloc();
 SEALING_TYPES(INIT_SEALING_TYPE)
+    createVMThread("sandbox cleanup thread", cleanup_per_object);
 }
 
 /**
