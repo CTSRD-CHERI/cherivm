@@ -408,7 +408,7 @@ jlong Jam_GetDirectBufferCapacity(JNIEnv *env, jobject buffer) {
     if(buff != NULL) {
         pObject rawdata = INST_DATA(buff, pObject, buffAddr_offset);
         if(rawdata != NULL)
-            return INST_DATA(buff, jlong, buffCap_offset);
+            return INST_DATA(buff, jint, buffCap_offset);
     }
 
     return -1;
