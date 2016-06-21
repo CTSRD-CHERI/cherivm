@@ -796,6 +796,7 @@ sjni_GetDirectBufferAddress(JNIEnvType ptr, jobject_c buf)
         cap = __builtin_memcap_perms_and(cap,
                 ~__CHERI_CAP_PERMISSION_PERMIT_STORE_CAPABILITY__ &
                 ~__CHERI_CAP_PERMISSION_PERMIT_LOAD_CAPABILITY__);
+        return cap;
     }
     return NULL;
 }
