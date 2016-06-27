@@ -146,9 +146,6 @@ struct shared_unsealed_cap
  * to the capabilities that it holds.
  *
  * This structure is used to implement a pool so that sandboxes can be reused.
- *
- * FIXME: This should have a mark field so that we can eventually gc sandbox
- * objects from the pool that have not been invoked for a while.
  */
 struct jni_sandbox_object
 {
@@ -182,6 +179,11 @@ struct jni_sandbox_object
      * end).
      */
     SandboxScope scope;
+    /**
+     * The number of times that this sandbox has been invoked since the last
+     * time that it was scanned to revoke capabilities.
+     */
+    int invokes_since_sweep;
     /**
      * Red-black tree containing all of the unsealed capabilities delegated to
      * this sandbox.  The untrusted code can derive restricted capabilities
@@ -217,6 +219,10 @@ struct jni_per_object_sandbox
      * The sandbox object associated with this Java object;
      */
     struct jni_sandbox_object *object;
+    /**
+     * Lock protecting this sandbox during invocation.
+     */
+    pthread_mutex_t lock;
     /**
      * Hash handle.  Used to map from {cheri class, java object} pairs to sandboxes.
      */
@@ -339,6 +345,8 @@ SEALING_TYPES(DECLARE_SEALING_TYPE)
  */
 static pthread_once_t once_control = PTHREAD_ONCE_INIT;
 
+static void revoke_caps(struct jni_sandbox_object *pool);
+
 /**
  * Thread for collecting stale per-object sandboxes.  This runs in the
  * background and periodically scans through the list of sandboxes, returning
@@ -346,6 +354,7 @@ static pthread_once_t once_control = PTHREAD_ONCE_INIT;
  */
 static void cleanup_per_object(Thread *unused)
 {
+    const int invokes_per_sweep = 10;
     while (true)
     {
         sleep(1);
@@ -377,10 +386,29 @@ static void cleanup_per_object(Thread *unused)
                             HASH_DEL(s->objects, o);
                             free(o);
                         }
+                        else if (o->object->invokes_since_sweep > invokes_per_sweep)
+                        {
+                            pthread_mutex_lock(&o->lock);
+                            revoke_caps(o->object);
+                            pthread_mutex_unlock(&o->lock);
+                            o->object->invokes_since_sweep = 0;
+                        }
                     }
                 }
                 pthread_mutex_unlock(&s->per_object_lock);
                 pthread_mutex_lock(&sandboxes_lock);
+            }
+            if (s->global_object)
+            {
+                if (s->global_object->invokes_since_sweep > 10)
+                {
+                    pthread_mutex_unlock(&sandboxes_lock);
+                    pthread_mutex_lock(&s->global_lock);
+                    revoke_caps(s->global_object);
+                    s->global_object->invokes_since_sweep = 0;
+                    pthread_mutex_unlock(&s->global_lock);
+                    pthread_mutex_lock(&sandboxes_lock);
+                }
             }
         }
         pthread_mutex_unlock(&sandboxes_lock);
@@ -569,14 +597,11 @@ SJNI_CALLBACK jint sjni_GetVersion(JNIEnvType ptr)
 
 #define GET_PRIM_ARRAY_ELEMENTS(type, native_type)                           \
 SJNI_CALLBACK                                                                \
-__capability native_type *sjni_Get##type##ArrayElements(JNIEnvType ptr,     \
+__capability native_type *sjni_Get##type##ArrayElements(JNIEnvType ptr,      \
                                           __capability void *array_cap,      \
                                           __capability jboolean *isCopy) {   \
     void *array_ref = unseal_object(array_cap);                              \
-    if (!array_ref)                                                          \
-    {                                                                        \
-      return NULL;                                                           \
-    }                                                                        \
+    REQUIRE(array_ref, NULL);                                                \
     jboolean isCopyLocal;                                                    \
     __capability native_type *buffer = (__capability native_type *)          \
         env->Get##type##ArrayElements(&env,                                  \
@@ -592,19 +617,15 @@ __capability native_type *sjni_Get##type##ArrayElements(JNIEnvType ptr,     \
     return buffer;                                                           \
 }
 
-// FIXME: Actually release the array until we've done the revocation
 #define RELEASE_PRIM_ARRAY_ELEMENTS(type, native_type)                       \
 SJNI_CALLBACK                                                                \
-void sjni_Release##type##ArrayElements(JNIEnvType ptr, native_type##Array_c \
+void sjni_Release##type##ArrayElements(JNIEnvType ptr, native_type##Array_c  \
         array_cap, __capability native_type *elems, jint mode) {             \
     void *array_ref = unseal_object(array_cap);                              \
-    if (!array_ref)                                                          \
-    {                                                                        \
-      return;                                                                \
-    }                                                                        \
+    REQUIRE(array_ref, );                                                    \
     struct shared_unsealed_cap search;                                       \
-    struct jni_sandbox_object *pool =                             \
-       (void*)unseal_jnienv((*ptr)->reserved1);                                 \
+    struct jni_sandbox_object *pool =                                        \
+       (void*)unseal_jnienv((*ptr)->reserved1);                              \
     size_t base = __builtin_memcap_base_get(elems);                          \
     search.base = base;                                                      \
     struct shared_unsealed_cap *original =                                   \
@@ -613,6 +634,8 @@ void sjni_Release##type##ArrayElements(JNIEnvType ptr, native_type##Array_c \
     {                                                                        \
        original->refcount--;                                                 \
     }                                                                        \
+    env->Release##type##ArrayElements(&env, array_ref, (native_type*)elems,  \
+            mode);                                                           \
 }
 
 SJNI_CALLBACK  jobject_c sjni_GetObjectField(JNIEnvType ptr, jobject_c obj, jfieldID_c fieldID)
@@ -1155,7 +1178,7 @@ static void revoke_caps(struct jni_sandbox_object *pool)
         u->marked = false;
     }
     revoke_from_range(pool, heap);
-    revoke_from_range(pool, stack);
+    //revoke_from_range(pool, stack);
     release_sandbox_resources(pool, false);
 }
 
@@ -1183,6 +1206,7 @@ uintptr_t *resetGlobalSandbox(pClass class, pMethodBlock mb, uintptr_t *ostack)
     return ostack;
 }
 
+int sandbox_object_stack_reset(struct sandbox_object *sbop);
 /**
  * Revoke all capabilities delegated to a global sandbox, but do not perform a
  * complete reset.
@@ -1202,6 +1226,7 @@ uintptr_t *revokeGlobalSandbox(pClass class, pMethodBlock mb, uintptr_t *ostack)
     if (sandbox->global_object != NULL)
     {
         revoke_caps(sandbox->global_object);
+        sandbox_object_stack_reset(sandbox->global_object->obj);
     }
     pthread_mutex_unlock(&sandbox->global_lock);
     return ostack;
@@ -1237,6 +1262,7 @@ uintptr_t *callJNISandboxWrapper(pClass class, pMethodBlock mb, uintptr_t *ostac
     cap_args[1] = seal_object(receiver);
 
     struct jni_sandbox_object *pool = NULL;
+    struct jni_per_object_sandbox *h;
     assert(metadata->sandbox);
     switch (metadata->scope)
     {
@@ -1252,7 +1278,6 @@ uintptr_t *callJNISandboxWrapper(pClass class, pMethodBlock mb, uintptr_t *ostac
             break;
         case SandboxScopeObject:
         {
-            struct jni_per_object_sandbox *h;
             pthread_mutex_lock(&metadata->sandbox->per_object_lock);
             HASH_FIND_PTR(metadata->sandbox->objects, &receiver, h);
             // If we've found a sandbox, check that it refers to this object
@@ -1280,6 +1305,7 @@ uintptr_t *callJNISandboxWrapper(pClass class, pMethodBlock mb, uintptr_t *ostac
                 pool = get_or_create_sandbox_object(metadata->sandbox);
                 pool->scope = SandboxScopeGlobal;
                 h = calloc(1, sizeof(struct jni_per_object_sandbox));
+                h->lock = PTHREAD_MUTEX_INITIALIZER;
                 h->java_object = receiver;
                 h->weak_ref = is_static ? NULL : env->NewWeakGlobalRef(&env, receiver);
                 h->object = pool;
@@ -1290,6 +1316,7 @@ uintptr_t *callJNISandboxWrapper(pClass class, pMethodBlock mb, uintptr_t *ostac
                 pool = h->object;
             }
             pthread_mutex_unlock(&metadata->sandbox->per_object_lock);
+            pthread_mutex_lock(&h->lock);
             break;
         }
         case SandboxScopeMethod:
@@ -1374,8 +1401,10 @@ uintptr_t *callJNISandboxWrapper(pClass class, pMethodBlock mb, uintptr_t *ostac
             }
             else
             {
-                revoke_caps(pool);
+                sandbox_object_stack_reset(pool->obj);
+                pool->invokes_since_sweep++;
             }
+            pthread_mutex_unlock(&h->lock);
             break;
         case SandboxScopeGlobal:
             if (cherierrno != 0)
@@ -1387,7 +1416,8 @@ uintptr_t *callJNISandboxWrapper(pClass class, pMethodBlock mb, uintptr_t *ostac
             }
             else
             {
-                revoke_caps(pool);
+                sandbox_object_stack_reset(pool->obj);
+                pool->invokes_since_sweep++;
             }
             pthread_mutex_unlock(&metadata->sandbox->global_lock);
             break;
