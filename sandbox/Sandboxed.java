@@ -108,6 +108,8 @@ class Sandboxed
 			array[i] = 10-i;
 		}
 		leakArray(array);
+		java.lang.Runtime R = java.lang.Runtime.getRuntime();
+		R.resetGlobalSandbox("test");
 		leakArray(array);
 		return true;
 	}
