@@ -300,7 +300,7 @@ static pthread_mutex_t sandboxes_lock = PTHREAD_MUTEX_INITIALIZER;
 /**
  * Hash table mapping from class names to `jni_sandbox` structures.
  */
-static struct jni_sandbox *sandboxes;
+static struct jni_sandbox *sandboxes __pt_guarded_by(sandboxes_lock);
 
 /**
  * Metadata for a sandbox method, extracted from the Java annotations
