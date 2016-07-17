@@ -208,4 +208,8 @@ final class VMSystem
    *         environment variable is not defined.
    */
   static native String getenv(String name);
+
+  static native void startSampling();
+  static native void endSampling(String filename);
+
 }

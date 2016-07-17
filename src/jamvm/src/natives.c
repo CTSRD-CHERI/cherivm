@@ -23,11 +23,13 @@
 #error to use classpath, Jam must be compiled with JNI!
 #endif
 
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
 #include <errno.h>
+#include <statcounters.h>
 
 #include "jam.h"
 #include "alloc.h"
@@ -164,6 +166,24 @@ uintptr_t *identityHashCode(pClass class, pMethodBlock mb, uintptr_t *ostack) {
     *ostack++ = addr & 0xffffffff;
     return ostack;
 }
+
+static statcounters_bank_t start;
+uintptr_t *startSampling(pClass class, pMethodBlock mb, uintptr_t *ostack) {
+    sample_statcounters(&start);
+}
+
+uintptr_t *endSampling(pClass class, pMethodBlock mb, uintptr_t *ostack) {
+    statcounters_bank_t end, diff;
+    sample_statcounters(&end);
+    errno = 0;
+    diff_statcounters(&end, &start, &diff);
+    assert(errno == 0);
+    char *name = String2Cstr((pObject)ostack[0]);
+    dump_statcounters(&diff, name, "csv");
+    zero_statcounters(&start);
+    return ostack;
+}
+
 
 /* java.lang.VMRuntime */
 
@@ -1696,6 +1716,8 @@ VMMethod vm_object[] = {
 VMMethod vm_system[] = {
     {"arraycopy",                   arraycopy},
     {"identityHashCode",            identityHashCode},
+    {"startSampling",               startSampling},
+    {"endSampling",                 endSampling},
     {NULL,                          NULL}
 };
 

@@ -1126,4 +1126,14 @@ public final class System
 
   } // class EnvironmentSet<String>
 
+  public static void startSampling()
+  {
+    VMSystem.startSampling();
+  }
+  public static void endSampling(String filename)
+  {
+    VMSystem.endSampling(filename);
+  }
+
+
 } // class System
