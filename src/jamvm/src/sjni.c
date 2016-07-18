@@ -447,6 +447,10 @@ static void print_cap(__capability void *c)
  */
 static __capability void *seal(void* obj, __capability void *type)
 {
+    if (obj == NULL)
+    {
+        return 0;
+    }
     return __builtin_memcap_seal((__capability void*)obj, type);
 }
 
