@@ -1371,6 +1371,8 @@ uintptr_t *callJNISandboxWrapper(pClass class, pMethodBlock mb, uintptr_t *ostac
                 break;
             case '[':
                 cap_args[cap_arg_count++] = seal_object((void*)*(ostack_args++));
+                // Skip the type of the array.
+                signature++;
                 if (*signature == 'L')
                 {
                     do { signature++; } while (*signature != ';');
