@@ -53,6 +53,7 @@
 .text
 .align 8
 .set noreorder
+.set noat
 .globl callSandboxedJNIMethod
     .ent callSandboxedJNIMethod
     .type callSandboxedJNIMethod, @function
@@ -101,16 +102,21 @@ callSandboxedJNIMethod:
     jalr     $t9
     ld       $a2, (LONG_SIZE * 2)($a2) // Delay slot
 
-    // FIXME: non-doubleword returns
-    // FIXME: If the return value is a capability then we need to transform it
-    // (probably unseal it?)
-
     // Reload the top of the object stack and store the return value there.
     ld       $a4, 32($sp)
     ld       $a6, 24($sp)
     sd       $v0, 0($a4)
+    // FIXME: If the return value is a capability then we need to transform it
+    // (probably unseal it?)
+    daddiu   $t0, $zero, 8
+    daddiu   $t1, $zero, 16
+.set mips4
+    daddiu   $t3, $a6, (0-'J')
+    movz     $t0, $t1, $t3
+    daddiu   $t3, $a6, (0-'D')
+    movz     $t0, $t1, $t3
     // Move the top of the object stack
-    daddiu   $v0, $a4, 8
+    dadd     $v0, $a4, $t0
 
     // Epilog
     move     $sp, $fp
@@ -119,13 +125,14 @@ callSandboxedJNIMethod:
     ld       $ra, 56($sp)
     jr       $ra
     daddiu   $sp, $sp, 64
-.end callJNIMethod
+.end callSandboxedJNIMethod
 
 #endif // __CHERI__
 
 .text
 .align 8
 .set reorder
+.set at 
 .globl callJNIMethod
     .ent callJNIMethod
     .type callJNIMethod, @function
