@@ -632,11 +632,14 @@ void sjni_Release##type##ArrayElements(JNIEnvType ptr, native_type##Array_c  \
        (void*)unseal_jnienv((*ptr)->reserved1);                              \
     size_t base = __builtin_memcap_base_get(elems);                          \
     search.base = base;                                                      \
-    struct shared_unsealed_cap *original =                                   \
-        RB_NFIND(unsealed_cap_tree, &pool->unsealed_caps, &search);          \
-    if (base <= original->base + original->length)                           \
+    if (pool->scope != SandboxScopeMethod)                                   \
     {                                                                        \
-       original->refcount--;                                                 \
+        struct shared_unsealed_cap *original =                               \
+            RB_NFIND(unsealed_cap_tree, &pool->unsealed_caps, &search);      \
+        if (base <= original->base + original->length)                       \
+        {                                                                    \
+           original->refcount--;                                             \
+        }                                                                    \
     }                                                                        \
     env->Release##type##ArrayElements(&env, array_ref, (native_type*)elems,  \
             mode);                                                           \
