@@ -20,27 +20,27 @@ class BenchmarkMultiply
 	static void benchmark(int sz)
 	{
 		System.out.println("Running benchmark " + sz);
-		final long loop_count = 400;
+		final long loop_count = 10;
 		int[] out = new int[sz*sz];
 		int[] in1 = init(sz*sz);
 		int[] in2 = init(sz*sz);
 		System.out.println("cheri...");
 		System.startSampling();
-		for (int loops=1 ; loops<loop_count ; loops++)
+		for (int loops=0 ; loops<loop_count ; loops++)
 		{
 			multiplyNative(out, in1, in2, sz);
 		}
 		System.endSampling("Multiply_cheri" + sz);
 		System.out.println("MIPS (copy)...");
 		System.startSampling();
-		for (int loops=1 ; loops<loop_count ; loops++)
+		for (int loops=0 ; loops<loop_count ; loops++)
 		{
 			multiplyNativeUnsafeCopy(out, in1, in2, sz);
 		}
 		System.endSampling("Multiply_mips_copy" + sz);
 		System.out.println("MIPS...");
 		System.startSampling();
-		for (int loops=1 ; loops<loop_count ; loops++)
+		for (int loops=0 ; loops<loop_count ; loops++)
 		{
 			multiplyNativeUnsafe(out, in1, in2, sz);
 		}
@@ -73,9 +73,9 @@ class BenchmarkMultiply
 			}
 		}
 		java.lang.Runtime R = java.lang.Runtime.getRuntime();
-		for (int size=8 ; size<20000 ; size<<=1)
+		for (int size=8 ; size<=50 ; size+=2)
 		{
-			for (int i=0 ; i<10 ; i++)
+			for (int i=0 ; i<200 ; i++)
 			{
 				benchmark(size);
 				System.gc();
