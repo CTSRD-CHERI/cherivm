@@ -6,8 +6,8 @@ DIR_CHERISDK_BIN="$DIR_CHERISDK/bin"
 
 export CC="$DIR_CHERISDK_BIN/cheri-unknown-freebsd-clang"
 export CXX="$DIR_CHERISDK_BIN/cheri-unknown-freebsd-clang++"
-export CFLAGS="-g -msoft-float -cheri-linker "
-export CXXFLAGS="-g -msoft-float -cheri-linker "
+export CFLAGS="-g -msoft-float -cheri-linker -O2"
+export CXXFLAGS="-g -msoft-float -cheri-linker -O2"
 export CCASFLAGS="$CFLAGS -no-integrated-as" # don't use -integrated-as with .S files
 export LDFLAGS="-Wl,-melf64btsmip_fbsd -Wl,-g -cheri-linker"
 
