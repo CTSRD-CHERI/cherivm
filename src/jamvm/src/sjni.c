@@ -714,6 +714,9 @@ SJNI_CALLBACK  void  sjni_Set##type##Field(JNIEnvType ptr,                    \
  * Helper function for native-to-Java calls.  Unwraps all of the arguments
  * provided in an array.
  */
+// FIXME: This function triggers a bug in GVN, which elides the store of the
+// non-capability value.
+__attribute__((optnone))
 static void unwrapArguments(__capability jvalue_c *capargs, jvalue *args, int argc)
 {
     for (int i=0 ; i<argc; i++)
@@ -724,7 +727,7 @@ static void unwrapArguments(__capability jvalue_c *capargs, jvalue *args, int ar
         }
         else
         {
-            memcpy(&args[i], (void*)&capargs[i], sizeof(jvalue));
+            args[i].j = capargs[i].j;
         }
     }
 }
