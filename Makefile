@@ -1,37 +1,47 @@
 INSTALLED_CLASSPATH=/exports/users/dc552/cheriroot/opt/target/share/jamvm/classes.zip:/exports/users/dc552/cheriroot/opt/target/share/classpath/glibj.zip:/exports/users/dc552/cheriroot/opt/target/share/classpath/tools.zip:/exports/users/dc552/cheriroot/opt/target/share/jamvm/:. 
 
+
+SDK_ROOT=/home/dc552/sdk
+SYSROOT=${SDK_ROOT}/sysroot
+
+CFLAGS=-I ../opt/target/include/ -msoft-float -O2 -cheri-linker
+SANDBOX_LDFLAGS=-Wl,--script=${SYSROOT}/usr/libdata/ldscripts/sandbox.ld -static -nostdlib -lc_cheri -lcheri 
+SANDBOX_CFLAGS=${CFLAGS} -cheri-linker -mabi=sandbox
+CC=${SDK_ROOT}/bin/clang
+
+
 all: sandbox/test.co sandbox/bench.co sandbox/libbench.so sandbox/test.dump sandbox/bench.dump sandbox/Sandboxed.class sandbox/BenchmarkMultiply.class sandbox/BenchmarkZlib.class sandbox/bench.S sandbox/bench_unsafe.S
 
 clean:
 	rm -f sandbox/test.co sandbox/bench.co sandbox/*.class sandbox/libbench.so sandbox/sandbox_*.h sandbox/*.dump sandbox/bench.S sandbox/bench_unsafe.S
 
 sandbox/test.co: sandbox/sandbox_Sandboxed.c
-	~/sdk/bin/clang -cheri-linker -mabi=sandbox -o sandbox/test.co sandbox/sandbox_Sandboxed.c -I ../opt/target/include/ -Wl,--script=/home/dc552/sdk/sysroot/usr/libdata/ldscripts/sandbox.ld -nostdlib -lc_cheri -lcheri -msoft-float -DJNI_SANDBOX_CLASS=test
+	${CC} ${SANDBOX_CFLAGS} -o sandbox/test.co sandbox/sandbox_Sandboxed.c -DJNI_SANDBOX_CLASS=test ${SANDBOX_LDFLAGS}
 
 sandbox/bench.co: sandbox/bench.c sandbox/bench_unsafe.c
-	~/sdk/bin/clang -cheri-linker -mabi=sandbox -o sandbox/bench.co sandbox/bench.c -I ../opt/target/include/ -Wl,--script=/home/dc552/sdk/sysroot/usr/libdata/ldscripts/sandbox.ld -nostdlib -lc_cheri -lcheri -msoft-float -DJNI_SANDBOX_CLASS=bench -O2 -lz
+	${CC}  ${SANDBOX_CFLAGS}  -o sandbox/bench.co sandbox/bench.c  ${SANDBOX_LDFLAGS} -DJNI_SANDBOX_CLASS=bench -lz
 
 sandbox/bench.S: sandbox/bench.c sandbox/bench_unsafe.c
-	~/sdk/bin/clang -cheri-linker -mabi=sandbox -S -o sandbox/bench.S sandbox/bench.c -I ../opt/target/include/ -msoft-float -DJNI_SANDBOX_CLASS=bench -O2 
+	${CC}  ${SANDBOX_CFLAGS} sandbox/bench.c -DJNI_SANDBOX_CLASS=bench -S -o sandbox/bench.S
 
 sandbox/bench_unsafe.S: sandbox/bench_unsafe.c
-	~/sdk/bin/clang -cheri-linker -S -o sandbox/bench_unsafe.S sandbox/bench_unsafe.c -I ../opt/target/include/ -msoft-float -DJNI_SANDBOX_CLASS=bench -O2 
+	${CC} ${CFLAGS} sandbox/bench_unsafe.c -S -o sandbox/bench_unsafe.S
 
 sandbox/bench.ll: sandbox/bench.c sandbox/bench_unsafe.c
-	~/sdk/bin/clang -cheri-linker -mabi=sandbox -S -o sandbox/bench.ll sandbox/bench.c -I ../opt/target/include/ -msoft-float -DJNI_SANDBOX_CLASS=bench -O2 -emit-llvm
+	${CC}  ${SANDBOX_CFLAGS} sandbox/bench.c -DJNI_SANDBOX_CLASS=bench -S -o sandbox/bench.ll -emitllvm
 
 sandbox/bench_unsafe.ll: sandbox/bench_unsafe.c
-	~/sdk/bin/clang -cheri-linker -S -o sandbox/bench_unsafe.ll sandbox/bench_unsafe.c -I ../opt/target/include/ -msoft-float -DJNI_SANDBOX_CLASS=bench -O2 -emit-llvm
+	${CC} ${CFLAGS} sandbox/bench_unsafe.c -S -o sandbox/bench_unsafe.ll -emitllvm
 
 
 sandbox/libbench.so: sandbox/bench_unsafe.c
-	~/sdk/bin/clang -target cheri-unknown-freebsd -mabi=n64 -shared -o sandbox/libbench.so sandbox/bench_unsafe.c -I ../opt/target/include/ -msoft-float  -O2 -lz
+	${CC} -mabi=n64 -shared -o sandbox/libbench.so sandbox/bench_unsafe.c -I ../opt/target/include/ -msoft-float  -O2 -lz
 
 sandbox/test.dump: sandbox/test.co
-	~/sdk/bin/llvm-objdump -triple cheri-unknown-freebsd -d sandbox/test.co > sandbox/test.dump
+	${SDK_ROOT}/bin/llvm-objdump -triple cheri-unknown-freebsd -d sandbox/test.co > sandbox/test.dump
 
 sandbox/bench.dump: sandbox/bench.co
-	~/sdk/bin/llvm-objdump -triple cheri-unknown-freebsd -d sandbox/bench.co > sandbox/bench.dump
+	${SDK_ROOT}/bin/llvm-objdump -triple cheri-unknown-freebsd -d sandbox/bench.co > sandbox/bench.dump
 
 sandbox/Sandboxed.class: sandbox/Sandboxed.java
 	javac -bootclasspath ${INSTALLED_CLASSPATH} sandbox/Sandboxed.java
