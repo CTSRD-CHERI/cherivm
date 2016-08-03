@@ -29,6 +29,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <errno.h>
+#include <stdint.h>
 #include <statcounters.h>
 
 #include "jam.h"
@@ -169,18 +170,22 @@ uintptr_t *identityHashCode(pClass class, pMethodBlock mb, uintptr_t *ostack) {
 
 static statcounters_bank_t start;
 uintptr_t *startSampling(pClass class, pMethodBlock mb, uintptr_t *ostack) {
-    sample_statcounters(&start);
+    statcounters_sample(&start);
+    return ostack;
 }
 
 uintptr_t *endSampling(pClass class, pMethodBlock mb, uintptr_t *ostack) {
     statcounters_bank_t end, diff;
-    sample_statcounters(&end);
+    statcounters_sample(&end);
     errno = 0;
-    diff_statcounters(&end, &start, &diff);
+    statcounters_diff(&diff, &end, &start);
     assert(errno == 0);
     char *name = String2Cstr((pObject)ostack[0]);
-    dump_statcounters(&diff, name, "csv");
-    zero_statcounters(&start);
+    FILE *f = fopen(name, "a");
+    assert(f);
+    statcounters_fmt_flag_t flg = (ftell(f) == 0) ? CSV_HEADER : CSV_NOHEADER;
+    statcounters_dump(&diff, f, flg);
+    statcounters_zero(&start);
     return ostack;
 }
 
