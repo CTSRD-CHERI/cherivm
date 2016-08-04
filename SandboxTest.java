@@ -1,6 +1,7 @@
 import uk.ac.cam.cheri.*;
 import java.lang.reflect.Method;
 import java.util.*;
+import java.security.*;
 
 
 class SandboxTest
@@ -223,6 +224,47 @@ class SandboxTest
 		return m.x == 124;
 	}
 
+	class NoSandboxPermissionSecurityManager extends SecurityManager
+	{
+		private Permission revoke;
+		private Permission reset;
+		NoSandboxPermissionSecurityManager()
+		{
+			revoke = new RuntimePermission("revokeSandbox");
+			reset = new RuntimePermission("resetSandbox");
+		}
+
+		public void checkPermission(Permission perm)
+		{
+			if (perm.equals(revoke) || perm.equals(reset))
+				throw new SecurityException();
+		}
+	}
+	boolean testRevokeResetSecurityManager()
+	{
+		System.setSecurityManager(new NoSandboxPermissionSecurityManager());
+		try
+		{
+			java.lang.Runtime R = java.lang.Runtime.getRuntime();
+			try
+			{
+				R.resetGlobalSandbox("test");
+				return false;
+			}
+			catch (SecurityException e) {}
+			try
+			{
+				R.revokeGlobalSandbox("test");
+				return false;
+			}
+			catch (SecurityException e) {}
+		}
+		finally
+		{
+			System.setSecurityManager(null);
+		}
+		return true;
+	}
 	public static void main(String[] args)
 	{
 		System.out.println("Starting...");
