@@ -795,13 +795,17 @@ public class Runtime
   }
   public void resetGlobalSandbox(String name)
   {
-      // FIXME: Security manager check
-      VMRuntime.resetGlobalSandbox(name);
+    SecurityManager sm = SecurityManager.current;
+    if (sm != null)
+      sm.checkExit(status);
+    VMRuntime.resetGlobalSandbox(name);
   }
   public void revokeGlobalSandbox(String name)
   {
-      // FIXME: Security manager check
-      VMRuntime.revokeGlobalSandbox(name);
+    SecurityManager sm = SecurityManager.current;
+    if (sm != null)
+      sm.checkExit(status);
+    VMRuntime.revokeGlobalSandbox(name);
   }
 
 } // class Runtime
