@@ -202,4 +202,15 @@ JNIEXPORT jlong JNICALL Java_BenchmarkZlib_decompressUnsafeCopy
 	free(out_copy);
 	return ret;
 }
+
+JNIEXPORT void JNICALL Java_BenchmarkNop_nopMips
+  (JNIEnv *env, jobject this) {}
+#else
+JNIEXPORT void JNICALL Java_BenchmarkNop_nopCheriGlobal
+(JNIEnv *env, jobject this) {}
+
+JNIEXPORT void JNICALL Java_BenchmarkNop_nopCheriMethod
+(JNIEnv *env, jobject this) {}
 #endif
+
+

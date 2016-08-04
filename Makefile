@@ -1,5 +1,5 @@
 PREFIX=/exports/users/dc552/cheriroot/opt/target
-INSTALLED_CLASSPATH=/exportl/users/dc552/cheriroot/opt/target/share/jamvm/classes.zip:${PREFIX}/share/classpath/glibj.zip:${PREFIX}/share/classpath/tools.zip:${PREFIX}/share/jamvm/:. 
+INSTALLED_CLASSPATH=${PREFIX}/share/jamvm/classes.zip:${PREFIX}/share/classpath/glibj.zip:${PREFIX}/share/classpath/tools.zip:${PREFIX}/share/jamvm/:. 
 
 
 SDK_ROOT=/home/dc552/sdk
@@ -11,7 +11,7 @@ SANDBOX_CFLAGS=${CFLAGS} -cheri-linker -mabi=sandbox
 CC=${SDK_ROOT}/bin/clang
 
 
-all: test.co bench.co libbench.so test.dump bench.dump SandboxTest.class BenchmarkMultiply.class BenchmarkZlib.class bench.S bench_unsafe.S
+all: test.co bench.co libbench.so test.dump bench.dump SandboxTest.class BenchmarkMultiply.class BenchmarkZlib.class BenchmarkNop.class bench.S bench_unsafe.S
 
 clean:
 	rm -f test.co bench.co *.class libbench.so sandbox_*.h *.dump bench.S bench_unsafe.S
@@ -53,8 +53,11 @@ BenchmarkMultiply.class: BenchmarkMultiply.java
 BenchmarkZlib.class: BenchmarkZlib.java
 	javac -bootclasspath ${INSTALLED_CLASSPATH} BenchmarkZlib.java
 
+BenchmarkNop.class: BenchmarkNop.java
+	javac -bootclasspath ${INSTALLED_CLASSPATH} BenchmarkNop.java
 
-headers: SandboxTest.class BenchmarkMultiply.class BenchmarkZlib.class
+headers: SandboxTest.class BenchmarkMultiply.class BenchmarkZlib.class BenchmarkNop.class
 	javah -bootclasspath ${INSTALLED_CLASSPATH} SandboxTest
 	javah -bootclasspath ${INSTALLED_CLASSPATH} BenchmarkMultiply
 	javah -bootclasspath ${INSTALLED_CLASSPATH} BenchmarkZlib
+	javah -bootclasspath ${INSTALLED_CLASSPATH} BenchmarkNop
