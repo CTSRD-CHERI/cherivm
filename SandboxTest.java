@@ -224,36 +224,37 @@ class SandboxTest
 		return m.x == 124;
 	}
 
-	class NoSandboxPermissionSecurityManager extends SecurityManager
+	class SingleDenySecurityManager extends SecurityManager
 	{
-		private Permission revoke;
-		private Permission reset;
-		NoSandboxPermissionSecurityManager()
+		private Permission deny;
+		SingleDenySecurityManager(Permission p)
 		{
-			revoke = new RuntimePermission("revokeSandbox");
-			reset = new RuntimePermission("resetSandbox");
+			deny = p;
 		}
 
 		public void checkPermission(Permission perm)
 		{
-			if (perm.equals(revoke) || perm.equals(reset))
+			if (perm.equals(deny))
 				throw new SecurityException();
 		}
 	}
 	boolean testRevokeResetSecurityManager()
 	{
-		System.setSecurityManager(new NoSandboxPermissionSecurityManager());
 		try
 		{
+			Permission revoke = new RuntimePermission("revokeSandbox");
+			Permission reset = new RuntimePermission("resetSandbox");
 			java.lang.Runtime R = java.lang.Runtime.getRuntime();
 			try
 			{
+				System.setSecurityManager(new SingleDenySecurityManager(reset));
 				R.resetGlobalSandbox("test");
 				return false;
 			}
 			catch (SecurityException e) {}
 			try
 			{
+				System.setSecurityManager(new SingleDenySecurityManager(revoke));
 				R.revokeGlobalSandbox("test");
 				return false;
 			}
