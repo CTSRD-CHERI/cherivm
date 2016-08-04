@@ -797,14 +797,14 @@ public class Runtime
   {
     SecurityManager sm = SecurityManager.current;
     if (sm != null)
-      sm.checkExit(status);
+      sm.checkPermission(new RuntimePermission("resetSandbox"));
     VMRuntime.resetGlobalSandbox(name);
   }
   public void revokeGlobalSandbox(String name)
   {
     SecurityManager sm = SecurityManager.current;
     if (sm != null)
-      sm.checkExit(status);
+      sm.checkPermission(new RuntimePermission("revokeSandbox"));
     VMRuntime.revokeGlobalSandbox(name);
   }
 
