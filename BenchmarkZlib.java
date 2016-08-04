@@ -1,5 +1,4 @@
-package sandbox;
-
+import uk.ac.cam.cheri.*;
 import java.nio.ByteBuffer;
 
 class BenchmarkZlib
@@ -118,7 +117,7 @@ class BenchmarkZlib
 	}
 	static void main(String[] args)
 	{
-		System.load("./sandbox/libbench.so");
+		System.load("./libbench.so");
 		ByteBuffer s = ByteBuffer.allocateDirect(1);
 		ByteBuffer u = ByteBuffer.allocateDirect(50);
 		compressUnsafeCopy(s, u);

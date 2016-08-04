@@ -41,9 +41,9 @@ static inline void multiply_matrix(jint *out, jint *in1, jint *in2, jint size)
 
 JNIEXPORT void JNICALL
 #ifdef __CHERI_PURE_CAPABILITY__
-Java_sandbox_BenchmarkMultiply_multiplyNative
+Java_BenchmarkMultiply_multiplyNative
 #else
-Java_sandbox_BenchmarkMultiply_multiplyNativeUnsafe
+Java_BenchmarkMultiply_multiplyNativeUnsafe
 #endif
   (JNIEnv *env, jclass cls, jintArray outArr, jintArray inArr1, jintArray inArr2, jint size)
 {
@@ -58,7 +58,7 @@ Java_sandbox_BenchmarkMultiply_multiplyNativeUnsafe
 
 #ifndef __CHERI_PURE_CAPABILITY__
 JNIEXPORT void JNICALL
-Java_sandbox_BenchmarkMultiply_multiplyNativeUnsafeCopy
+Java_BenchmarkMultiply_multiplyNativeUnsafeCopy
   (JNIEnv *env, jclass cls, jintArray outArr, jintArray inArr1, jintArray inArr2, jint size)
 {
 	jint *out = (*env)->GetIntArrayElements(env, outArr, NULL);
@@ -123,9 +123,9 @@ static size_t decompress_bytes(void *in, void *out, size_t in_len, size_t out_le
 
 JNIEXPORT jlong JNICALL
 #ifdef __CHERI_PURE_CAPABILITY__
-Java_sandbox_BenchmarkZlib_compress
+Java_BenchmarkZlib_compress
 #else
-Java_sandbox_BenchmarkZlib_compressUnsafe
+Java_BenchmarkZlib_compressUnsafe
 #endif
   (JNIEnv *env, jclass this, jobject input, jobject output)
 {
@@ -144,7 +144,7 @@ Java_sandbox_BenchmarkZlib_compressUnsafe
 }
 
 #ifndef __CHERI_PURE_CAPABILITY__
-JNIEXPORT jlong JNICALL Java_sandbox_BenchmarkZlib_compressUnsafeCopy
+JNIEXPORT jlong JNICALL Java_BenchmarkZlib_compressUnsafeCopy
   (JNIEnv *env, jclass this, jobject input, jobject output)
 {
 	void *in = (*env)->GetDirectBufferAddress(env, input);
@@ -166,9 +166,9 @@ JNIEXPORT jlong JNICALL Java_sandbox_BenchmarkZlib_compressUnsafeCopy
 
 JNIEXPORT jlong JNICALL
 #ifdef __CHERI_PURE_CAPABILITY__
-Java_sandbox_BenchmarkZlib_decompress
+Java_BenchmarkZlib_decompress
 #else
-Java_sandbox_BenchmarkZlib_decompressUnsafe
+Java_BenchmarkZlib_decompressUnsafe
 #endif
   (JNIEnv *env, jclass this, jobject input, jobject output, jint in_len)
 {
@@ -185,7 +185,7 @@ Java_sandbox_BenchmarkZlib_decompressUnsafe
 }
 
 #ifndef __CHERI_PURE_CAPABILITY__
-JNIEXPORT jlong JNICALL Java_sandbox_BenchmarkZlib_decompressUnsafeCopy
+JNIEXPORT jlong JNICALL Java_BenchmarkZlib_decompressUnsafeCopy
   (JNIEnv *env, jclass this, jobject input, jobject output, jint in_len)
 {
 	void *in = (*env)->GetDirectBufferAddress(env, input);

@@ -1,4 +1,5 @@
-INSTALLED_CLASSPATH=/exports/users/dc552/cheriroot/opt/target/share/jamvm/classes.zip:/exports/users/dc552/cheriroot/opt/target/share/classpath/glibj.zip:/exports/users/dc552/cheriroot/opt/target/share/classpath/tools.zip:/exports/users/dc552/cheriroot/opt/target/share/jamvm/:. 
+PREFIX=/exports/users/dc552/cheriroot/opt/target
+INSTALLED_CLASSPATH=/exportl/users/dc552/cheriroot/opt/target/share/jamvm/classes.zip:${PREFIX}/share/classpath/glibj.zip:${PREFIX}/share/classpath/tools.zip:${PREFIX}/share/jamvm/:. 
 
 
 SDK_ROOT=/home/dc552/sdk
@@ -10,51 +11,50 @@ SANDBOX_CFLAGS=${CFLAGS} -cheri-linker -mabi=sandbox
 CC=${SDK_ROOT}/bin/clang
 
 
-all: sandbox/test.co sandbox/bench.co sandbox/libbench.so sandbox/test.dump sandbox/bench.dump sandbox/Sandboxed.class sandbox/BenchmarkMultiply.class sandbox/BenchmarkZlib.class sandbox/bench.S sandbox/bench_unsafe.S
+all: test.co bench.co libbench.so test.dump bench.dump Sandboxed.class BenchmarkMultiply.class BenchmarkZlib.class bench.S bench_unsafe.S
 
 clean:
-	rm -f sandbox/test.co sandbox/bench.co sandbox/*.class sandbox/libbench.so sandbox/sandbox_*.h sandbox/*.dump sandbox/bench.S sandbox/bench_unsafe.S
+	rm -f test.co bench.co *.class libbench.so sandbox_*.h *.dump bench.S bench_unsafe.S
 
-sandbox/test.co: sandbox/sandbox_Sandboxed.c
-	${CC} ${SANDBOX_CFLAGS} -o sandbox/test.co sandbox/sandbox_Sandboxed.c -DJNI_SANDBOX_CLASS=test ${SANDBOX_LDFLAGS}
+test.co: sandbox_Sandboxed.c
+	${CC} ${SANDBOX_CFLAGS} -o test.co sandbox_Sandboxed.c -DJNI_SANDBOX_CLASS=test ${SANDBOX_LDFLAGS}
 
-sandbox/bench.co: sandbox/bench.c sandbox/bench_unsafe.c
-	${CC}  ${SANDBOX_CFLAGS}  -o sandbox/bench.co sandbox/bench.c  ${SANDBOX_LDFLAGS} -DJNI_SANDBOX_CLASS=bench -lz
+bench.co: bench.c bench_unsafe.c
+	${CC}  ${SANDBOX_CFLAGS}  -o bench.co bench.c  ${SANDBOX_LDFLAGS} -DJNI_SANDBOX_CLASS=bench -lz
 
-sandbox/bench.S: sandbox/bench.c sandbox/bench_unsafe.c
-	${CC}  ${SANDBOX_CFLAGS} sandbox/bench.c -DJNI_SANDBOX_CLASS=bench -S -o sandbox/bench.S
+bench.S: bench.c bench_unsafe.c
+	${CC}  ${SANDBOX_CFLAGS} bench.c -DJNI_SANDBOX_CLASS=bench -S -o bench.S
 
-sandbox/bench_unsafe.S: sandbox/bench_unsafe.c
-	${CC} ${CFLAGS} sandbox/bench_unsafe.c -S -o sandbox/bench_unsafe.S
+bench_unsafe.S: bench_unsafe.c
+	${CC} ${CFLAGS} bench_unsafe.c -S -o bench_unsafe.S
 
-sandbox/bench.ll: sandbox/bench.c sandbox/bench_unsafe.c
-	${CC}  ${SANDBOX_CFLAGS} sandbox/bench.c -DJNI_SANDBOX_CLASS=bench -S -o sandbox/bench.ll -emitllvm
+bench.ll: bench.c bench_unsafe.c
+	${CC}  ${SANDBOX_CFLAGS} bench.c -DJNI_SANDBOX_CLASS=bench -S -o bench.ll -emitllvm
 
-sandbox/bench_unsafe.ll: sandbox/bench_unsafe.c
-	${CC} ${CFLAGS} sandbox/bench_unsafe.c -S -o sandbox/bench_unsafe.ll -emitllvm
-
-
-sandbox/libbench.so: sandbox/bench_unsafe.c
-	${CC} -mabi=n64 -shared -o sandbox/libbench.so sandbox/bench_unsafe.c -I ../opt/target/include/ -msoft-float  -O2 -lz
-
-sandbox/test.dump: sandbox/test.co
-	${SDK_ROOT}/bin/llvm-objdump -triple cheri-unknown-freebsd -d sandbox/test.co > sandbox/test.dump
-
-sandbox/bench.dump: sandbox/bench.co
-	${SDK_ROOT}/bin/llvm-objdump -triple cheri-unknown-freebsd -d sandbox/bench.co > sandbox/bench.dump
-
-sandbox/Sandboxed.class: sandbox/Sandboxed.java
-	javac -bootclasspath ${INSTALLED_CLASSPATH} sandbox/Sandboxed.java
-
-sandbox/BenchmarkMultiply.class: sandbox/BenchmarkMultiply.java
-	javac -bootclasspath ${INSTALLED_CLASSPATH} sandbox/BenchmarkMultiply.java
-
-sandbox/BenchmarkZlib.class: sandbox/BenchmarkZlib.java
-	javac -bootclasspath ${INSTALLED_CLASSPATH} sandbox/BenchmarkZlib.java
+bench_unsafe.ll: bench_unsafe.c
+	${CC} ${CFLAGS} bench_unsafe.c -S -o bench_unsafe.ll -emitllvm
 
 
-headers: sandbox/Sandboxed.class sandbox/BenchmarkMultiply.class sandbox/BenchmarkZlib.class
-	javah sandbox.Sandboxed
-	javah sandbox.BenchmarkMultiply
-	javah sandbox.BenchmarkZlib
-	mv sandbox_*.h sandbox/
+libbench.so: bench_unsafe.c
+	${CC} -mabi=n64 -shared -o libbench.so bench_unsafe.c -I ../opt/target/include/ -msoft-float  -O2 -lz
+
+test.dump: test.co
+	${SDK_ROOT}/bin/llvm-objdump -triple cheri-unknown-freebsd -d test.co > test.dump
+
+bench.dump: bench.co
+	${SDK_ROOT}/bin/llvm-objdump -triple cheri-unknown-freebsd -d bench.co > bench.dump
+
+Sandboxed.class: Sandboxed.java
+	javac -bootclasspath ${INSTALLED_CLASSPATH} Sandboxed.java
+
+BenchmarkMultiply.class: BenchmarkMultiply.java
+	javac -bootclasspath ${INSTALLED_CLASSPATH} BenchmarkMultiply.java
+
+BenchmarkZlib.class: BenchmarkZlib.java
+	javac -bootclasspath ${INSTALLED_CLASSPATH} BenchmarkZlib.java
+
+
+headers: Sandboxed.class BenchmarkMultiply.class BenchmarkZlib.class
+	javah -bootclasspath ${INSTALLED_CLASSPATH} Sandboxed
+	javah -bootclasspath ${INSTALLED_CLASSPATH} BenchmarkMultiply
+	javah -bootclasspath ${INSTALLED_CLASSPATH} BenchmarkZlib

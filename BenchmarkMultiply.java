@@ -1,4 +1,4 @@
-package sandbox;
+import uk.ac.cam.cheri.*;
 import java.util.Arrays;
 
 class BenchmarkMultiply
@@ -48,7 +48,7 @@ class BenchmarkMultiply
 	}
 	static void main(String[] args)
 	{
-		System.load("./sandbox/libbench.so");
+		System.load("./libbench.so");
 		// Make sure that everything is resolved first so that we don't skew
 		// the first benchmarks.  CHERI libraries are loaded lazily, whereas
 		// native ones are loaded explicitly.
