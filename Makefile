@@ -11,13 +11,13 @@ SANDBOX_CFLAGS=${CFLAGS} -cheri-linker -mabi=sandbox
 CC=${SDK_ROOT}/bin/clang
 
 
-all: test.co bench.co libbench.so test.dump bench.dump Sandboxed.class BenchmarkMultiply.class BenchmarkZlib.class bench.S bench_unsafe.S
+all: test.co bench.co libbench.so test.dump bench.dump SandboxTest.class BenchmarkMultiply.class BenchmarkZlib.class bench.S bench_unsafe.S
 
 clean:
 	rm -f test.co bench.co *.class libbench.so sandbox_*.h *.dump bench.S bench_unsafe.S
 
-test.co: sandbox_Sandboxed.c
-	${CC} ${SANDBOX_CFLAGS} -o test.co sandbox_Sandboxed.c -DJNI_SANDBOX_CLASS=test ${SANDBOX_LDFLAGS}
+test.co: SandboxTest.c
+	${CC} ${SANDBOX_CFLAGS} -o test.co SandboxTest.c -DJNI_SANDBOX_CLASS=test ${SANDBOX_LDFLAGS}
 
 bench.co: bench.c bench_unsafe.c
 	${CC}  ${SANDBOX_CFLAGS}  -o bench.co bench.c  ${SANDBOX_LDFLAGS} -DJNI_SANDBOX_CLASS=bench -lz
@@ -44,8 +44,8 @@ test.dump: test.co
 bench.dump: bench.co
 	${SDK_ROOT}/bin/llvm-objdump -triple cheri-unknown-freebsd -d bench.co > bench.dump
 
-Sandboxed.class: Sandboxed.java
-	javac -bootclasspath ${INSTALLED_CLASSPATH} Sandboxed.java
+SandboxTest.class: SandboxTest.java
+	javac -bootclasspath ${INSTALLED_CLASSPATH} SandboxTest.java
 
 BenchmarkMultiply.class: BenchmarkMultiply.java
 	javac -bootclasspath ${INSTALLED_CLASSPATH} BenchmarkMultiply.java
@@ -54,7 +54,7 @@ BenchmarkZlib.class: BenchmarkZlib.java
 	javac -bootclasspath ${INSTALLED_CLASSPATH} BenchmarkZlib.java
 
 
-headers: Sandboxed.class BenchmarkMultiply.class BenchmarkZlib.class
-	javah -bootclasspath ${INSTALLED_CLASSPATH} Sandboxed
+headers: SandboxTest.class BenchmarkMultiply.class BenchmarkZlib.class
+	javah -bootclasspath ${INSTALLED_CLASSPATH} SandboxTest
 	javah -bootclasspath ${INSTALLED_CLASSPATH} BenchmarkMultiply
 	javah -bootclasspath ${INSTALLED_CLASSPATH} BenchmarkZlib

@@ -30,7 +30,7 @@ void print_cap(const void *c)
  * Signature: ()I
  */
 
-JNIEXPORT jint JNICALL Java_Sandboxed_nativeThing
+JNIEXPORT jint JNICALL Java_SandboxTest_nativeThing
   (JNIEnv *env, jobject this) {
 	static int counter = 42;
 	return counter++;
@@ -41,7 +41,7 @@ JNIEXPORT jint JNICALL Java_Sandboxed_nativeThing
  * Method:    nativeThingWithArgs
  * Signature: (Ljava/lang/Object;IJ)V
  */
-JNIEXPORT void JNICALL Java_Sandboxed_nativeThingWithArgs
+JNIEXPORT void JNICALL Java_SandboxTest_nativeThingWithArgs
   (JNIEnv *env, jobject this, jobject obj, jint anInt, jlong aLong)
 {
 	assert(__builtin_memcap_sealed_get(this));
@@ -52,7 +52,7 @@ JNIEXPORT void JNICALL Java_Sandboxed_nativeThingWithArgs
 	assert(0x10006 == (*env)->GetVersion(env));
 }
 
-JNIEXPORT void JNICALL Java_Sandboxed_leakArray
+JNIEXPORT void JNICALL Java_SandboxTest_leakArray
   (JNIEnv *env, jobject this, jintArray array)
 {
 	static jint *buffer;
@@ -73,7 +73,7 @@ JNIEXPORT void JNICALL Java_Sandboxed_leakArray
 	(*env)->ReleaseIntArrayElements(env, array, buffer, 0);
 }
 
-JNIEXPORT void JNICALL Java_Sandboxed_arrayaccess
+JNIEXPORT void JNICALL Java_SandboxTest_arrayaccess
   (JNIEnv *env, jobject this, jintArray array)
 {
 	jboolean isCopy;
@@ -86,7 +86,7 @@ JNIEXPORT void JNICALL Java_Sandboxed_arrayaccess
 	assert((perms & __CHERI_CAP_PERMISSION_PERMIT_LOAD_CAPABILITY__) == 0);
 }
 
-JNIEXPORT void JNICALL Java_Sandboxed_invalidarrayaccess
+JNIEXPORT void JNICALL Java_SandboxTest_invalidarrayaccess
   (JNIEnv *env, jobject this, jintArray array)
 {
 	jboolean isCopy;
@@ -96,12 +96,12 @@ JNIEXPORT void JNICALL Java_Sandboxed_invalidarrayaccess
 	buffer[10] = 12;
 }
 
-JNIEXPORT void JNICALL Java_Sandboxed_nativeTrap
+JNIEXPORT void JNICALL Java_SandboxTest_nativeTrap
   (JNIEnv *env, jobject this)
 {
 }
 
-JNIEXPORT void JNICALL Java_Sandboxed_reflectfields
+JNIEXPORT void JNICALL Java_SandboxTest_reflectfields
   (JNIEnv *env, jobject this, jobject r)
 {
 	jclass cls = (*env)->GetObjectClass(env, r);
@@ -118,7 +118,7 @@ JNIEXPORT void JNICALL Java_Sandboxed_reflectfields
 	(*env)->SetLongField(env, r, f, 47);
 }
 
-JNIEXPORT void JNICALL Java_Sandboxed_reflectabuse
+JNIEXPORT void JNICALL Java_SandboxTest_reflectabuse
   (JNIEnv *env, jobject this, jobject r)
 {
 	jclass cls = (*env)->GetObjectClass(env, r);
@@ -126,7 +126,7 @@ JNIEXPORT void JNICALL Java_Sandboxed_reflectabuse
 	(*env)->SetIntField(env, r, (jfieldID)cls, -1);
 }
 
-JNIEXPORT void JNICALL Java_Sandboxed_callbackintA
+JNIEXPORT void JNICALL Java_SandboxTest_callbackintA
   (JNIEnv *env, jobject this, jobject m)
 {
 	jclass cls = (*env)->GetObjectClass(env, m);
@@ -142,7 +142,7 @@ JNIEXPORT void JNICALL Java_Sandboxed_callbackintA
 	assert(result == 124);
 }
 
-JNIEXPORT jint JNICALL Java_Sandboxed_00024NativeState_count
+JNIEXPORT jint JNICALL Java_SandboxTest_00024NativeState_count
   (JNIEnv *env, jobject this)
 {
 	static int x=1;

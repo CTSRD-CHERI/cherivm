@@ -3,7 +3,7 @@ import java.lang.reflect.Method;
 import java.util.*;
 
 
-class Sandboxed
+class SandboxTest
 {
 	private void printTest(int num, int count, String test)
 	{
@@ -226,7 +226,7 @@ class Sandboxed
 	public static void main(String[] args)
 	{
 		System.out.println("Starting...");
-		Sandboxed s = new Sandboxed();
+		SandboxTest s = new SandboxTest();
 		s.runTests();
 	}
 };
