@@ -315,8 +315,8 @@ compile_classpath = $(vm_classes):$(top_srcdir):$(top_srcdir)/external/w3c_dom:$
 @CREATE_COLLECTIONS_TRUE@@WITH_JAR_TRUE@CREATE_COLLECTIONS_JAR = $(JAR) cf $@ $(COLLECTIONS_PREFIX)
 @INSTALL_GLIBJ_ZIP_TRUE@glibj_DATA = glibj.zip $(COLLECTIONS)
 @BUILD_CLASS_FILES_TRUE@noinst_DATA = genclasses compile-classes resources
-@USE_PREBUILT_GLIBJ_ZIP_FALSE@@WITH_JAR_FALSE@CREATE_GLIBJ_ZIP = $(ZIP) -r -D glibj.zip gnu java javax org sun META-INF > /dev/null
-@USE_PREBUILT_GLIBJ_ZIP_FALSE@@WITH_JAR_TRUE@CREATE_GLIBJ_ZIP = $(JAR) cf glibj.zip gnu java javax org sun META-INF && $(JAR) i glibj.zip
+@USE_PREBUILT_GLIBJ_ZIP_FALSE@@WITH_JAR_FALSE@CREATE_GLIBJ_ZIP = $(ZIP) -r -D glibj.zip gnu java javax org sun uk META-INF > /dev/null
+@USE_PREBUILT_GLIBJ_ZIP_FALSE@@WITH_JAR_TRUE@CREATE_GLIBJ_ZIP = $(JAR) cf glibj.zip gnu java javax org sun uk META-INF && $(JAR) i glibj.zip
 #endif
 EXTRA_DIST = standard.omit.in mkcollections.pl.in Makefile.gcj split-for-gcj.sh glibj.zip
 CLEANFILES = compile-classes resources classes \
@@ -565,6 +565,7 @@ sinclude $(JAVA_DEPEND)
 @INSTALL_CLASS_FILES_TRUE@	cp -R javax $(DESTDIR)$(pkgdatadir)
 @INSTALL_CLASS_FILES_TRUE@	cp -R org $(DESTDIR)$(pkgdatadir)
 @INSTALL_CLASS_FILES_TRUE@	cp -R sun $(DESTDIR)$(pkgdatadir)
+@INSTALL_CLASS_FILES_TRUE@	cp -R uk $(DESTDIR)$(pkgdatadir)
 @INSTALL_CLASS_FILES_TRUE@	cp -R META-INF $(DESTDIR)$(pkgdatadir)
 
 # FIXME - should mimic doc/api/Makefile.am instead...
@@ -574,6 +575,7 @@ sinclude $(JAVA_DEPEND)
 @INSTALL_CLASS_FILES_TRUE@	rm -rf $(DESTDIR)$(pkgdatadir)/javax
 @INSTALL_CLASS_FILES_TRUE@	rm -rf $(DESTDIR)$(pkgdatadir)/org
 @INSTALL_CLASS_FILES_TRUE@	rm -rf $(DESTDIR)$(pkgdatadir)/sun
+@INSTALL_CLASS_FILES_TRUE@	rm -rf $(DESTDIR)$(pkgdatadir)/uk
 @INSTALL_CLASS_FILES_TRUE@	rm -rf $(DESTDIR)$(pkgdatadir)/META-INF
 
 .PHONY: genclasses
@@ -644,16 +646,17 @@ clean-local:
 	-rm -rf org
 	-rm -rf com
 	-rm -rf sun
+	-rm -rf uk
 	-rm -rf META-INF
 	-rm -rf lists
 
 dist-hook:
 	@mkdir_p@ $(distdir)
-	cp -pdfR $(top_srcdir)/gnu $(top_srcdir)/java $(top_srcdir)/javax $(top_srcdir)/org $(top_srcdir)/sun $(top_srcdir)/vm $(top_srcdir)/resource $(distdir)/..
+	cp -pdfR $(top_srcdir)/gnu $(top_srcdir)/java $(top_srcdir)/javax $(top_srcdir)/org $(top_srcdir)/sun $(top_srcdir)/uk $(top_srcdir)/vm $(top_srcdir)/resource $(distdir)/..
 # Delete not wanted files.
-	$(FIND) $(distdir)/../gnu $(distdir)/../java $(distdir)/../javax $(distdir)/../org $(distdir)/../sun $(distdir)/../vm $(distdir)/../resource -name CVS -print | xargs rm -fr
-	$(FIND) $(distdir)/../gnu $(distdir)/../java $(distdir)/../javax $(distdir)/../org $(distdir)/../sun $(distdir)/../vm $(distdir)/../resource -name .cvsignore -print | xargs rm -f
-	$(FIND) $(distdir)/../gnu $(distdir)/../java $(distdir)/../javax $(distdir)/../org $(distdir)/../sun $(distdir)/../vm -name class-dependencies.conf -print | xargs rm -f
+	$(FIND) $(distdir)/../gnu $(distdir)/../java $(distdir)/../javax $(distdir)/../org $(distdir)/../sun $(distdir)/../uk $(distdir)/../vm $(distdir)/../resource -name CVS -print | xargs rm -fr
+	$(FIND) $(distdir)/../gnu $(distdir)/../java $(distdir)/../javax $(distdir)/../org $(distdir)/../sun $(distdir)/../uk $(distdir)/../vm $(distdir)/../resource -name .cvsignore -print | xargs rm -f
+	$(FIND) $(distdir)/../gnu $(distdir)/../java $(distdir)/../javax $(distdir)/../org $(distdir)/../sun $(distdir)/../uk $(distdir)/../vm -name class-dependencies.conf -print | xargs rm -f
 	rm -f $(distdir)/../gnu/classpath/Configuration.java
 	rm -f $(distdir)/../gnu/java/security/Configuration.java
 	rm -f $(distdir)/../gnu/java/locale/LocaleData.java

@@ -244,7 +244,7 @@ extern char *symbol_values[];
     action(_java_lang_String_I_java_lang_String_java_lang_String_Z__V, \
            "(Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;Z)V"), \
     action(_java_lang_String__java_lang_Class, "(Ljava/lang/String;)Ljava/lang/Class;"), \
-    action(___sandbox_Sandbox_Scope, "()Lsandbox/Sandbox$Scope;"), \
+    action(___uk_ac_cam_cheri_Sandbox_Scope, "()Luk/ac/cam/cheri/Sandbox$Scope;"), \
     action(___java_lang_String, "()Ljava/lang/String;") \
 
 

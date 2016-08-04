@@ -1490,11 +1490,12 @@ void *lookupLoadedSandboxes(pMethodBlock mb) {
     pObject annotations = getMethodAnnotations(mb);
     int annotation_count = ARRAY_LEN(annotations);
     if (annotation_count) {
-        char *sandbox_class_name = "sandbox/Sandbox";
+        char *sandbox_class_name = "uk/ac/cam/cheri/Sandbox";
         static pClass sandbox_class;
         if (sandbox_class == NULL) {
             sandbox_class = findClassFromClassLoader(sandbox_class_name, loader);
         }
+        assert(sandbox_class);
         pObject *annotation_data = ARRAY_DATA(annotations, pObject);
         for (int i=0 ; i<annotation_count ; i++) {
             pObject annot = annotation_data[i];
@@ -1504,7 +1505,7 @@ void *lookupLoadedSandboxes(pMethodBlock mb) {
             if (annot_cls == sandbox_class) {
                 struct jni_sandbox_method *metadata = calloc(sizeof(struct jni_sandbox_method), 1);
                 pMethodBlock class_method = findMethod(annot->class, SYMBOL(SandboxClass), SYMBOL(___java_lang_String));
-                pMethodBlock scope_method = findMethod(annot->class, SYMBOL(scope), SYMBOL(___sandbox_Sandbox_Scope));
+                pMethodBlock scope_method = findMethod(annot->class, SYMBOL(scope), SYMBOL(___uk_ac_cam_cheri_Sandbox_Scope));
                 pObject scope_enum = *(pObject*)executeMethod(annot, scope_method);
                 pMethodBlock ordinal_method = lookupMethod(scope_enum->class, SYMBOL(ordinal), SYMBOL(___I));
                 metadata->scope = *(SandboxScope*)executeMethod(scope_enum, ordinal_method);

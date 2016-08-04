@@ -48,6 +48,7 @@ install-data-local: genclasses compile-classes
 	cp -R javax $(DESTDIR)$(pkgdatadir)
 	cp -R org $(DESTDIR)$(pkgdatadir)
 	cp -R sun $(DESTDIR)$(pkgdatadir)
+	cp -R uk $(DESTDIR)$(pkgdatadir)
 	cp -R META-INF $(DESTDIR)$(pkgdatadir)
 
 # FIXME - should mimic doc/api/Makefile.am instead...
@@ -57,6 +58,7 @@ uninstall-local:
 	rm -rf $(DESTDIR)$(pkgdatadir)/javax
 	rm -rf $(DESTDIR)$(pkgdatadir)/org
 	rm -rf $(DESTDIR)$(pkgdatadir)/sun
+	rm -rf $(DESTDIR)$(pkgdatadir)/uk
 	rm -rf $(DESTDIR)$(pkgdatadir)/META-INF
 
 endif # INSTALL_CLASS_FILES
@@ -71,9 +73,9 @@ glibj.zip:
 else
 
 if WITH_JAR
-CREATE_GLIBJ_ZIP=$(JAR) cf glibj.zip gnu java javax org sun META-INF && $(JAR) i glibj.zip
+CREATE_GLIBJ_ZIP=$(JAR) cf glibj.zip gnu java javax org sun uk META-INF && $(JAR) i glibj.zip
 else
-CREATE_GLIBJ_ZIP=$(ZIP) -r -D glibj.zip gnu java javax org sun META-INF > /dev/null
+CREATE_GLIBJ_ZIP=$(ZIP) -r -D glibj.zip gnu java javax org sun uk META-INF > /dev/null
 endif
 
 glibj.zip: classes compile-classes resources
@@ -156,16 +158,17 @@ clean-local:
 	-rm -rf org
 	-rm -rf com
 	-rm -rf sun
+	-rm -rf uk
 	-rm -rf META-INF
 	-rm -rf lists
 
 dist-hook:
 	@mkdir_p@ $(distdir)
-	cp -pdfR $(top_srcdir)/gnu $(top_srcdir)/java $(top_srcdir)/javax $(top_srcdir)/org $(top_srcdir)/sun $(top_srcdir)/vm $(top_srcdir)/resource $(distdir)/..
+	cp -pdfR $(top_srcdir)/gnu $(top_srcdir)/java $(top_srcdir)/javax $(top_srcdir)/org $(top_srcdir)/sun $(distdir)/uk $(top_srcdir)/vm $(top_srcdir)/resource $(distdir)/..
 # Delete not wanted files.
-	$(FIND) $(distdir)/../gnu $(distdir)/../java $(distdir)/../javax $(distdir)/../org $(distdir)/../sun $(distdir)/../vm $(distdir)/../resource -name CVS -print | xargs rm -fr
-	$(FIND) $(distdir)/../gnu $(distdir)/../java $(distdir)/../javax $(distdir)/../org $(distdir)/../sun $(distdir)/../vm $(distdir)/../resource -name .cvsignore -print | xargs rm -f
-	$(FIND) $(distdir)/../gnu $(distdir)/../java $(distdir)/../javax $(distdir)/../org $(distdir)/../sun $(distdir)/../vm -name class-dependencies.conf -print | xargs rm -f
+	$(FIND) $(distdir)/../gnu $(distdir)/../java $(distdir)/../javax $(distdir)/../org $(distdir)/../sun $(distdir)/../uk $(distdir)/../vm $(distdir)/../resource -name CVS -print | xargs rm -fr
+	$(FIND) $(distdir)/../gnu $(distdir)/../java $(distdir)/../javax $(distdir)/../org $(distdir)/../sun $(distdir)/../uk $(distdir)/../vm $(distdir)/../resource -name .cvsignore -print | xargs rm -f
+	$(FIND) $(distdir)/../gnu $(distdir)/../java $(distdir)/../javax $(distdir)/../org $(distdir)/../sun $(distdir)/../uk $(distdir)/../vm -name class-dependencies.conf -print | xargs rm -f
 	rm -f $(distdir)/../gnu/classpath/Configuration.java
 	rm -f $(distdir)/../gnu/java/security/Configuration.java
 	rm -f $(distdir)/../gnu/java/locale/LocaleData.java
