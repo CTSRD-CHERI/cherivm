@@ -425,6 +425,7 @@ static void initGlobalSandboxState(void)
     name##_type = cheri_type_alloc();
 SEALING_TYPES(INIT_SEALING_TYPE)
     createVMThread("sandbox cleanup thread", cleanup_per_object);
+    // FIXME: Khilan, syscall check setup goes here.
 }
 
 /**
@@ -1242,6 +1243,26 @@ uintptr_t *revokeGlobalSandbox(pClass class, pMethodBlock mb, uintptr_t *ostack)
     return ostack;
 }
 
+bool syscallCheck()
+{
+    static char *nativechecks_name = "java/lang/VMSandboxedNative";
+    static pClass checks_class;
+    if (checks_class == NULL)
+    {
+        checks_class = findClassFromClassLoader(nativechecks_name, getSystemClassLoader());
+    }
+    // FIXME: Khilan, add syscall check here, invoke this if block and return
+    // something sensible for libcheri if the Java code throws an exception
+    if (exceptionOccurred())
+    {
+        cherierrno = -2;
+        ucontext_t context;
+        getcontext(&context);
+        cheri_stack_unwind(&context, -1, CHERI_STACK_UNWIND_OP_N, 2);
+        return false;
+    }
+    return true;
+}
 
 /**
  * Wrapper function that invokes the assembly function that calls a function in
@@ -1440,7 +1461,7 @@ uintptr_t *callJNISandboxWrapper(pClass class, pMethodBlock mb, uintptr_t *ostac
             pthread_mutex_unlock(&metadata->sandbox->pool_lock);
             break;
     }
-    if (cherierrno != 0) {
+    if (cherierrno == -1) {
         const char *msg = cherierrno == -1 ? "Invalid JNI API use" :
             sys_siglist[cherierrno];
         signalException(java_lang_NullPointerException, (char*)msg);
