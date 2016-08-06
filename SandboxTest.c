@@ -52,6 +52,28 @@ JNIEXPORT void JNICALL Java_SandboxTest_nativeThingWithArgs
 	assert(0x10006 == (*env)->GetVersion(env));
 }
 
+JNIEXPORT void JNICALL Java_SandboxTest_checkBuffer
+  (JNIEnv *env, jobject this, jobject b, jboolean ro)
+{
+	assert(b);
+	jsize capacity = (*env)->GetDirectBufferCapacity(env, b);
+	char *buf = (*env)->GetDirectBufferAddress(env, b);
+	assert(buf);
+	assert(__builtin_memcap_length_get(buf) == capacity);
+	long long perms = __builtin_memcap_perms_get(buf);
+	assert((perms & __CHERI_CAP_PERMISSION_PERMIT_STORE_CAPABILITY__) == 0);
+	assert((perms & __CHERI_CAP_PERMISSION_PERMIT_LOAD_CAPABILITY__) == 0);
+	_Bool isReadOnly = (perms & __CHERI_CAP_PERMISSION_PERMIT_STORE__) == __CHERI_CAP_PERMISSION_PERMIT_STORE__;
+	if (!ro)
+	{
+		for (int i=0 ; i<capacity ; i++)
+		{
+			buf[i] = i;
+		}
+	}
+	assert(isReadOnly == ro);
+}
+
 JNIEXPORT void JNICALL Java_SandboxTest_leakArray
   (JNIEnv *env, jobject this, jintArray array)
 {

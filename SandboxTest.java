@@ -2,6 +2,7 @@ import uk.ac.cam.cheri.*;
 import java.lang.reflect.Method;
 import java.util.*;
 import java.security.*;
+import java.nio.*;
 
 
 class SandboxTest
@@ -215,6 +216,33 @@ class SandboxTest
 			return x;
 		}
 	};
+
+	@Sandbox(scope=Sandbox.Scope.Method,SandboxClass="test")
+	native void checkBuffer(ByteBuffer b, boolean readOnly);
+	boolean testBuffer()
+	{
+		ByteBuffer b = ByteBuffer.allocateDirect(64);
+		ByteBuffer ro = b.asReadOnlyBuffer();
+		try
+		{
+			checkBuffer(b, false);
+			for (int i=0 ; i<64 ; i++)
+			{
+				if (b.get(i) != i)
+				{
+					return false;
+				}
+			}
+			b.rewind();
+			checkBuffer(ro, true);
+		}
+		catch (Exception e)
+		{
+			return false;
+		}
+		return true;
+	}
+
 	@Sandbox(scope=Sandbox.Scope.Method,SandboxClass="test")
 	native void callbackintA(MethodTest r);
 	boolean testCallback()
