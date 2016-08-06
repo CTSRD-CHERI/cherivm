@@ -82,6 +82,7 @@ extern char *symbol_values[];
     action(scope, "scope"), \
     action(ordinal, "ordinal"), \
     action(SandboxClass, "SandboxClass"), \
+    action(isReadOnly, "isReadOnly"), \
     \
     /* Constant pool attribute names */\
     action(Code, "Code"), \

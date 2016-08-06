@@ -417,6 +417,15 @@ static void cleanup_per_object(Thread *unused)
 
 
 /**
+ * Class for java.nio.Buffer.
+ */
+static pClass bufferClass;
+/**
+ * Method block for java.nio.buffer::isReadOnly.
+ */
+int isReadOnlyMethodIdx;
+
+/**
  * Function called by `pthread_once` to set up global state.
  */
 static void initGlobalSandboxState(void)
@@ -425,6 +434,9 @@ static void initGlobalSandboxState(void)
     name##_type = cheri_type_alloc();
 SEALING_TYPES(INIT_SEALING_TYPE)
     createVMThread("sandbox cleanup thread", cleanup_per_object);
+    bufferClass = findClassFromClassLoader("java/nio/Buffer", getSystemClassLoader());
+    assert(bufferClass);
+    isReadOnlyMethodIdx = lookupMethod(bufferClass, SYMBOL(isReadOnly), SYMBOL(___Z))->method_table_index;
     // FIXME: Khilan, syscall check setup goes here.
 }
 
@@ -812,11 +824,28 @@ ALL_PRIMITIVE_TYPES(FIELD_ACCESSOR)
 ALL_PRIMITIVE_TYPES(FIELD_SETTER)
 ALL_PRIMITIVE_TYPES(CALL_METHOD_A)
 
+/**
+ * Helper function that returns true if `obj` is something that can be cast to
+ * an instance of `cls`, false otherwise.
+ */
+static inline bool isKindOfClass(pObject obj, pClass cls)
+{
+    for (pClass objCls = obj->class ; objCls != NULL ; objCls = CLASS_CB(objCls)->super)
+    {
+        if (objCls == cls)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 SJNI_CALLBACK __capability void*
 sjni_GetDirectBufferAddress(JNIEnvType ptr, jobject_c buf)
 {
     jobject buffer = unseal_object(buf);
     REQUIRE(buffer, NULL);
+    REQUIRE(isKindOfClass(buffer, bufferClass), NULL);
     size_t length = env->GetDirectBufferCapacity(&env, buffer);
     void *raw_buffer = env->GetDirectBufferAddress(&env, buffer);
     if (raw_buffer)
@@ -826,6 +855,15 @@ sjni_GetDirectBufferAddress(JNIEnvType ptr, jobject_c buf)
         // it from being collected until the last reference to the buffer has
         // gone away.
         insert_unsealed_cap(ptr, buffer, raw_buffer, length);
+        int perms = ~__CHERI_CAP_PERMISSION_PERMIT_STORE_CAPABILITY__ &
+            ~__CHERI_CAP_PERMISSION_PERMIT_LOAD_CAPABILITY__;
+        // If this is a read-only buffer, don't allow write access
+        pObject obj = REF_TO_OBJ(buffer);
+        pMethodBlock mb = CLASS_CB(obj->class)->method_table[isReadOnlyMethodIdx];
+        if (*(jboolean*)executeMethod(obj, mb))
+        {
+            perms &= ~__CHERI_CAP_PERMISSION_PERMIT_STORE__;
+        }
         cap = __builtin_memcap_bounds_set(cap, length);
         cap = __builtin_memcap_perms_and(cap,
                 ~__CHERI_CAP_PERMISSION_PERMIT_STORE_CAPABILITY__ &
@@ -839,6 +877,7 @@ SJNI_CALLBACK jlong sjni_GetDirectBufferCapacity(JNIEnvType ptr, jobject_c buf)
 {
     jobject buffer = unseal_object(buf);
     REQUIRE(buffer, -1);
+    REQUIRE(isKindOfClass(buffer, bufferClass), -1);
     return env->GetDirectBufferCapacity(&env, buffer);
 }
 
