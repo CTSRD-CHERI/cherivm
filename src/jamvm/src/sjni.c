@@ -334,6 +334,20 @@ struct jni_sandbox_method {
     x(jnienv,SJNIEnvPtr)
 
 /**
+ * Macro for declaring and defining things that happen for all array types.
+ */
+#define ALL_PRIMITIVE_TYPES(x) \
+    x(Boolean, jboolean, "Z")  \
+    x(Byte, jbyte, "B")        \
+    x(Char, jchar, "C")        \
+    x(Short, jshort, "S")      \
+    x(Int, jint, "I")          \
+    x(Long, jlong, "J")        \
+    x(Float, jfloat, "F")      \
+    x(Double, jdouble, "D")
+
+
+/**
  * Macro for declaring each of the capability type variables.
  */
 #define DECLARE_SEALING_TYPE(name, ignored) \
@@ -424,6 +438,9 @@ static pClass bufferClass;
  * Method block for java.nio.buffer::isReadOnly.
  */
 int isReadOnlyMethodIdx;
+#define DECLARE_ARRAY_CLASS(type, ctype, x) \
+    pClass type##ArrayClass;
+ALL_PRIMITIVE_TYPES(DECLARE_ARRAY_CLASS)
 
 /**
  * Function called by `pthread_once` to set up global state.
@@ -437,6 +454,10 @@ SEALING_TYPES(INIT_SEALING_TYPE)
     bufferClass = findClassFromClassLoader("java/nio/Buffer", getSystemClassLoader());
     assert(bufferClass);
     isReadOnlyMethodIdx = lookupMethod(bufferClass, SYMBOL(isReadOnly), SYMBOL(___Z))->method_table_index;
+#define GET_ARRAY_CLASS(type, ctype, x) \
+    type##ArrayClass = findArrayClass("[" x); \
+    assert(type##ArrayClass);
+ALL_PRIMITIVE_TYPES(GET_ARRAY_CLASS)
     // FIXME: Khilan, syscall check setup goes here.
 }
 
@@ -510,6 +531,26 @@ static void jni_error(void)
         jni_error();\
         return ret;\
     }
+
+/**
+ * Helper function that returns true if `obj` is something that can be cast to
+ * an instance of `cls`, false otherwise.
+ */
+static inline bool isKindOfClass(pObject obj, pClass cls)
+{
+    assert(obj);
+    assert(obj->class);
+    assert(cls);
+    for (pClass objCls = obj->class ; objCls != NULL ; objCls = CLASS_CB(objCls)->super)
+    {
+        if (objCls == cls)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 
 /**
  * Macros used with `SEALING_TYPES` to generate a pair of functions for sealing
@@ -612,13 +653,14 @@ SJNI_CALLBACK jint sjni_GetVersion(JNIEnvType ptr)
   return env->GetVersion(&env);
 }
 
-#define GET_PRIM_ARRAY_ELEMENTS(type, native_type)                           \
+#define GET_PRIM_ARRAY_ELEMENTS(type, native_type, x)                        \
 SJNI_CALLBACK                                                                \
 __capability native_type *sjni_Get##type##ArrayElements(JNIEnvType ptr,      \
                                           __capability void *array_cap,      \
                                           __capability jboolean *isCopy) {   \
     void *array_ref = unseal_object(array_cap);                              \
     REQUIRE(array_ref, NULL);                                                \
+    REQUIRE(isKindOfClass(array_ref, type##ArrayClass), NULL);               \
     jboolean isCopyLocal;                                                    \
     __capability native_type *buffer = (__capability native_type *)          \
         env->Get##type##ArrayElements(&env,                                  \
@@ -634,12 +676,13 @@ __capability native_type *sjni_Get##type##ArrayElements(JNIEnvType ptr,      \
     return buffer;                                                           \
 }
 
-#define RELEASE_PRIM_ARRAY_ELEMENTS(type, native_type)                       \
+#define RELEASE_PRIM_ARRAY_ELEMENTS(type, native_type, x)                    \
 SJNI_CALLBACK                                                                \
 void sjni_Release##type##ArrayElements(JNIEnvType ptr, native_type##Array_c  \
         array_cap, __capability native_type *elems, jint mode) {             \
     void *array_ref = unseal_object(array_cap);                              \
     REQUIRE(array_ref, );                                                    \
+    REQUIRE(isKindOfClass(array_ref, type##ArrayClass), );                   \
     struct shared_unsealed_cap search;                                       \
     struct jni_sandbox_object *pool =                                        \
        (void*)unseal_jnienv((*ptr)->reserved1);                              \
@@ -662,11 +705,12 @@ SJNI_CALLBACK  jobject_c sjni_GetObjectField(JNIEnvType ptr, jobject_c obj, jfie
 {
     jobject object = unseal_object(obj);
     REQUIRE(object, NULL);
-    jfieldID f = unseal_fieldID(fieldID);
+    pFieldBlock f = unseal_fieldID(fieldID);
     REQUIRE(f, NULL);
     jobject field = env->GetObjectField(&env, object, f);
     REQUIRE(field, NULL);
     jobject_c fieldObject = seal_object(field);
+    REQUIRE(isKindOfClass(object, f->class), 0);
     struct jni_sandbox_object *pool =
        (void*)unseal_jnienv((*ptr)->reserved1);
     insert_object_reference(pool, fieldObject, true);
@@ -678,49 +722,36 @@ SJNI_CALLBACK  void sjni_SetObjectField(JNIEnvType ptr, jobject_c obj,
 {
     jobject object = unseal_object(obj);
     REQUIRE(object, );
-    jfieldID f = unseal_fieldID(fieldID);
+    pFieldBlock f = unseal_fieldID(fieldID);
     REQUIRE(f, );
     jobject value = unseal_object(val);
     REQUIRE(object, );
+    REQUIRE(isKindOfClass(object, f->class), );
     env->SetObjectField(&env, object, f, value);
 }
 
-#define FIELD_ACCESSOR(type, native_type) \
-SJNI_CALLBACK  native_type sjni_Get##type##Field(JNIEnvType ptr,              \
+#define FIELD_ACCESSOR(type, native_type, x)                                   \
+SJNI_CALLBACK  native_type sjni_Get##type##Field(JNIEnvType ptr,               \
         jobject_c obj, jfieldID_c fieldID)                                     \
 {                                                                              \
     jobject object = unseal_object(obj);                                       \
-    if (object == NULL)                                                        \
-    {                                                                          \
-        jni_error();                                                           \
-        return 0;                                                              \
-    }                                                                          \
-    jfieldID f = unseal_fieldID(fieldID);                                      \
-    if (f == NULL)                                                             \
-    {                                                                          \
-        jni_error();                                                           \
-        return 0;                                                              \
-    }                                                                          \
-    return env->Get##type##Field(&env, unseal_object(obj), f);                  \
+    REQUIRE(object, 0);                                                        \
+    pFieldBlock f = unseal_fieldID(fieldID);                                   \
+    REQUIRE(f, 0);                                                             \
+    REQUIRE(isKindOfClass(object, f->class), 0);                               \
+    return env->Get##type##Field(&env, unseal_object(obj), f);                 \
 }
 
-#define FIELD_SETTER(type, native_type) \
-SJNI_CALLBACK  void  sjni_Set##type##Field(JNIEnvType ptr,                    \
+#define FIELD_SETTER(type, native_type, x)                                     \
+SJNI_CALLBACK  void  sjni_Set##type##Field(JNIEnvType ptr,                     \
         jobject_c obj, jfieldID_c fieldID, native_type val)                    \
 {                                                                              \
     jobject object = unseal_object(obj);                                       \
-    if (object == NULL)                                                        \
-    {                                                                          \
-        jni_error();                                                           \
-        return;                                                                \
-    }                                                                          \
-    jfieldID f = unseal_fieldID(fieldID);                                      \
-    if (f == NULL)                                                             \
-    {                                                                          \
-        jni_error();                                                           \
-        return;                                                                \
-    }                                                                          \
-    env->Set##type##Field(&env, unseal_object(obj), f, val);                    \
+    REQUIRE(object, );                                                         \
+    pFieldBlock f = unseal_fieldID(fieldID);                                   \
+    REQUIRE(f, );                                                              \
+    REQUIRE(isKindOfClass(object, f->class), );                                \
+    env->Set##type##Field(&env, unseal_object(obj), f, val);                   \
 }
 
 /**
@@ -746,9 +777,9 @@ static void unwrapArguments(__capability jvalue_c *capargs, jvalue *args, int ar
 }
 
 // FIXME: zero-argument methods
-#define CALL_METHOD_A(type, native_type)                                       \
+#define CALL_METHOD_A(type, native_type, x)                                    \
 SJNI_CALLBACK                                                                  \
-native_type sjni_Call##type##MethodA(JNIEnvType ptr,                          \
+native_type sjni_Call##type##MethodA(JNIEnvType ptr,                           \
                                      jobject_c objcap,                         \
                                      jmethodID_c method,                       \
                                      __capability jvalue_c *capargs)           \
@@ -808,37 +839,11 @@ jobject_c sjni_NewObjectA(JNIEnvType ptr,
     return seal_object(obj);
 }
 
-#define ALL_PRIMITIVE_TYPES(x) \
-    x(Boolean, jboolean)  \
-    x(Byte, jbyte)        \
-    x(Char, jchar)        \
-    x(Short, jshort)      \
-    x(Int, jint)          \
-    x(Long, jlong)        \
-    x(Float, jfloat)      \
-    x(Double, jdouble)
-
 ALL_PRIMITIVE_TYPES(GET_PRIM_ARRAY_ELEMENTS)
 ALL_PRIMITIVE_TYPES(RELEASE_PRIM_ARRAY_ELEMENTS)
 ALL_PRIMITIVE_TYPES(FIELD_ACCESSOR)
 ALL_PRIMITIVE_TYPES(FIELD_SETTER)
 ALL_PRIMITIVE_TYPES(CALL_METHOD_A)
-
-/**
- * Helper function that returns true if `obj` is something that can be cast to
- * an instance of `cls`, false otherwise.
- */
-static inline bool isKindOfClass(pObject obj, pClass cls)
-{
-    for (pClass objCls = obj->class ; objCls != NULL ; objCls = CLASS_CB(objCls)->super)
-    {
-        if (objCls == cls)
-        {
-            return true;
-        }
-    }
-    return false;
-}
 
 SJNI_CALLBACK __capability void*
 sjni_GetDirectBufferAddress(JNIEnvType ptr, jobject_c buf)
@@ -991,11 +996,11 @@ createSandboxCallbacks(struct jni_sandbox_object *pool)
 #define SET_CALLBACK(x) \
     callbacks->x = __builtin_memcap_callback_create("_cheri_system_object", system, sjni_ ## x)
     SET_CALLBACK(GetVersion);
-#define ADD_ARRAY_ACCESSOR(type, ctype) SET_CALLBACK(Get##type##ArrayElements);
-#define ADD_ARRAY_RELEASE(type, ctype) SET_CALLBACK(Release##type##ArrayElements);
-#define ADD_FIELD_ACCESSOR(type, ctype) SET_CALLBACK(Get##type##Field);
-#define ADD_FIELD_SETTER(type, ctype) SET_CALLBACK(Set##type##Field);
-#define ADD_CALL_METHOD_A(type, ctype) SET_CALLBACK(Call##type##MethodA);
+#define ADD_ARRAY_ACCESSOR(type, ctype, x) SET_CALLBACK(Get##type##ArrayElements);
+#define ADD_ARRAY_RELEASE(type, ctype, x) SET_CALLBACK(Release##type##ArrayElements);
+#define ADD_FIELD_ACCESSOR(type, ctype, x) SET_CALLBACK(Get##type##Field);
+#define ADD_FIELD_SETTER(type, ctype, x) SET_CALLBACK(Set##type##Field);
+#define ADD_CALL_METHOD_A(type, ctype, x) SET_CALLBACK(Call##type##MethodA);
     ALL_PRIMITIVE_TYPES(ADD_ARRAY_ACCESSOR);
     ALL_PRIMITIVE_TYPES(ADD_ARRAY_RELEASE);
     SET_CALLBACK(GetObjectField);
