@@ -223,23 +223,20 @@ class SandboxTest
 	{
 		ByteBuffer b = ByteBuffer.allocateDirect(64);
 		ByteBuffer ro = b.asReadOnlyBuffer();
-		try
+		checkBuffer(b, false);
+		for (int i=0 ; i<64 ; i++)
 		{
-			checkBuffer(b, false);
-			for (int i=0 ; i<64 ; i++)
+			if (b.get(i) != i)
 			{
-				if (b.get(i) != i)
-				{
-					return false;
-				}
+				return false;
 			}
-			b.rewind();
-			checkBuffer(ro, true);
 		}
-		catch (Exception e)
+		ro.rewind();
+		if (!ro.isReadOnly())
 		{
 			return false;
 		}
+		checkBuffer(ro, true);
 		return true;
 	}
 
