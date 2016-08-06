@@ -865,9 +865,7 @@ sjni_GetDirectBufferAddress(JNIEnvType ptr, jobject_c buf)
             perms &= ~__CHERI_CAP_PERMISSION_PERMIT_STORE__;
         }
         cap = __builtin_memcap_bounds_set(cap, length);
-        cap = __builtin_memcap_perms_and(cap,
-                ~__CHERI_CAP_PERMISSION_PERMIT_STORE_CAPABILITY__ &
-                ~__CHERI_CAP_PERMISSION_PERMIT_LOAD_CAPABILITY__);
+        cap = __builtin_memcap_perms_and(cap, perms);
         return cap;
     }
     return NULL;
