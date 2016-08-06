@@ -186,6 +186,7 @@ uintptr_t *endSampling(pClass class, pMethodBlock mb, uintptr_t *ostack) {
     statcounters_fmt_flag_t flg = (ftell(f) == 0) ? CSV_HEADER : CSV_NOHEADER;
     statcounters_dump(&diff, f, flg);
     statcounters_zero(&start);
+    fclose(f);
     return ostack;
 }
 
