@@ -442,6 +442,14 @@ static pClass bufferClass;
  * Method block for java.nio.buffer::isReadOnly.
  */
 int isReadOnlyMethodIdx;
+/**
+ * The class that's used to perform the `SecurityManager` checks.
+ */
+static pClass checks_class;
+/**
+ * The method for checking the generic syscall permission.
+ */
+static pMethodBlock syscall_check_method;
 #define DECLARE_ARRAY_CLASS(type, ctype, x) \
     pClass type##ArrayClass;
 ALL_PRIMITIVE_TYPES(DECLARE_ARRAY_CLASS)
@@ -464,7 +472,12 @@ SEALING_TYPES(INIT_SEALING_TYPE)
     type##ArrayClass = findArrayClass("[" x); \
     assert(type##ArrayClass);
 ALL_PRIMITIVE_TYPES(GET_ARRAY_CLASS)
-    // FIXME: Khilan, syscall check setup goes here.
+    static char *nativechecks_name = "java/lang/VMSandboxedNative";
+    checks_class = findClassFromClassLoader(nativechecks_name, getSystemClassLoader());
+    assert(checks_class);
+    syscall_check_method = findMethod(checks_class, SYMBOL(checkSyscalls), SYMBOL(___V));
+    assert(syscall_check_method);
+    // Set the system call checking functions.
     syscall_checks[SYS_getpid] = syscallCheck;
 }
 
@@ -1294,14 +1307,7 @@ uintptr_t *revokeGlobalSandbox(pClass class, pMethodBlock mb, uintptr_t *ostack)
 
 int syscallCheck(int *retp, __capability int *stub_errno)
 {
-    static char *nativechecks_name = "java/lang/VMSandboxedNative";
-    static pClass checks_class;
-    if (checks_class == NULL)
-    {
-        checks_class = findClassFromClassLoader(nativechecks_name, getSystemClassLoader());
-    }
-    pMethodBlock check_method = findMethod(checks_class, SYMBOL(checkSyscalls), SYMBOL(___V));
-    executeMethod(checks_class, check_method);
+    executeMethod(checks_class, syscall_check_method);
     if (exceptionOccurred())
     {
         //fprintf(stderr, "exception occurred\n");
