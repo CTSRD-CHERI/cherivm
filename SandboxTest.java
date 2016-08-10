@@ -301,6 +301,7 @@ class SandboxTest
 			Permission reset = new RuntimePermission("syscall");
 			System.setSecurityManager(new SingleDenySecurityManager(reset));
 			System.out.println("pid: " + syscallGetPid());
+			return false;
 		}
 		catch (SecurityException e)
 		{
@@ -310,8 +311,11 @@ class SandboxTest
 		finally
 		{
 			System.setSecurityManager(null);
+			// Check that we *can* do system calls if we have no security manager
+			// installed
+			syscallGetPid();
+			return true;
 		}
-		return false;
 	}
 
 	public static void main(String[] args)
