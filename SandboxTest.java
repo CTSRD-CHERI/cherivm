@@ -291,6 +291,29 @@ class SandboxTest
 		}
 		return true;
 	}
+
+	@Sandbox(scope=Sandbox.Scope.Method,SandboxClass="test")
+	native int syscallGetPid();
+	boolean testSyscallGetPid()
+	{
+		try
+		{
+			Permission reset = new RuntimePermission("syscall");
+			System.setSecurityManager(new SingleDenySecurityManager(reset));
+			System.out.println("pid: " + syscallGetPid());
+		}
+		catch (SecurityException e)
+		{
+			System.out.println(e);
+			return true;
+		}
+		finally
+		{
+			System.setSecurityManager(null);
+		}
+		return false;
+	}
+
 	public static void main(String[] args)
 	{
 		System.out.println("Starting...");

@@ -2,6 +2,8 @@
 #include <jni.h>
 #include <cheri/cheri.h>
 #include <stdio.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 struct cheri_object test;
 
@@ -178,3 +180,11 @@ int invoke(void)
 	return (-1);
 }
 
+JNIEXPORT jint JNICALL Java_SandboxTest_syscallGetPid
+  (JNIEnv *env, jobject this)
+{
+	//printf("Running getpid()... ");
+	jint pid = getpid();
+	//printf("%d returned\n", pid);
+	return pid;
+}
