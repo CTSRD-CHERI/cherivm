@@ -304,7 +304,7 @@ class SandboxTest
 		}
 		catch (SecurityException e)
 		{
-			System.out.println(e);
+			//System.out.println(e);
 			return true;
 		}
 		finally
