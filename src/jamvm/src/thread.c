@@ -972,6 +972,16 @@ static void suspendHandler(int sig) {
 void disableSuspend0(Thread *thread, void *stack_top) {
     sigset_t mask;
 
+    // FIXME: On CHERI, when we are in a context where we've been invoked from
+    // a sandbox via a ccall, our stack is non-contiguous.  We shouldn't stay
+    // here for very long, so for now just don't actually suspend when we're on
+    // a stack that looks non-contiguous.  The short-term fix is to make the
+    // returns come back to the same stack.  The longer-term fix is to teach
+    // jamvm about non-contiguous stacks.
+    if ((size_t)thread->stack_base - (size_t)stack_top > (8*1024*1024))
+    {
+        return;
+    }
     thread->stack_top = stack_top;
     thread->blocking = SUSP_BLOCKING;
     MBARRIER();

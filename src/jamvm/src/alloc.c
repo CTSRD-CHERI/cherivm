@@ -26,6 +26,7 @@
 #include <sys/mman.h>
 #include <errno.h>
 #include <limits.h>
+#include <assert.h>
 
 #include "jam.h"
 #include "alloc.h"
@@ -1711,6 +1712,7 @@ void asyncGCThreadLoop(Thread *self) {
 #define PROCESS_OBJECT_LIST(list, method_idx, verbose_message, self,          \
                             stack_top)                                        \
 {                                                                             \
+    assert((size_t)self->stack_base - (size_t)stack_top < (8*1024*1024));     \
     disableSuspend0(self, stack_top);                                         \
     lockVMWaitLock(list##_lock, self);                                        \
                                                                               \
