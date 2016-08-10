@@ -9,12 +9,16 @@
 #include <unistd.h>
 #include <machine/cheri.h>
 #include <machine/cheric.h>
+#include <machine/cpuregs.h>
+#include <machine/regnum.h>
+#include <machine/sysarch.h>
 #include <cheri/sandbox.h>
 #include <cheri/cheri_type.h>
 #include <cheri/cheri_system.h>
 #include <ucontext.h>
 #include <cheri/cheri_stack.h>
 #include <sys/mman.h>
+#include <sys/syscall.h>
 #include <sys/tree.h>
 
 
@@ -442,6 +446,8 @@ int isReadOnlyMethodIdx;
     pClass type##ArrayClass;
 ALL_PRIMITIVE_TYPES(DECLARE_ARRAY_CLASS)
 
+static int syscallCheck(int *retp, __capability int *stub_errno);
+
 /**
  * Function called by `pthread_once` to set up global state.
  */
@@ -459,6 +465,7 @@ SEALING_TYPES(INIT_SEALING_TYPE)
     assert(type##ArrayClass);
 ALL_PRIMITIVE_TYPES(GET_ARRAY_CLASS)
     // FIXME: Khilan, syscall check setup goes here.
+    syscall_checks[SYS_getpid] = syscallCheck;
 }
 
 /**
@@ -1285,7 +1292,7 @@ uintptr_t *revokeGlobalSandbox(pClass class, pMethodBlock mb, uintptr_t *ostack)
     return ostack;
 }
 
-bool syscallCheck()
+int syscallCheck(int *retp, __capability int *stub_errno)
 {
     static char *nativechecks_name = "java/lang/VMSandboxedNative";
     static pClass checks_class;
@@ -1295,15 +1302,19 @@ bool syscallCheck()
     }
     // FIXME: Khilan, add syscall check here, invoke this if block and return
     // something sensible for libcheri if the Java code throws an exception
+    pMethodBlock check_method = findMethod(checks_class, SYMBOL(checkSyscalls), SYMBOL(___V));
+    executeMethod(checks_class, check_method);
     if (exceptionOccurred())
     {
+        //fprintf(stderr, "exception occurred\n");
         cherierrno = -2;
-        ucontext_t context;
-        getcontext(&context);
-        cheri_stack_unwind(&context, -1, CHERI_STACK_UNWIND_OP_N, 2);
-        return false;
+        struct cheri_stack cs;
+        sysarch(CHERI_GET_STACK, &cs);
+        cs.cs_tsp += CHERI_FRAME_SIZE;
+        sysarch(CHERI_SET_STACK, &cs);
+        return -2;
     }
-    return true;
+    return 0;
 }
 
 /**

@@ -83,6 +83,7 @@ extern char *symbol_values[];
     action(ordinal, "ordinal"), \
     action(SandboxClass, "SandboxClass"), \
     action(isReadOnly, "isReadOnly"), \
+    action(checkSyscalls, "checkSyscalls"), \
     \
     /* Constant pool attribute names */\
     action(Code, "Code"), \
