@@ -3,6 +3,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <zlib.h>
+#include <sys/types.h>
+#include <unistd.h>
+
 
 #ifdef __CHERI_PURE_CAPABILITY__
 void print_cap(const void *c)
@@ -213,4 +216,19 @@ JNIEXPORT void JNICALL Java_BenchmarkNop_nopCheriMethod
 (JNIEnv *env, jobject this) {}
 #endif
 
+JNIEXPORT jint JNICALL
+#ifdef __CHERI_PURE_CAPABILITY__
+Java_BenchmarkSyscall_getPid
+#else
+Java_BenchmarkSyscall_getPidUnsafe
+#endif
+(JNIEnv *env, jclass cls)
+{
+	pid_t p;
+	for (int i=0 ; i<1000 ; i++)
+	{
+		p = getpid();
+	}
+	return p;
+}
 

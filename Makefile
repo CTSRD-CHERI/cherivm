@@ -11,7 +11,7 @@ SANDBOX_CFLAGS=${CFLAGS} -cheri-linker -mabi=sandbox
 CC=${SDK_ROOT}/bin/clang
 
 
-all: test.co bench.co libbench.so test.dump bench.dump SandboxTest.class BenchmarkMultiply.class BenchmarkZlib.class BenchmarkNop.class bench.S bench_unsafe.S
+all: test.co bench.co libbench.so test.dump bench.dump SandboxTest.class BenchmarkMultiply.class BenchmarkZlib.class BenchmarkNop.class BenchmarkSyscall.class bench.S bench_unsafe.S
 
 clean:
 	rm -f test.co bench.co *.class libbench.so sandbox_*.h *.dump bench.S bench_unsafe.S
@@ -50,6 +50,9 @@ SandboxTest.class: SandboxTest.java
 BenchmarkMultiply.class: BenchmarkMultiply.java
 	javac -bootclasspath ${INSTALLED_CLASSPATH} BenchmarkMultiply.java
 
+BenchmarkSyscall.class: BenchmarkSyscall.java
+	javac -bootclasspath ${INSTALLED_CLASSPATH} BenchmarkSyscall.java
+
 BenchmarkZlib.class: BenchmarkZlib.java
 	javac -bootclasspath ${INSTALLED_CLASSPATH} BenchmarkZlib.java
 
@@ -61,3 +64,4 @@ headers: SandboxTest.class BenchmarkMultiply.class BenchmarkZlib.class Benchmark
 	javah -bootclasspath ${INSTALLED_CLASSPATH} BenchmarkMultiply
 	javah -bootclasspath ${INSTALLED_CLASSPATH} BenchmarkZlib
 	javah -bootclasspath ${INSTALLED_CLASSPATH} BenchmarkNop
+	javah -bootclasspath ${INSTALLED_CLASSPATH} BenchmarkSyscall
