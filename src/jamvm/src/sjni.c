@@ -1300,8 +1300,6 @@ int syscallCheck(int *retp, __capability int *stub_errno)
     {
         checks_class = findClassFromClassLoader(nativechecks_name, getSystemClassLoader());
     }
-    // FIXME: Khilan, add syscall check here, invoke this if block and return
-    // something sensible for libcheri if the Java code throws an exception
     pMethodBlock check_method = findMethod(checks_class, SYMBOL(checkSyscalls), SYMBOL(___V));
     executeMethod(checks_class, check_method);
     if (exceptionOccurred())
