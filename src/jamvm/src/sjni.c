@@ -435,6 +435,36 @@ static void cleanup_per_object(Thread *unused)
 
 
 /**
+ * Helper function, pops the return frame from the trusted stack.
+ *
+ * This walks up the trusted stack until it finds a frame that points back into
+ * the JVM, so that we can be sure of unwinding all of the way.
+ */
+static void pop_trusted_stack(void)
+{
+    // FIXME: Move this into libcheri (with suitable error return instead of
+    // asserts)
+    __capability void *pcc = __builtin_memcap_program_counter_get();
+    size_t base = __builtin_memcap_base_get(pcc);
+    size_t length = __builtin_memcap_length_get(pcc);
+    struct cheri_stack cs;
+    sysarch(CHERI_GET_STACK, &cs);
+    assert(cs.cs_tsp > (2 * CHERI_FRAME_SIZE));
+    int frames = cs.cs_tsp / CHERI_FRAME_SIZE;
+    for (frames-- ; frames > 0 ; frames--)
+    {
+        struct cheri_stack_frame *frame = &cs.cs_frames[CHERI_STACK_DEPTH-frames];
+        if ((__builtin_memcap_base_get(frame->csf_pcc) == base) &&
+            (__builtin_memcap_length_get(frame->csf_pcc) == length))
+        {
+            break;
+        }
+    }
+    assert(frames > 0);
+    cs.cs_tsp = (CHERI_STACK_DEPTH-frames) * CHERI_FRAME_SIZE;
+    sysarch(CHERI_SET_STACK, &cs);
+}
+/**
  * Class for java.nio.Buffer.
  */
 static pClass bufferClass;
@@ -536,9 +566,7 @@ __attribute__((cold))
 static void jni_error(void)
 {
     cherierrno = -1;
-    ucontext_t context;
-    getcontext(&context);
-    cheri_stack_unwind(&context, -1, CHERI_STACK_UNWIND_OP_N, 2);
+    pop_trusted_stack();
 }
 
 /**
@@ -1312,10 +1340,7 @@ int syscallCheck(int *retp, __capability int *stub_errno)
     {
         //fprintf(stderr, "exception occurred\n");
         cherierrno = -2;
-        struct cheri_stack cs;
-        sysarch(CHERI_GET_STACK, &cs);
-        cs.cs_tsp += CHERI_FRAME_SIZE;
-        sysarch(CHERI_SET_STACK, &cs);
+        pop_trusted_stack();
         return -2;
     }
     return 0;
