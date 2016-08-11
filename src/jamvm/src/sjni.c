@@ -503,13 +503,118 @@ static pMethodBlock syscall_readwritefd_check_method;
 pClass string_class;
 ALL_PRIMITIVE_TYPES(DECLARE_ARRAY_CLASS)
 
-static int syscallPermCheck(int *retp, __capability int *stub_errno);
-static int syscallOpenCheck(int *retp, __capability int *stub_errno, __capability const char *path, int oflags, int mode);
-static int syscallReadFDCheck(int *retp, __capability int *stub_errno);
-static int syscallWriteFDCheck(int *retp, __capability int *stub_errno);
-static int syscallReadWriteFDCheck(int *retp, __capability int *stub_errno);
-
 int __sys_open(const char *path, int oflags, int mode);
+
+/**
+ * Function to call into the java checker class to check the general syscall
+ * permission.
+ */
+static int syscallPermCheck(int *retp, __capability int *stub_errno)
+{
+    executeMethod(checks_class, syscall_perm_check_method);
+    if (exceptionOccurred())
+    {
+        //fprintf(stderr, "exception occurred\n");
+        cherierrno = -2;
+        pop_trusted_stack();
+        return -2;
+    }
+    return 0;
+}
+
+/**
+ * Function to call into the java checker class to check the open() syscall.
+ */
+static int syscallOpenCheck(int *retp, __capability int *stub_errno, __capability const char *path, int oflags, int mode)
+{
+    //printf("syscallOpenCheck...\n");
+    jvalue args[2];
+    char *path_copy;
+    size_t path_len;
+        
+    if (cheri_getoffset(path) > cheri_getlen(path)) {
+        *retp = -1;
+        *stub_errno = ENOMEM;
+        return -1;
+    }
+    path_len = cheri_getlen(path) - cheri_getoffset(path);
+    path_copy = strndup((char *)path, path_len);
+    if (path_copy == NULL) {
+        *retp = -1;
+        *stub_errno = ENOMEM;
+        return -1;
+    }   
+    path_copy[path_len - 1] = '\0';
+        
+    args[0].l = createString(path_copy);
+    args[1].i = oflags;
+    executeMethodList(NULL, checks_class, syscall_open_check_method, (u8*)args);
+    if (exceptionOccurred())
+    {
+        //fprintf(stderr, "exception occurred\n");
+        cherierrno = -2;
+        pop_trusted_stack();
+        return -2;
+    }
+
+    errno = *stub_errno;
+    *retp = __sys_open(path_copy, oflags, mode);
+    *stub_errno = errno;
+
+    free(path_copy);
+    return -1;
+}
+
+/**
+ * Function to call into the java checker class to check the readFileDescriptor
+ * permission.
+ */
+static int syscallReadFDCheck(int *retp, __capability int *stub_errno)
+{
+    executeMethod(checks_class, syscall_readfd_check_method);
+    if (exceptionOccurred())
+    {
+        //fprintf(stderr, "exception occurred\n");
+        cherierrno = -2;
+        pop_trusted_stack();
+        return -2;
+    }
+    return 0;
+}
+
+/**
+ * Function to call into the java checker class to check the writeFileDescriptor
+ * permission.
+ */
+static int syscallWriteFDCheck(int *retp, __capability int *stub_errno)
+{
+    executeMethod(checks_class, syscall_writefd_check_method);
+    if (exceptionOccurred())
+    {
+        //fprintf(stderr, "exception occurred\n");
+        cherierrno = -2;
+        pop_trusted_stack();
+        return -2;
+    }
+    return 0;
+}
+
+/**
+ * Function to call into the java checker class to check for both the readFileDescriptor
+ * and writeFileDescriptor permissions.
+ */
+static int syscallReadWriteFDCheck(int *retp, __capability int *stub_errno)
+{
+    executeMethod(checks_class, syscall_readwritefd_check_method);
+    if (exceptionOccurred())
+    {
+        //fprintf(stderr, "exception occurred\n");
+        cherierrno = -2;
+        pop_trusted_stack();
+        return -2;
+    }
+    return 0;
+}
 
 /**
  * Function called by `pthread_once` to set up global state.
@@ -1416,98 +1521,6 @@ uintptr_t *revokeGlobalSandbox(pClass class, pMethodBlock mb, uintptr_t *ostack)
     }
     pthread_mutex_unlock(&sandbox->global_lock);
     return ostack;
-}
-
-int syscallPermCheck(int *retp, __capability int *stub_errno)
-{
-    executeMethod(checks_class, syscall_perm_check_method);
-    if (exceptionOccurred())
-    {
-        //fprintf(stderr, "exception occurred\n");
-        cherierrno = -2;
-        pop_trusted_stack();
-        return -2;
-    }
-    return 0;
-}
-
-int syscallOpenCheck(int *retp, __capability int *stub_errno, __capability const char *path, int oflags, int mode)
-{
-    //printf("syscallOpenCheck...\n");
-    jvalue args[2];
-    char *path_copy;
-    size_t path_len;
-        
-    if (cheri_getoffset(path) > cheri_getlen(path)) {
-        *retp = -1;
-        *stub_errno = ENOMEM;
-        return -1;
-    }
-    path_len = cheri_getlen(path) - cheri_getoffset(path);
-    path_copy = strndup((char *)path, path_len);
-    if (path_copy == NULL) {
-        *retp = -1;
-        *stub_errno = ENOMEM;
-        return -1;
-    }   
-    path_copy[path_len - 1] = '\0';
-        
-    args[0].l = createString(path_copy);
-    args[1].i = oflags;
-    executeMethodList(NULL, checks_class, syscall_open_check_method, (u8*)args);
-    if (exceptionOccurred())
-    {
-        //fprintf(stderr, "exception occurred\n");
-        cherierrno = -2;
-        pop_trusted_stack();
-        return -2;
-    }
-
-    errno = *stub_errno;
-    *retp = __sys_open(path_copy, oflags, mode);
-    *stub_errno = errno;
-
-    free(path_copy);
-    return -1;
-}
-
-int syscallReadFDCheck(int *retp, __capability int *stub_errno)
-{
-    executeMethod(checks_class, syscall_readfd_check_method);
-    if (exceptionOccurred())
-    {
-        //fprintf(stderr, "exception occurred\n");
-        cherierrno = -2;
-        pop_trusted_stack();
-        return -2;
-    }
-    return 0;
-}
-
-int syscallWriteFDCheck(int *retp, __capability int *stub_errno)
-{
-    executeMethod(checks_class, syscall_writefd_check_method);
-    if (exceptionOccurred())
-    {
-        //fprintf(stderr, "exception occurred\n");
-        cherierrno = -2;
-        pop_trusted_stack();
-        return -2;
-    }
-    return 0;
-}
-
-int syscallReadWriteFDCheck(int *retp, __capability int *stub_errno)
-{
-    executeMethod(checks_class, syscall_readwritefd_check_method);
-    if (exceptionOccurred())
-    {
-        //fprintf(stderr, "exception occurred\n");
-        cherierrno = -2;
-        pop_trusted_stack();
-        return -2;
-    }
-    return 0;
 }
 
 /**
