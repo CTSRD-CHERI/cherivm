@@ -364,6 +364,7 @@ class SandboxTest
 		int fd = syscallOpen(TEST_FILE, O_RDWR | O_CREAT);
 		if (fd == -1)
 		{
+			//System.out.println("open failed for read");
 			return false;
 		}
 		try
@@ -397,6 +398,7 @@ class SandboxTest
 		int fd = syscallOpen(TEST_FILE, O_RDWR | O_CREAT);
 		if (fd == -1)
 		{
+			//System.out.println("open failed for write");
 			return false;
 		}
 		try
