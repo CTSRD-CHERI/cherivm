@@ -5,6 +5,7 @@
 #include <ctype.h>
 #include <signal.h>
 #include <assert.h>
+#include <fcntl.h>
 #include <errno.h>
 
 #include <unistd.h>
@@ -545,9 +546,56 @@ static int syscallOpenCheck(int *retp, __capability int *stub_errno, __capabilit
         return -1;
     }   
     path_copy[path_len - 1] = '\0';
-        
+    
+    // Translate oflags to java permission actions (a comma-separated list of
+    // actions from the set (read, write, execute, readlink, delete)). All but
+    // the delete action are relevant here.
+    bool read = oflags & ~(O_WRONLY | O_EXEC);
+    bool write = oflags & (O_WRONLY | O_RDWR | O_APPEND | O_CREAT | O_TRUNC);
+    bool execute = oflags & O_EXEC;
+    bool readlink = oflags & O_NOFOLLOW;
+    
+    char actions[28]; // maximum-size buffer for the actions string
+    int currIdx = 0;
+    if (read)
+    {
+        strcpy(actions, "read");
+        currIdx = 4;
+    }
+    if (write)
+    {
+        if (currIdx > 0)
+        {
+            strcpy(actions+currIdx, ",");
+            currIdx++;
+        }
+        strcpy(actions+currIdx, "write");
+        currIdx += 5;
+    }
+    if (execute)
+    {
+        if (currIdx > 0)
+        {
+            strcpy(actions+currIdx, ",");
+            currIdx++;
+        }
+        strcpy(actions+currIdx, "execute");
+        currIdx += 7;
+    }
+    if (readlink)
+    {
+        if (currIdx > 0)
+        {
+            strcpy(actions+currIdx, ",");
+            currIdx++;
+        }
+        strcpy(actions+currIdx, "readlink");
+        currIdx += 8;
+    }
+    actions[currIdx] = '\0';
+
     args[0].l = createString(path_copy);
-    args[1].i = oflags;
+    args[1].l = createString(actions);
     executeMethodList(NULL, checks_class, syscall_open_check_method, (u8*)args);
     if (exceptionOccurred())
     {
@@ -607,7 +655,7 @@ static int syscallWriteFDCheck(int *retp, __capability int *stub_errno, int fd, 
 {
     if (__builtin_memcap_offset_get(buf) > __builtin_memcap_length_get(buf)) {
         *retp = -1;
-        return -;
+        return -1;
     }
     else {
         int buf_len = __builtin_memcap_length_get(buf) - __builtin_memcap_offset_get(buf);
@@ -670,7 +718,7 @@ ALL_PRIMITIVE_TYPES(GET_ARRAY_CLASS)
     checks_class = findClassFromClassLoader("java/lang/VMSandboxedNative", getSystemClassLoader());
     assert(checks_class);
     syscall_perm_check_method = findMethod(checks_class, SYMBOL(checkSyscallPerm), SYMBOL(___V));
-    syscall_open_check_method = findMethod(checks_class, SYMBOL(checkSyscallOpen), SYMBOL(_java_lang_String_I__V));
+    syscall_open_check_method = findMethod(checks_class, SYMBOL(checkSyscallOpen), SYMBOL(_java_lang_String_java_lang_String__V));
     syscall_readfd_check_method = findMethod(checks_class, SYMBOL(checkSyscallReadFD), SYMBOL(___V));
     syscall_writefd_check_method = findMethod(checks_class, SYMBOL(checkSyscallWriteFD), SYMBOL(___V));
     syscall_readwritefd_check_method = findMethod(checks_class, SYMBOL(checkSyscallReadWriteFD), SYMBOL(___V));
