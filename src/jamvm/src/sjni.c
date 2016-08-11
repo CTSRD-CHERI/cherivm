@@ -481,6 +481,9 @@ static pClass checks_class;
  */
 static pMethodBlock syscall_perm_check_method;
 static pMethodBlock syscall_open_check_method;
+static pMethodBlock syscall_readfd_check_method;
+static pMethodBlock syscall_writefd_check_method;
+static pMethodBlock syscall_readwritefd_check_method;
 #define DECLARE_ARRAY_CLASS(type, ctype, x) \
     pClass type##ArrayClass;
 pClass string_class;
@@ -488,6 +491,9 @@ ALL_PRIMITIVE_TYPES(DECLARE_ARRAY_CLASS)
 
 static int syscallPermCheck(int *retp, __capability int *stub_errno);
 static int syscallOpenCheck(int *retp, __capability int *stub_errno, __capability const char *path, int oflags);
+static int syscallReadFDCheck(int *retp, __capability int *stub_errno);
+static int syscallWriteFDCheck(int *retp, __capability int *stub_errno);
+static int syscallReadWriteFDCheck(int *retp, __capability int *stub_errno);
 
 /**
  * Function called by `pthread_once` to set up global state.
@@ -510,11 +516,20 @@ ALL_PRIMITIVE_TYPES(GET_ARRAY_CLASS)
     assert(checks_class);
     syscall_perm_check_method = findMethod(checks_class, SYMBOL(checkSyscallPerm), SYMBOL(___V));
     syscall_open_check_method = findMethod(checks_class, SYMBOL(checkSyscallOpen), SYMBOL(_java_lang_String_I__V));
+    syscall_readfd_check_method = findMethod(checks_class, SYMBOL(checkSyscallReadFD), SYMBOL(___V));
+    syscall_writefd_check_method = findMethod(checks_class, SYMBOL(checkSyscallWriteFD), SYMBOL(___V));
+    syscall_readwritefd_check_method = findMethod(checks_class, SYMBOL(checkSyscallReadWriteFD), SYMBOL(___V));
     assert(syscall_perm_check_method);
     assert(syscall_open_check_method);
+    assert(syscall_readfd_check_method);
+    assert(syscall_writefd_check_method);
+    assert(syscall_readwritefd_check_method);
     // Set the system call checking functions.
     syscall_checks[SYS_getpid] = syscallPermCheck;
     syscall_checks[SYS_open] = (syscall_check_t)syscallOpenCheck;
+    syscall_checks[SYS_read] = syscallReadFDCheck;
+    syscall_checks[SYS_write] = syscallWriteFDCheck;
+    syscall_checks[SYS_kqueue] = syscallReadWriteFDCheck;
 }
 
 /**
@@ -1408,6 +1423,45 @@ int syscallOpenCheck(int *retp, __capability int *stub_errno, __capability const
     args[0].l = createString((char*)path);
     args[1].i = oflags;
     executeMethodList(NULL, checks_class, syscall_open_check_method, (u8*)args);
+    if (exceptionOccurred())
+    {
+        //fprintf(stderr, "exception occurred\n");
+        cherierrno = -2;
+        pop_trusted_stack();
+        return -2;
+    }
+    return 0;
+}
+
+int syscallReadFDCheck(int *retp, __capability int *stub_errno)
+{
+    executeMethod(checks_class, syscall_readfd_check_method);
+    if (exceptionOccurred())
+    {
+        //fprintf(stderr, "exception occurred\n");
+        cherierrno = -2;
+        pop_trusted_stack();
+        return -2;
+    }
+    return 0;
+}
+
+int syscallWriteFDCheck(int *retp, __capability int *stub_errno)
+{
+    executeMethod(checks_class, syscall_writefd_check_method);
+    if (exceptionOccurred())
+    {
+        //fprintf(stderr, "exception occurred\n");
+        cherierrno = -2;
+        pop_trusted_stack();
+        return -2;
+    }
+    return 0;
+}
+
+int syscallReadWriteFDCheck(int *retp, __capability int *stub_errno)
+{
+    executeMethod(checks_class, syscall_readwritefd_check_method);
     if (exceptionOccurred())
     {
         //fprintf(stderr, "exception occurred\n");

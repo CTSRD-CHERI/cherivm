@@ -81,4 +81,36 @@ class VMSandboxedNative
 			sm.checkPermission(new FilePermission(path, actions));
 		}
 	}
+	
+	static void checkSyscallReadFD()
+	{
+		final RuntimePermission readFD = new RuntimePermission("readFileDescriptor");
+		SecurityManager sm = SecurityManager.current;
+		if (sm != null)
+		{
+			sm.checkPermission(readFD);
+		}
+	}
+
+	static void checkSyscallWriteFD()
+	{
+		final RuntimePermission writeFD = new RuntimePermission("writeFileDescriptor");
+		SecurityManager sm = SecurityManager.current;
+		if (sm != null)
+		{
+			sm.checkPermission(writeFD);
+		}
+	}
+
+	static void checkSyscallReadWriteFD()
+	{
+		final RuntimePermission readFD = new RuntimePermission("readFileDescriptor");
+		final RuntimePermission writeFD = new RuntimePermission("writeFileDescriptor");
+		SecurityManager sm = SecurityManager.current;
+		if (sm != null)
+		{
+			sm.checkPermission(readFD);
+			sm.checkPermission(writeFD);
+		}
+	}
 }

@@ -85,6 +85,9 @@ extern char *symbol_values[];
     action(isReadOnly, "isReadOnly"), \
     action(checkSyscallPerm, "checkSyscallPerm"), \
     action(checkSyscallOpen, "checkSyscallOpen"), \
+    action(checkSyscallReadFD, "checkSyscallReadFD"), \
+    action(checkSyscallWriteFD, "checkSyscallWriteFD"), \
+    action(checkSyscallReadWriteFD, "checkSyscallReadWriteFD"), \
     \
     /* Constant pool attribute names */\
     action(Code, "Code"), \
