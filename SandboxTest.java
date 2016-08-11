@@ -319,25 +319,27 @@ class SandboxTest
 		}
 	}
 
+	static final int O_CREAT = 0x0200;
+	static final int O_RDWR = 0x0002;
+	static final int O_EXEC = 0x00040000;
+	static final String TEST_FILE = "file";
+
 	@Sandbox(scope=Sandbox.Scope.Method,SandboxClass="test")
 	native int syscallOpen(String path, int oflags);
 	boolean testSyscallOpen()
 	{
-		int O_CREAT = 0x0200;
-		int O_RDWR = 0x0002;
-		int O_EXEC = 0x00040000;
 		try
 		{
-			FilePermission filePerm = new FilePermission("file", "execute");
+			FilePermission filePerm = new FilePermission(TEST_FILE, "execute");
 			SecurityManager sm = new SingleDenySecurityManager(filePerm);
 			System.setSecurityManager(sm);
 			
 			//System.out.println("about to call syscallOpen");
 			// Check that we *can* do open() when the policy allows it
-			syscallOpen("file", O_RDWR | O_CREAT);
+			syscallOpen(TEST_FILE, O_RDWR | O_CREAT);
 
 			// Check that we *can't* do something the policy disallows
-			syscallOpen("file", O_EXEC);
+			syscallOpen(TEST_FILE, O_EXEC);
 			return false;
 		}
 		catch (SecurityException e)
@@ -350,7 +352,101 @@ class SandboxTest
 			System.setSecurityManager(null);
 			// Check that we *can* do a previously disallowed open() when there
 			// is no security manager
-			syscallOpen("file", O_EXEC);
+			syscallOpen(TEST_FILE, O_EXEC);
+			return true;
+		}
+	}
+
+	@Sandbox(scope=Sandbox.Scope.Method,SandboxClass="test")
+	native int syscallRead(int fd);
+	boolean testSyscallRead()
+	{
+		int fd = syscallOpen(TEST_FILE, O_RDWR | O_CREAT);
+		if (fd == -1)
+		{
+			return false;
+		}
+		try
+		{
+			Permission readfd = new RuntimePermission("readFileDescriptor");
+			System.setSecurityManager(new SingleDenySecurityManager(readfd));
+			syscallRead(fd);
+			return false;
+		}
+		catch (SecurityException e)
+		{
+			//System.out.println("read");
+			//System.out.println(e);
+			return true;
+		}
+		finally
+		{
+			System.setSecurityManager(null);
+			// Check that we *can* do read if we have no security manager
+			// installed
+			syscallRead(fd);
+			//System.out.println("read succeeded");
+			return true;
+		}
+	}
+
+	@Sandbox(scope=Sandbox.Scope.Method,SandboxClass="test")
+	native int syscallWrite(int fd);
+	boolean testSyscallWrite()
+	{
+		int fd = syscallOpen(TEST_FILE, O_RDWR | O_CREAT);
+		if (fd == -1)
+		{
+			return false;
+		}
+		try
+		{
+			Permission writefd = new RuntimePermission("writeFileDescriptor");
+			System.setSecurityManager(new SingleDenySecurityManager(writefd));
+			syscallWrite(fd);
+			return false;
+		}
+		catch (SecurityException e)
+		{
+			//System.out.println("write");
+			//System.out.println(e);
+			return true;
+		}
+		finally
+		{
+			System.setSecurityManager(null);
+			// Check that we *can* do read if we have no security manager
+			// installed
+			syscallWrite(fd);
+			//System.out.println("write succeeded");
+			return true;
+		}
+	}
+
+	@Sandbox(scope=Sandbox.Scope.Method,SandboxClass="test")
+	native int syscallKqueue();
+	boolean testSyscallKqueue()
+	{
+		try
+		{
+			Permission readfd = new RuntimePermission("readFileDescriptor");
+			System.setSecurityManager(new SingleDenySecurityManager(readfd));
+			syscallKqueue();
+			return false;
+		}
+		catch (SecurityException e)
+		{
+			//System.out.println("kqueue");
+			//System.out.println(e);
+			return true;
+		}
+		finally
+		{
+			System.setSecurityManager(null);
+			// Check that we *can* do read if we have no security manager
+			// installed
+			syscallKqueue();
+			//System.out.println("kqueue succeeded");
 			return true;
 		}
 	}

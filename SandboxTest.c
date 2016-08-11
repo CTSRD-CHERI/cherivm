@@ -3,6 +3,7 @@
 #include <cheri/cheri.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <sys/event.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -201,4 +202,23 @@ JNIEXPORT jint JNICALL Java_SandboxTest_syscallOpen
 	(*env)->ReleaseStringUTFChars(env, path, nativePath);
 	//printf("done\n");
 	return fd;
+}
+
+JNIEXPORT jint JNICALL Java_SandboxTest_syscallRead
+  (JNIEnv *env, jobject this, jint fd)
+{
+	char buf[8];
+	return read(fd, buf, 8);
+}
+
+JNIEXPORT jint JNICALL Java_SandboxTest_syscallWrite
+  (JNIEnv *env, jobject this, jint fd)
+{
+	return write(fd, "test", 5);
+}
+
+JNIEXPORT jint JNICALL Java_SandboxTest_syscallKqueue
+  (JNIEnv *env, jobject this)
+{
+	return kqueue();
 }
