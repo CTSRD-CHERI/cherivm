@@ -2,6 +2,7 @@ import uk.ac.cam.cheri.*;
 import java.lang.reflect.Method;
 import java.util.*;
 import java.security.*;
+import java.io.*;
 import java.nio.*;
 
 
@@ -300,7 +301,7 @@ class SandboxTest
 		{
 			Permission reset = new RuntimePermission("syscall");
 			System.setSecurityManager(new SingleDenySecurityManager(reset));
-			System.out.println("pid: " + syscallGetPid());
+			syscallGetPid();
 			return false;
 		}
 		catch (SecurityException e)
@@ -314,6 +315,42 @@ class SandboxTest
 			// Check that we *can* do system calls if we have no security manager
 			// installed
 			syscallGetPid();
+			return true;
+		}
+	}
+
+	@Sandbox(scope=Sandbox.Scope.Method,SandboxClass="test")
+	native int syscallOpen(String path, int oflags);
+	boolean testSyscallOpen()
+	{
+		int O_CREAT = 0x0200;
+		int O_RDWR = 0x0002;
+		int O_EXEC = 0x00040000;
+		try
+		{
+			FilePermission filePerm = new FilePermission("file", "execute");
+			SecurityManager sm = new SingleDenySecurityManager(filePerm);
+			System.setSecurityManager(sm);
+			
+			//System.out.println("about to call syscallOpen");
+			// Check that we *can* do open() when the policy allows it
+			syscallOpen("file", O_RDWR | O_CREAT);
+
+			// Check that we *can't* do something the policy disallows
+			syscallOpen("file", O_EXEC);
+			return false;
+		}
+		catch (SecurityException e)
+		{
+			//System.out.println(e);
+			return true;
+		}
+		finally
+		{
+			System.setSecurityManager(null);
+			// Check that we *can* do a previously disallowed open() when there
+			// is no security manager
+			syscallOpen("file", O_EXEC);
 			return true;
 		}
 	}
