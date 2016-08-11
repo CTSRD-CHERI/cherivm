@@ -5,6 +5,7 @@
 #include <ctype.h>
 #include <signal.h>
 #include <assert.h>
+#include <errno.h>
 
 #include <unistd.h>
 #include <machine/cheri.h>
@@ -13,6 +14,7 @@
 #include <machine/regnum.h>
 #include <machine/sysarch.h>
 #include <cheri/sandbox.h>
+#include <cheri/cheric.h>
 #include <cheri/cheri_type.h>
 #include <cheri/cheri_system.h>
 #include <ucontext.h>
@@ -480,9 +482,21 @@ static pClass checks_class;
  * The method for checking the generic syscall permission.
  */
 static pMethodBlock syscall_perm_check_method;
+/**
+ * The method for checking the open() syscall.
+ */
 static pMethodBlock syscall_open_check_method;
+/**
+ * The method for checking the readFileDescriptor permission.
+ */
 static pMethodBlock syscall_readfd_check_method;
+/**
+ * The method for checking the writeFileDescriptor permission.
+ */
 static pMethodBlock syscall_writefd_check_method;
+/**
+ * The method for checking both the readFileDescriptor and writeFileDescriptor permissions.
+ */
 static pMethodBlock syscall_readwritefd_check_method;
 #define DECLARE_ARRAY_CLASS(type, ctype, x) \
     pClass type##ArrayClass;
@@ -490,10 +504,12 @@ pClass string_class;
 ALL_PRIMITIVE_TYPES(DECLARE_ARRAY_CLASS)
 
 static int syscallPermCheck(int *retp, __capability int *stub_errno);
-static int syscallOpenCheck(int *retp, __capability int *stub_errno, __capability const char *path, int oflags);
+static int syscallOpenCheck(int *retp, __capability int *stub_errno, __capability const char *path, int oflags, int mode);
 static int syscallReadFDCheck(int *retp, __capability int *stub_errno);
 static int syscallWriteFDCheck(int *retp, __capability int *stub_errno);
 static int syscallReadWriteFDCheck(int *retp, __capability int *stub_errno);
+
+int __sys_open(const char *path, int oflags, int mode);
 
 /**
  * Function called by `pthread_once` to set up global state.
@@ -826,7 +842,7 @@ SJNI_CALLBACK  void  sjni_Set##type##Field(JNIEnvType ptr,                     \
 SJNI_CALLBACK
 __capability const char *sjni_GetStringUTFChars(JNIEnvType ptr, __capability void *string, __capability jboolean *isCopy) {
     //printf("GetStringUTFChars()...");
-    void *string_ref = unseal_object(string);
+    jobject string_ref = unseal_object(string);
     REQUIRE(string_ref, NULL);
     REQUIRE(isKindOfClass(string_ref, string_class), NULL);
     //printf("calling env->GetStringUTFChars()...");
@@ -849,16 +865,16 @@ __capability const char *sjni_GetStringUTFChars(JNIEnvType ptr, __capability voi
 
 SJNI_CALLBACK
 void sjni_ReleaseStringUTFChars(JNIEnvType ptr, __capability void *string, __capability const char *native_string) {
-    void *string_ref = unseal_object(string);
+    jobject string_ref = unseal_object(string);
     REQUIRE(string_ref, );
     REQUIRE(isKindOfClass(string_ref, string_class), );
     struct shared_unsealed_cap search;
     struct jni_sandbox_object *pool = 
        (void*)unseal_jnienv((*ptr)->reserved1);
-    size_t base = __builtin_memcap_base_get(native_string);
-    search.base = base;
     if (pool->scope != SandboxScopeMethod)
     {
+        size_t base = __builtin_memcap_base_get(native_string);
+        search.base = base;
         struct shared_unsealed_cap *original =
             RB_NFIND(unsealed_cap_tree, &pool->unsealed_caps, &search);
         if (base <= original->base + original->length)
@@ -1415,12 +1431,28 @@ int syscallPermCheck(int *retp, __capability int *stub_errno)
     return 0;
 }
 
-int syscallOpenCheck(int *retp, __capability int *stub_errno, __capability const char *path, int oflags)
+int syscallOpenCheck(int *retp, __capability int *stub_errno, __capability const char *path, int oflags, int mode)
 {
     //printf("syscallOpenCheck...\n");
     jvalue args[2];
-    checkString(path);
-    args[0].l = createString((char*)path);
+    char *path_copy;
+    size_t path_len;
+        
+    if (cheri_getoffset(path) > cheri_getlen(path)) {
+        *retp = -1;
+        *stub_errno = ENOMEM;
+        return -1;
+    }
+    path_len = cheri_getlen(path) - cheri_getoffset(path);
+    path_copy = strndup((char *)path, path_len);
+    if (path_copy == NULL) {
+        *retp = -1;
+        *stub_errno = ENOMEM;
+        return -1;
+    }   
+    path_copy[path_len - 1] = '\0';
+        
+    args[0].l = createString(path_copy);
     args[1].i = oflags;
     executeMethodList(NULL, checks_class, syscall_open_check_method, (u8*)args);
     if (exceptionOccurred())
@@ -1430,7 +1462,13 @@ int syscallOpenCheck(int *retp, __capability int *stub_errno, __capability const
         pop_trusted_stack();
         return -2;
     }
-    return 0;
+
+    errno = *stub_errno;
+    *retp = __sys_open(path_copy, oflags, mode);
+    *stub_errno = errno;
+
+    free(path_copy);
+    return -1;
 }
 
 int syscallReadFDCheck(int *retp, __capability int *stub_errno)
