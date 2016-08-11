@@ -479,12 +479,15 @@ static pClass checks_class;
 /**
  * The method for checking the generic syscall permission.
  */
-static pMethodBlock syscall_check_method;
+static pMethodBlock syscall_perm_check_method;
+static pMethodBlock syscall_open_check_method;
 #define DECLARE_ARRAY_CLASS(type, ctype, x) \
     pClass type##ArrayClass;
+pClass string_class;
 ALL_PRIMITIVE_TYPES(DECLARE_ARRAY_CLASS)
 
-static int syscallCheck(int *retp, __capability int *stub_errno);
+static int syscallPermCheck(int *retp, __capability int *stub_errno);
+static int syscallOpenCheck(int *retp, __capability int *stub_errno, __capability const char *path, int oflags);
 
 /**
  * Function called by `pthread_once` to set up global state.
@@ -502,13 +505,16 @@ SEALING_TYPES(INIT_SEALING_TYPE)
     type##ArrayClass = findArrayClass("[" x); \
     assert(type##ArrayClass);
 ALL_PRIMITIVE_TYPES(GET_ARRAY_CLASS)
-    static char *nativechecks_name = "java/lang/VMSandboxedNative";
-    checks_class = findClassFromClassLoader(nativechecks_name, getSystemClassLoader());
+    string_class = findClassFromClassLoader("java/lang/String", getSystemClassLoader());
+    checks_class = findClassFromClassLoader("java/lang/VMSandboxedNative", getSystemClassLoader());
     assert(checks_class);
-    syscall_check_method = findMethod(checks_class, SYMBOL(checkSyscalls), SYMBOL(___V));
-    assert(syscall_check_method);
+    syscall_perm_check_method = findMethod(checks_class, SYMBOL(checkSyscallPerm), SYMBOL(___V));
+    syscall_open_check_method = findMethod(checks_class, SYMBOL(checkSyscallOpen), SYMBOL(_java_lang_String_I__V));
+    assert(syscall_perm_check_method);
+    assert(syscall_open_check_method);
     // Set the system call checking functions.
-    syscall_checks[SYS_getpid] = syscallCheck;
+    syscall_checks[SYS_getpid] = syscallPermCheck;
+    syscall_checks[SYS_open] = (syscall_check_t)syscallOpenCheck;
 }
 
 /**
@@ -802,6 +808,52 @@ SJNI_CALLBACK  void  sjni_Set##type##Field(JNIEnvType ptr,                     \
     env->Set##type##Field(&env, unseal_object(obj), f, val);                   \
 }
 
+SJNI_CALLBACK
+__capability const char *sjni_GetStringUTFChars(JNIEnvType ptr, __capability void *string, __capability jboolean *isCopy) {
+    //printf("GetStringUTFChars()...");
+    void *string_ref = unseal_object(string);
+    REQUIRE(string_ref, NULL);
+    REQUIRE(isKindOfClass(string_ref, string_class), NULL);
+    //printf("calling env->GetStringUTFChars()...");
+    jboolean isCopyLocal;
+    __capability char *buffer = (__capability char *)
+        env->GetStringUTFChars(&env, string_ref, &isCopyLocal);
+    if (isCopy != NULL)
+        *isCopy = isCopyLocal;
+    //printf("returned, ");
+    size_t length = env->GetStringUTFLength(&env, string_ref);
+    uint64_t base = (uint64_t)buffer;
+    //printf("string: %s, length: %zu, setting permissions...", (char*)base, length);
+    insert_unsealed_cap(ptr, string_ref, (void*)buffer, length);
+    buffer = __builtin_memcap_bounds_set(buffer, length + 1);
+    buffer = __builtin_memcap_perms_and(buffer, __CHERI_CAP_PERMISSION_PERMIT_LOAD__ |
+                                                __CHERI_CAP_PERMISSION_GLOBAL__);
+    //printf("done, returning...\n");
+    return buffer;
+}
+
+SJNI_CALLBACK
+void sjni_ReleaseStringUTFChars(JNIEnvType ptr, __capability void *string, __capability const char *native_string) {
+    void *string_ref = unseal_object(string);
+    REQUIRE(string_ref, );
+    REQUIRE(isKindOfClass(string_ref, string_class), );
+    struct shared_unsealed_cap search;
+    struct jni_sandbox_object *pool = 
+       (void*)unseal_jnienv((*ptr)->reserved1);
+    size_t base = __builtin_memcap_base_get(native_string);
+    search.base = base;
+    if (pool->scope != SandboxScopeMethod)
+    {
+        struct shared_unsealed_cap *original =
+            RB_NFIND(unsealed_cap_tree, &pool->unsealed_caps, &search);
+        if (base <= original->base + original->length)
+        {
+           original->refcount--;
+        }
+    }
+    env->ReleaseStringUTFChars(&env, string_ref, (const char *)native_string);
+}
+
 /**
  * Helper function for native-to-Java calls.  Unwraps all of the arguments
  * provided in an array.
@@ -1062,6 +1114,8 @@ createSandboxCallbacks(struct jni_sandbox_object *pool)
     SET_CALLBACK(NewObjectA);
     SET_CALLBACK(GetDirectBufferAddress);
     SET_CALLBACK(GetDirectBufferCapacity);
+    SET_CALLBACK(GetStringUTFChars);
+    SET_CALLBACK(ReleaseStringUTFChars);
     ALL_PRIMITIVE_TYPES(ADD_FIELD_ACCESSOR);
     ALL_PRIMITIVE_TYPES(ADD_FIELD_SETTER);
     ALL_PRIMITIVE_TYPES(ADD_CALL_METHOD_A);
@@ -1333,9 +1387,27 @@ uintptr_t *revokeGlobalSandbox(pClass class, pMethodBlock mb, uintptr_t *ostack)
     return ostack;
 }
 
-int syscallCheck(int *retp, __capability int *stub_errno)
+int syscallPermCheck(int *retp, __capability int *stub_errno)
 {
-    executeMethod(checks_class, syscall_check_method);
+    executeMethod(checks_class, syscall_perm_check_method);
+    if (exceptionOccurred())
+    {
+        //fprintf(stderr, "exception occurred\n");
+        cherierrno = -2;
+        pop_trusted_stack();
+        return -2;
+    }
+    return 0;
+}
+
+int syscallOpenCheck(int *retp, __capability int *stub_errno, __capability const char *path, int oflags)
+{
+    //printf("syscallOpenCheck...\n");
+    jvalue args[2];
+    checkString(path);
+    args[0].l = createString((char*)path);
+    args[1].i = oflags;
+    executeMethodList(NULL, checks_class, syscall_open_check_method, (u8*)args);
     if (exceptionOccurred())
     {
         //fprintf(stderr, "exception occurred\n");
