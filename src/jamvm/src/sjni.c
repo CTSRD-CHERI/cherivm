@@ -532,12 +532,12 @@ static int syscallOpenCheck(int *retp, __capability int *stub_errno, __capabilit
     char *path_copy;
     size_t path_len;
         
-    if (cheri_getoffset(path) > cheri_getlen(path)) {
+    if (__builtin_memcap_offset_get(path) > __builtin_memcap_length_get(path)) {
         *retp = -1;
         *stub_errno = ENOMEM;
         return -1;
     }
-    path_len = cheri_getlen(path) - cheri_getoffset(path);
+    path_len = __builtin_memcap_length_get(path) - __builtin_memcap_offset_get(path);
     path_copy = strndup((char *)path, path_len);
     if (path_copy == NULL) {
         *retp = -1;
@@ -569,8 +569,25 @@ static int syscallOpenCheck(int *retp, __capability int *stub_errno, __capabilit
  * Function to call into the java checker class to check the readFileDescriptor
  * permission.
  */
-static int syscallReadFDCheck(int *retp, __capability int *stub_errno)
+static int syscallReadFDCheck(int *retp, __capability int *stub_errno, int fd, __capability void *buf, size_t nbytes)
 {
+    if (__builtin_memcap_offset_get(buf) > __builtin_memcap_length_get(buf)) {
+        *retp = -1;
+        return -1;
+    }
+    else {
+        int buf_len = __builtin_memcap_length_get(buf) - __builtin_memcap_offset_get(buf);
+        if (nbytes > buf_len)
+        {
+            *retp = -1;
+            return -1;
+        }
+        if ((__builtin_memcap_perms_get(buf) & __CHERI_CAP_PERMISSION_PERMIT_STORE__) == 0)
+        {
+            *retp = -1;
+            return -1;
+        }
+    }
     executeMethod(checks_class, syscall_readfd_check_method);
     if (exceptionOccurred())
     {
@@ -586,8 +603,25 @@ static int syscallReadFDCheck(int *retp, __capability int *stub_errno)
  * Function to call into the java checker class to check the writeFileDescriptor
  * permission.
  */
-static int syscallWriteFDCheck(int *retp, __capability int *stub_errno)
+static int syscallWriteFDCheck(int *retp, __capability int *stub_errno, int fd, __capability const void *buf, size_t nbytes)
 {
+    if (__builtin_memcap_offset_get(buf) > __builtin_memcap_length_get(buf)) {
+        *retp = -1;
+        return -;
+    }
+    else {
+        int buf_len = __builtin_memcap_length_get(buf) - __builtin_memcap_offset_get(buf);
+        if (nbytes > buf_len)
+        {
+            *retp = -1;
+            return -1;
+        }
+        if ((__builtin_memcap_perms_get(buf) & __CHERI_CAP_PERMISSION_PERMIT_LOAD__) == 0)
+        {
+            *retp = -1;
+            return -1;
+        }
+    }
     executeMethod(checks_class, syscall_writefd_check_method);
     if (exceptionOccurred())
     {
@@ -648,8 +682,8 @@ ALL_PRIMITIVE_TYPES(GET_ARRAY_CLASS)
     // Set the system call checking functions.
     syscall_checks[SYS_getpid] = syscallPermCheck;
     syscall_checks[SYS_open] = (syscall_check_t)syscallOpenCheck;
-    syscall_checks[SYS_read] = syscallReadFDCheck;
-    syscall_checks[SYS_write] = syscallWriteFDCheck;
+    syscall_checks[SYS_read] = (syscall_check_t)syscallReadFDCheck;
+    syscall_checks[SYS_write] = (syscall_check_t)syscallWriteFDCheck;
     syscall_checks[SYS_kqueue] = syscallReadWriteFDCheck;
 }
 
