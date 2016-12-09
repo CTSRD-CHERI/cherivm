@@ -785,11 +785,6 @@ ALL_PRIMITIVE_TYPES(GET_ARRAY_CLASS)
 	syscall_checks[SYS_flock] = syscallPermCheck;
 	syscall_checks[SYS_fork] = syscallPermCheck;
 	syscall_checks[SYS_fpathconf] = syscallPermCheck;
-	syscall_checks[SYS_freebsd6_ftruncate] = syscallPermCheck;
-	syscall_checks[SYS_freebsd6_lseek] = syscallPermCheck;
-	syscall_checks[SYS_freebsd6_mmap] = syscallPermCheck;
-	syscall_checks[SYS_freebsd6_pread] = syscallPermCheck;
-	syscall_checks[SYS_freebsd6_pwrite] = syscallPermCheck;
 	syscall_checks[SYS_fstat] = syscallPermCheck;
 	syscall_checks[SYS_fstatfs] = syscallPermCheck;
 	syscall_checks[SYS_fsync] = syscallPermCheck;
@@ -850,9 +845,6 @@ ALL_PRIMITIVE_TYPES(GET_ARRAY_CLASS)
 	syscall_checks[SYS_munmap] = syscallPermCheck;
 	syscall_checks[SYS_nanosleep] = syscallPermCheck;
 	syscall_checks[SYS_ntp_gettime] = syscallPermCheck;
-	syscall_checks[SYS_oaio_read] = syscallPermCheck;
-	syscall_checks[SYS_oaio_write] = syscallPermCheck;
-	syscall_checks[SYS_olio_listio] = syscallPermCheck;
 	syscall_checks[SYS_chflagsat] = syscallPermCheck;
 	syscall_checks[SYS_faccessat] = syscallPermCheck;
 	syscall_checks[SYS_fchmodat] = syscallPermCheck;
@@ -869,11 +861,9 @@ ALL_PRIMITIVE_TYPES(GET_ARRAY_CLASS)
 	syscall_checks[SYS_symlinkat] = syscallPermCheck;
 	syscall_checks[SYS_unlinkat] = syscallPermCheck;
 	syscall_checks[SYS_utimensat] = syscallPermCheck;
-	syscall_checks[SYS_openbsd_poll] = syscallPermCheck;
 	syscall_checks[SYS_pdfork] = syscallPermCheck;
 	syscall_checks[SYS_pdgetpid] = syscallPermCheck;
 	syscall_checks[SYS_pdkill] = syscallPermCheck;
-	syscall_checks[SYS_pipe] = syscallPermCheck;
 	syscall_checks[SYS_pipe2] = syscallPermCheck;
 	syscall_checks[SYS_poll] = syscallPermCheck;
 	syscall_checks[SYS_pread] = syscallPermCheck;
