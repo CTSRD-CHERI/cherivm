@@ -710,8 +710,10 @@ SEALING_TYPES(INIT_SEALING_TYPE)
     bufferClass = findClassFromClassLoader("java/nio/Buffer", getSystemClassLoader());
     assert(bufferClass);
     isReadOnlyMethodIdx = lookupMethod(bufferClass, SYMBOL(isReadOnly), SYMBOL(___Z))->method_table_index;
+    pClass tmp;
 #define GET_ARRAY_CLASS(type, ctype, x) \
-    type##ArrayClass = findArrayClass("[" x); \
+    tmp = findArrayClass("[" x); \
+    registerStaticClassRefLocked(&type##ArrayClass, tmp); \
     assert(type##ArrayClass);
 ALL_PRIMITIVE_TYPES(GET_ARRAY_CLASS)
     string_class = findClassFromClassLoader("java/lang/String", getSystemClassLoader());
