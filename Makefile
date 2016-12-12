@@ -1,8 +1,8 @@
-PREFIX=/exports/users/dc552/cheriroot/opt/target
+PREFIX?=/exports/users/dc552/cheriroot/opt/target
 INSTALLED_CLASSPATH=${PREFIX}/share/jamvm/classes.zip:${PREFIX}/share/classpath/glibj.zip:${PREFIX}/share/classpath/tools.zip:${PREFIX}/share/jamvm/:. 
 
 
-SDK_ROOT=/home/dc552/sdk
+SDK_ROOT?=/home/dc552/sdk
 SYSROOT=${SDK_ROOT}/sysroot
 
 CFLAGS=-I ../opt/target/include/ -msoft-float -O2 -cheri-linker
