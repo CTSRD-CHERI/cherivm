@@ -447,9 +447,9 @@ static void pop_trusted_stack(void)
 {
     // FIXME: Move this into libcheri (with suitable error return instead of
     // asserts)
-    __capability void *pcc = __builtin_memcap_program_counter_get();
-    size_t base = __builtin_memcap_base_get(pcc);
-    size_t length = __builtin_memcap_length_get(pcc);
+    __capability void *pcc = __builtin_cheri_program_counter_get();
+    size_t base = __builtin_cheri_base_get(pcc);
+    size_t length = __builtin_cheri_length_get(pcc);
     struct cheri_stack cs;
     sysarch(CHERI_GET_STACK, &cs);
     assert(cs.cs_tsp > (2 * CHERI_FRAME_SIZE));
@@ -457,8 +457,8 @@ static void pop_trusted_stack(void)
     for (frames-- ; frames > 0 ; frames--)
     {
         struct cheri_stack_frame *frame = &cs.cs_frames[CHERI_STACK_DEPTH-frames];
-        if ((__builtin_memcap_base_get(frame->csf_pcc) == base) &&
-            (__builtin_memcap_length_get(frame->csf_pcc) == length))
+        if ((__builtin_cheri_base_get(frame->csf_pcc) == base) &&
+            (__builtin_cheri_length_get(frame->csf_pcc) == length))
         {
             break;
         }
@@ -533,12 +533,12 @@ static int syscallOpenCheck(int *retp, __capability int *stub_errno, __capabilit
     char *path_copy;
     size_t path_len;
         
-    if (__builtin_memcap_offset_get(path) > __builtin_memcap_length_get(path)) {
+    if (__builtin_cheri_offset_get(path) > __builtin_cheri_length_get(path)) {
         *retp = -1;
         *stub_errno = ENOMEM;
         return -1;
     }
-    path_len = __builtin_memcap_length_get(path) - __builtin_memcap_offset_get(path);
+    path_len = __builtin_cheri_length_get(path) - __builtin_cheri_offset_get(path);
     path_copy = strndup((char *)path, path_len);
     if (path_copy == NULL) {
         *retp = -1;
@@ -619,18 +619,18 @@ static int syscallOpenCheck(int *retp, __capability int *stub_errno, __capabilit
  */
 static int syscallReadFDCheck(int *retp, __capability int *stub_errno, int fd, __capability void *buf, size_t nbytes)
 {
-    if (__builtin_memcap_offset_get(buf) > __builtin_memcap_length_get(buf)) {
+    if (__builtin_cheri_offset_get(buf) > __builtin_cheri_length_get(buf)) {
         *retp = -1;
         return -1;
     }
     else {
-        int buf_len = __builtin_memcap_length_get(buf) - __builtin_memcap_offset_get(buf);
+        int buf_len = __builtin_cheri_length_get(buf) - __builtin_cheri_offset_get(buf);
         if (nbytes > buf_len)
         {
             *retp = -1;
             return -1;
         }
-        if ((__builtin_memcap_perms_get(buf) & __CHERI_CAP_PERMISSION_PERMIT_STORE__) == 0)
+        if ((__builtin_cheri_perms_get(buf) & __CHERI_CAP_PERMISSION_PERMIT_STORE__) == 0)
         {
             *retp = -1;
             return -1;
@@ -653,18 +653,18 @@ static int syscallReadFDCheck(int *retp, __capability int *stub_errno, int fd, _
  */
 static int syscallWriteFDCheck(int *retp, __capability int *stub_errno, int fd, __capability const void *buf, size_t nbytes)
 {
-    if (__builtin_memcap_offset_get(buf) > __builtin_memcap_length_get(buf)) {
+    if (__builtin_cheri_offset_get(buf) > __builtin_cheri_length_get(buf)) {
         *retp = -1;
         return -1;
     }
     else {
-        int buf_len = __builtin_memcap_length_get(buf) - __builtin_memcap_offset_get(buf);
+        int buf_len = __builtin_cheri_length_get(buf) - __builtin_cheri_offset_get(buf);
         if (nbytes > buf_len)
         {
             *retp = -1;
             return -1;
         }
-        if ((__builtin_memcap_perms_get(buf) & __CHERI_CAP_PERMISSION_PERMIT_LOAD__) == 0)
+        if ((__builtin_cheri_perms_get(buf) & __CHERI_CAP_PERMISSION_PERMIT_LOAD__) == 0)
         {
             *retp = -1;
             return -1;
@@ -950,12 +950,12 @@ ALL_PRIMITIVE_TYPES(GET_ARRAY_CLASS)
 static void print_cap(__capability void *c)
 {
     fprintf(stderr, "b:0x%llx l:0x%llx o:0x%llx p:0x%d t:%d s:%d\n",
-        (unsigned long long)__builtin_memcap_base_get(c),
-        (unsigned long long)__builtin_memcap_length_get(c),
-        (unsigned long long)__builtin_memcap_offset_get(c),
-        (int)__builtin_memcap_perms_get(c),
-        (int)__builtin_memcap_type_get(c),
-        (int)__builtin_memcap_sealed_get(c));
+        (unsigned long long)__builtin_cheri_base_get(c),
+        (unsigned long long)__builtin_cheri_length_get(c),
+        (unsigned long long)__builtin_cheri_offset_get(c),
+        (int)__builtin_cheri_perms_get(c),
+        (int)__builtin_cheri_type_get(c),
+        (int)__builtin_cheri_sealed_get(c));
 }
 
 /**
@@ -968,7 +968,7 @@ static __capability void *seal(void* obj, __capability void *type)
     {
         return 0;
     }
-    return __builtin_memcap_seal((__capability void*)obj, type);
+    return __builtin_cheri_seal((__capability void*)obj, type);
 }
 
 /**
@@ -982,13 +982,13 @@ static void *unseal(__capability void* obj, __capability void* type)
     {
         return NULL;
     }
-    if (!__builtin_memcap_sealed_get(obj) ||
-        (__builtin_memcap_type_get(obj) != __builtin_memcap_base_get(type) +
-         __builtin_memcap_offset_get(type)))
+    if (!__builtin_cheri_sealed_get(obj) ||
+        (__builtin_cheri_type_get(obj) != __builtin_cheri_base_get(type) +
+         __builtin_cheri_offset_get(type)))
     {
         return NULL;
     }
-    return (void*)__builtin_memcap_unseal(obj, type);
+    return (void*)__builtin_cheri_unseal(obj, type);
 }
 
 /**
@@ -1150,8 +1150,8 @@ __capability native_type *sjni_Get##type##ArrayElements(JNIEnvType ptr,      \
         *isCopy = isCopyLocal;                                               \
     size_t length = ARRAY_LEN(REF_TO_OBJ(array_ref)) * sizeof(native_type);  \
     insert_unsealed_cap(ptr, array_ref, (void*)buffer, length);              \
-    buffer = __builtin_memcap_bounds_set(buffer, length);                    \
-    buffer = __builtin_memcap_perms_and(buffer,                              \
+    buffer = __builtin_cheri_bounds_set(buffer, length);                    \
+    buffer = __builtin_cheri_perms_and(buffer,                              \
             ~__CHERI_CAP_PERMISSION_PERMIT_STORE_CAPABILITY__ &              \
             ~__CHERI_CAP_PERMISSION_PERMIT_LOAD_CAPABILITY__);               \
     return buffer;                                                           \
@@ -1167,7 +1167,7 @@ void sjni_Release##type##ArrayElements(JNIEnvType ptr, native_type##Array_c  \
     struct shared_unsealed_cap search;                                       \
     struct jni_sandbox_object *pool =                                        \
        (void*)unseal_jnienv((*ptr)->reserved1);                              \
-    size_t base = __builtin_memcap_base_get(elems);                          \
+    size_t base = __builtin_cheri_base_get(elems);                          \
     search.base = base;                                                      \
     if (pool->scope != SandboxScopeMethod)                                   \
     {                                                                        \
@@ -1252,8 +1252,8 @@ __capability const char *sjni_GetStringUTFChars(JNIEnvType ptr, __capability voi
     uint64_t base = (uint64_t)buffer;
     //printf("string: %s, length: %zu, setting permissions...", (char*)base, length);
     insert_unsealed_cap(ptr, string_ref, (void*)buffer, length);
-    buffer = __builtin_memcap_bounds_set(buffer, length + 1);
-    buffer = __builtin_memcap_perms_and(buffer, __CHERI_CAP_PERMISSION_PERMIT_LOAD__ |
+    buffer = __builtin_cheri_bounds_set(buffer, length + 1);
+    buffer = __builtin_cheri_perms_and(buffer, __CHERI_CAP_PERMISSION_PERMIT_LOAD__ |
                                                 __CHERI_CAP_PERMISSION_GLOBAL__);
     //printf("done, returning...\n");
     return buffer;
@@ -1269,7 +1269,7 @@ void sjni_ReleaseStringUTFChars(JNIEnvType ptr, __capability void *string, __cap
        (void*)unseal_jnienv((*ptr)->reserved1);
     if (pool->scope != SandboxScopeMethod)
     {
-        size_t base = __builtin_memcap_base_get(native_string);
+        size_t base = __builtin_cheri_base_get(native_string);
         search.base = base;
         struct shared_unsealed_cap *original =
             RB_NFIND(unsealed_cap_tree, &pool->unsealed_caps, &search);
@@ -1292,7 +1292,7 @@ static void unwrapArguments(__capability jvalue_c *capargs, jvalue *args, int ar
 {
     for (int i=0 ; i<argc; i++)
     {
-        if (__builtin_memcap_tag_get(capargs[i].l))
+        if (__builtin_cheri_tag_get(capargs[i].l))
         {
             args[i].l = unseal_object(capargs[i].l);
         }
@@ -1319,7 +1319,7 @@ native_type sjni_Call##type##MethodA(JNIEnvType ptr,                           \
     pMethodBlock mb = lookupVirtualMethod(ob, methodID);                       \
     REQUIRE(mb, 0);                                                            \
     int argc = mb->args_count -1;                                              \
-    REQUIRE((argc <= __builtin_memcap_length_get(capargs) / sizeof(jvalue_c)), 0);\
+    REQUIRE((argc <= __builtin_cheri_length_get(capargs) / sizeof(jvalue_c)), 0);\
     jvalue args[argc];                                                         \
     unwrapArguments(capargs, args, argc);                                      \
     return *(native_type*)executeMethodList(ob, ob->class, mb, (u8*)args);     \
@@ -1339,7 +1339,7 @@ jobject_c sjni_CallObjectMethodA(JNIEnvType ptr,
     pMethodBlock mb = lookupVirtualMethod(ob, methodID);
     REQUIRE(mb, 0);
     int argc = mb->args_count -1;
-    REQUIRE((argc <= __builtin_memcap_length_get(capargs) / sizeof(jvalue_c)), 0);
+    REQUIRE((argc <= __builtin_cheri_length_get(capargs) / sizeof(jvalue_c)), 0);
     jvalue args[argc];
     unwrapArguments(capargs, args, argc);
     jobject retobj = *(jobject*)executeMethodList(ob, ob->class, mb, (u8*)args);
@@ -1359,7 +1359,7 @@ jobject_c sjni_NewObjectA(JNIEnvType ptr,
     REQUIRE(methodID, 0);
     pMethodBlock mb = methodID;
     int argc = mb->args_count -1;
-    REQUIRE((argc <= __builtin_memcap_length_get(capargs) / sizeof(jvalue_c)), 0);
+    REQUIRE((argc <= __builtin_cheri_length_get(capargs) / sizeof(jvalue_c)), 0);
     jvalue args[argc];
     unwrapArguments(capargs, args, argc);
     jobject obj = env->NewObjectA(&env, cls, methodID, args);
@@ -1396,8 +1396,8 @@ sjni_GetDirectBufferAddress(JNIEnvType ptr, jobject_c buf)
         {
             perms &= ~__CHERI_CAP_PERMISSION_PERMIT_STORE__;
         }
-        cap = __builtin_memcap_bounds_set(cap, length);
-        cap = __builtin_memcap_perms_and(cap, perms);
+        cap = __builtin_cheri_bounds_set(cap, length);
+        cap = __builtin_cheri_perms_and(cap, perms);
         return cap;
     }
     return NULL;
@@ -1418,11 +1418,11 @@ SJNI_CALLBACK jlong sjni_GetDirectBufferCapacity(JNIEnvType ptr, jobject_c buf)
 bool checkString(__capability const char *str)
 {
     // Not a valid string if we can't read it!
-    if ((__builtin_memcap_perms_get(str) & __CHERI_CAP_PERMISSION_PERMIT_LOAD__) == 0)
+    if ((__builtin_cheri_perms_get(str) & __CHERI_CAP_PERMISSION_PERMIT_LOAD__) == 0)
     {
         return false;
     }
-    size_t len = __builtin_memcap_length_get(str);
+    size_t len = __builtin_cheri_length_get(str);
     return memchr((const void*)str, 0, len) != NULL;
 }
 
@@ -1518,10 +1518,10 @@ createSandboxCallbacks(struct jni_sandbox_object *pool)
     __capability struct _JNISandboxedNativeInterface *callbacks =
         (__capability struct _JNISandboxedNativeInterface *)calloc(1,
                 sizeof(struct _JNISandboxedNativeInterface));
-    callbacks = __builtin_memcap_bounds_set(callbacks, sizeof(struct
+    callbacks = __builtin_cheri_bounds_set(callbacks, sizeof(struct
                 _JNISandboxedNativeInterface));
 #define SET_CALLBACK(x) \
-    callbacks->x = __builtin_memcap_callback_create("_cheri_system_object", system, sjni_ ## x)
+    callbacks->x = __builtin_cheri_callback_create("_cheri_system_object", system, sjni_ ## x)
     SET_CALLBACK(GetVersion);
 #define ADD_ARRAY_ACCESSOR(type, ctype, x) SET_CALLBACK(Get##type##ArrayElements);
 #define ADD_ARRAY_RELEASE(type, ctype, x) SET_CALLBACK(Release##type##ArrayElements);
@@ -1551,7 +1551,7 @@ createSandboxCallbacks(struct jni_sandbox_object *pool)
     // use the reserved fields for anything.
     callbacks->reserved0 = seal_jnienv((SJNIEnvPtr)callbacks);
     callbacks->reserved1 = seal_jnienv((void*)pool);
-    callbacks = __builtin_memcap_perms_and(callbacks,
+    callbacks = __builtin_cheri_perms_and(callbacks,
             ~__CHERI_CAP_PERMISSION_PERMIT_STORE_CAPABILITY__ &
             ~__CHERI_CAP_PERMISSION_PERMIT_STORE__);
     return callbacks;
@@ -1609,8 +1609,8 @@ static void revoke_from_range(struct jni_sandbox_object *pool,
     {
         page_size = getpagesize();
     }
-    const size_t heap_base = __builtin_memcap_base_get(heap);
-    const size_t size = __builtin_memcap_length_get(heap);
+    const size_t heap_base = __builtin_cheri_base_get(heap);
+    const size_t size = __builtin_cheri_length_get(heap);
     const size_t heap_end = heap_base+size;
     const size_t pages = size / page_size;
     const size_t caps_per_page = page_size / sizeof(__capability void*);
@@ -1645,25 +1645,25 @@ static void revoke_from_range(struct jni_sandbox_object *pool,
         {
             __capability void *cap = page[c];
             // If the tag bit is clear, it's not a capability, so ignore it
-            if (!__builtin_memcap_tag_get(cap))
+            if (!__builtin_cheri_tag_get(cap))
             {
                 continue;
             }
             // If it's sealed, then it can be passed back and it might be
             // something that we care about.  If it's not sealed and its length
             // is zero, then it doesn't allow any access, so ignore it.
-            if (!__builtin_memcap_sealed_get(cap) && (__builtin_memcap_length_get(cap) == 0))
+            if (!__builtin_cheri_sealed_get(cap) && (__builtin_cheri_length_get(cap) == 0))
             {
                 continue;
             }
-            size_t base = __builtin_memcap_base_get(cap);
+            size_t base = __builtin_cheri_base_get(cap);
             if ((base >= heap_base) && (base <= heap_end))
             {
                 continue;
             }
             //fprintf(stderr, "Found escaped cap: ");
             //print_cap(cap);
-            if (!__builtin_memcap_sealed_get(cap))
+            if (!__builtin_cheri_sealed_get(cap))
             {
                 struct shared_unsealed_cap search;
                 search.base = base;
@@ -1924,7 +1924,7 @@ uintptr_t *callJNISandboxWrapper(pClass class, pMethodBlock mb, uintptr_t *ostac
     assert(pool);
     // FIXME: Check error, throw exception if sandbox creation failed
     char *signature;
-    cap_args[0] = __builtin_memcap_bounds_set((__capability void*)&pool->env, sizeof(__capability void*));
+    cap_args[0] = __builtin_cheri_bounds_set((__capability void*)&pool->env, sizeof(__capability void*));
 
     for (signature = mb->type+1 ; *signature != ')' ; signature++)
     {
