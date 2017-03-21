@@ -21,11 +21,11 @@ struct cheri_object test;
 void print_cap(const void *c)
 {
 	printf("b:0x%llx l:0x%llx o:0x%llx t:%d s:%d\n",
-			(unsigned long long)__builtin_memcap_base_get(c),
-			(unsigned long long)__builtin_memcap_length_get(c),
-			(unsigned long long)__builtin_memcap_offset_get(c),
-			(int)__builtin_memcap_type_get(c),
-			(int)__builtin_memcap_sealed_get(c));
+			(unsigned long long)__builtin_cheri_base_get(c),
+			(unsigned long long)__builtin_cheri_length_get(c),
+			(unsigned long long)__builtin_cheri_offset_get(c),
+			(int)__builtin_cheri_type_get(c),
+			(int)__builtin_cheri_sealed_get(c));
 }
 
 /*
@@ -48,9 +48,9 @@ JNIEXPORT jint JNICALL Java_SandboxTest_nativeThing
 JNIEXPORT void JNICALL Java_SandboxTest_nativeThingWithArgs
   (JNIEnv *env, jobject this, jobject obj, jint anInt, jlong aLong)
 {
-	assert(__builtin_memcap_sealed_get(this));
-	assert(__builtin_memcap_sealed_get(obj));
-	assert(!__builtin_memcap_sealed_get(env));
+	assert(__builtin_cheri_sealed_get(this));
+	assert(__builtin_cheri_sealed_get(obj));
+	assert(!__builtin_cheri_sealed_get(env));
 	assert(anInt == 1);
 	assert(aLong == 2);
 	assert(0x10006 == (*env)->GetVersion(env));
@@ -63,8 +63,8 @@ JNIEXPORT void JNICALL Java_SandboxTest_checkBuffer
 	jsize capacity = (*env)->GetDirectBufferCapacity(env, b);
 	char *buf = (*env)->GetDirectBufferAddress(env, b);
 	assert(buf);
-	assert(__builtin_memcap_length_get(buf) == capacity);
-	int perms = __builtin_memcap_perms_get(buf);
+	assert(__builtin_cheri_length_get(buf) == capacity);
+	int perms = __builtin_cheri_perms_get(buf);
 	assert((perms & __CHERI_CAP_PERMISSION_PERMIT_STORE_CAPABILITY__) == 0);
 	assert((perms & __CHERI_CAP_PERMISSION_PERMIT_LOAD_CAPABILITY__) == 0);
 	_Bool isReadOnly = (perms & __CHERI_CAP_PERMISSION_PERMIT_STORE__) == 0;
@@ -87,15 +87,15 @@ JNIEXPORT void JNICALL Java_SandboxTest_leakArray
 	assert(leakobject == 0);
 	leakobject = this;
 	jboolean isCopy;
-	assert(__builtin_memcap_sealed_get(array));
+	assert(__builtin_cheri_sealed_get(array));
 	buffer = (*env)->GetIntArrayElements(env, array, &isCopy);
 	assert(isCopy == 0);
-	assert(!__builtin_memcap_sealed_get(buffer));
-	assert(__builtin_memcap_length_get(buffer) == sizeof(jint) * 10);
-	long long perms = __builtin_memcap_perms_get(buffer);
+	assert(!__builtin_cheri_sealed_get(buffer));
+	assert(__builtin_cheri_length_get(buffer) == sizeof(jint) * 10);
+	long long perms = __builtin_cheri_perms_get(buffer);
 	assert((perms & __CHERI_CAP_PERMISSION_PERMIT_STORE_CAPABILITY__) == 0);
 	assert((perms & __CHERI_CAP_PERMISSION_PERMIT_LOAD_CAPABILITY__) == 0);
-	buffer = __builtin_memcap_bounds_set(buffer + 3, 4);
+	buffer = __builtin_cheri_bounds_set(buffer + 3, 4);
 	(*env)->ReleaseIntArrayElements(env, array, buffer, 0);
 }
 
@@ -103,11 +103,11 @@ JNIEXPORT void JNICALL Java_SandboxTest_arrayaccess
   (JNIEnv *env, jobject this, jintArray array)
 {
 	jboolean isCopy;
-	assert(__builtin_memcap_sealed_get(array));
+	assert(__builtin_cheri_sealed_get(array));
 	jint *buffer = (*env)->GetIntArrayElements(env, array, &isCopy);
-	assert(!__builtin_memcap_sealed_get(buffer));
-	assert(__builtin_memcap_length_get(buffer) == sizeof(jint) * 10);
-	long long perms = __builtin_memcap_perms_get(buffer);
+	assert(!__builtin_cheri_sealed_get(buffer));
+	assert(__builtin_cheri_length_get(buffer) == sizeof(jint) * 10);
+	long long perms = __builtin_cheri_perms_get(buffer);
 	assert((perms & __CHERI_CAP_PERMISSION_PERMIT_STORE_CAPABILITY__) == 0);
 	assert((perms & __CHERI_CAP_PERMISSION_PERMIT_LOAD_CAPABILITY__) == 0);
 }
@@ -116,7 +116,7 @@ JNIEXPORT void JNICALL Java_SandboxTest_invalidarrayaccess
   (JNIEnv *env, jobject this, jintArray array)
 {
 	jboolean isCopy;
-	assert(__builtin_memcap_sealed_get(array));
+	assert(__builtin_cheri_sealed_get(array));
 	jint *buffer = (*env)->GetIntArrayElements(env, array, &isCopy);
 	assert(isCopy == 0);
 	buffer[10] = 12;
@@ -131,14 +131,14 @@ JNIEXPORT void JNICALL Java_SandboxTest_reflectfields
   (JNIEnv *env, jobject this, jobject r)
 {
 	jclass cls = (*env)->GetObjectClass(env, r);
-	assert(__builtin_memcap_sealed_get(cls));
+	assert(__builtin_cheri_sealed_get(cls));
 	jfieldID f = (*env)->GetFieldID(env, cls, "x", "I");
-	assert(__builtin_memcap_sealed_get(f));
+	assert(__builtin_cheri_sealed_get(f));
 	jint x = (*env)->GetIntField(env, r, f);
 	assert(x == 12);
 	(*env)->SetIntField(env, r, f, -1);
 	f = (*env)->GetFieldID(env, cls, "y", "J");
-	assert(__builtin_memcap_sealed_get(f));
+	assert(__builtin_cheri_sealed_get(f));
 	jlong y = (*env)->GetLongField(env, r, f);
 	assert(y == 42);
 	(*env)->SetLongField(env, r, f, 47);

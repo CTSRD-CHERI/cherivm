@@ -11,11 +11,11 @@
 void print_cap(const void *c)
 {
 	printf("b:0x%llx l:0x%llx o:0x%llx t:%d s:%d\n",
-		(unsigned long long)__builtin_memcap_base_get(c),
-		(unsigned long long)__builtin_memcap_length_get(c),
-		(unsigned long long)__builtin_memcap_offset_get(c),
-		(int)__builtin_memcap_type_get(c),
-		(int)__builtin_memcap_sealed_get(c));
+		(unsigned long long)__builtin_cheri_base_get(c),
+		(unsigned long long)__builtin_cheri_length_get(c),
+		(unsigned long long)__builtin_cheri_offset_get(c),
+		(int)__builtin_cheri_type_get(c),
+		(int)__builtin_cheri_sealed_get(c));
 }
 #endif
 
@@ -140,8 +140,8 @@ Java_BenchmarkZlib_compressUnsafe
 #ifdef __CHERI_PURE_CAPABILITY__
 	//print_cap(in);
 	//print_cap(out);
-	//assert(__builtin_memcap_length_get(in) >= in_len);
-	//assert(__builtin_memcap_length_get(out) >= out_len);
+	//assert(__builtin_cheri_length_get(in) >= in_len);
+	//assert(__builtin_cheri_length_get(out) >= out_len);
 #endif
 	return compress_bytes(in, out, in_len, out_len);
 }
@@ -181,8 +181,8 @@ Java_BenchmarkZlib_decompressUnsafe
 #ifdef __CHERI_PURE_CAPABILITY__
 	//print_cap(in);
 	//print_cap(out);
-	//assert(__builtin_memcap_length_get(in) >= in_len);
-	//assert(__builtin_memcap_length_get(out) >= out_len);
+	//assert(__builtin_cheri_length_get(in) >= in_len);
+	//assert(__builtin_cheri_length_get(out) >= out_len);
 #endif
 	return decompress_bytes(in, out, in_len, out_len);
 }
