@@ -7,7 +7,7 @@ SYSROOT=${SDK_ROOT}/sysroot
 
 CFLAGS=-I ../opt/target/include/ -msoft-float -O2 -cheri-linker
 SANDBOX_LDFLAGS=-Wl,--script=${SYSROOT}/usr/libdata/ldscripts/sandbox.ld -static -nostdlib -lc_cheri -lcheri -lcheri_syscalls
-SANDBOX_CFLAGS=${CFLAGS} -cheri-linker -mabi=sandbox
+SANDBOX_CFLAGS=${CFLAGS} -cheri-linker -mabi=purecap
 CC=${SDK_ROOT}/bin/clang
 
 
